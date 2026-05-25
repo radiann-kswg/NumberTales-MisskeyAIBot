@@ -2,6 +2,7 @@
 
 > 最終更新: 2026-05-25
 > ステータス: 草案（一部決定済み）
+
 ---
 
 ## コンセプト
@@ -84,14 +85,15 @@ AI感を出しすぎず、軽量・短文・絵文字豊富な投稿でインス
 
 詳細は各仕様書を参照。
 
-| カテゴリ           | 概要                                         | 仕様書                                                 |
-| ------------------ | -------------------------------------------- | ------------------------------------------------------ |
-| モード切替         | 球体型/人型の2フォームで口調・振る舞いが変化 | [02_interaction-design.md](./02_interaction-design.md) |
-| ゆる会話           | メンション・リプライへの日常的な短文応答     | [01_feature-specs.md](./01_feature-specs.md)           |
-| 深夜雑談           | 時間帯に応じた浮上頻度・トーンの変化         | [01_feature-specs.md](./01_feature-specs.md)           |
-| 創作支援           | お題生成・キャラ設定の壁打ち・世界観深掘り   | [01_feature-specs.md](./01_feature-specs.md)           |
-| TL観測・反応       | カスタム絵文字リアクション・エモパシー返信   | [01_feature-specs.md](./01_feature-specs.md)           |
-| 技術アーキテクチャ | Misskey API連携・AI API選定・インフラ構成    | [03_tech-architecture.md](./03_tech-architecture.md)   |
+| カテゴリ             | 概要                                                                                          | 仕様書                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| フォーム・キャラ切替 | ヒューマノイド/コアフォルダ形態、マルチキャラクター対応                                       | [02_interaction-design.md](./02_interaction-design.md) |
+| ゆる会話             | メンション・リプライへの日常的な短文応答                                                      | [01_feature-specs.md](./01_feature-specs.md)           |
+| 自発投稿・時間帯制御 | 時間帯ピーク4種に応じた浮上頻度・トーンの変化                                                 | [01_feature-specs.md](./01_feature-specs.md)           |
+| 創作支援             | お題生成・キャラ設定の壁打ち・世界観深掘り                                                    | [01_feature-specs.md](./01_feature-specs.md)           |
+| TL観測・反応         | カスタム絵文字リアクション・エモパシー返信                                                    | [01_feature-specs.md](./01_feature-specs.md)           |
+| 数字・ヌメロジー     | 計算・ダイス・数秘占い・数字うんちく。AbilityStatsで演出差、NumerospecStatsで占い結果を構造化 | [01_feature-specs.md](./01_feature-specs.md)           |
+| 技術アーキテクチャ   | Misskey API連携・AI API選定・インフラ構成                                                     | [03_tech-architecture.md](./03_tech-architecture.md)   |
 
 ---
 
