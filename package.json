@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "ナンバーテールズ各個体を模した Misskey AI Bot（000(チトセ) を主軸とし、公開済みキャラクターへのマルチキャラクター対応）",
   "private": true,
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

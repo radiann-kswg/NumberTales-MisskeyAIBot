@@ -7,6 +7,9 @@
 		"/^Set-Location \"d:\\\\VisualStudio Code Userfile\\\\NumberTales-MisskeyAIBot\"; node \\.cache/check-connection\\.mjs$/": {
 			"approve": true,
 			"matchCommandLine": true
-		}
+		},
+		"npx.cmd": true,
+		"ConvertFrom-Json": true,
+		"ConvertTo-Json": true
 	}
 }

@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { config } from './config/env.js';
 import { createAIProvider } from './ai/index.js';
+import { MisskeyClient } from './misskey/client.js';
+import { RateLimiter } from './bot/ratelimit/index.js';
+import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { logger } from './utils/logger.js';
 
 async function main(): Promise<void> {
@@ -16,10 +19,43 @@ async function main(): Promise<void> {
   });
   logger.info(`AI provider initialized: ${ai.name}`);
 
-  // Phase 1: Misskey WebSocket 接続・イベントハンドラ登録
-  // Phase 2: スケジューラー起動（自発投稿・時間帯制御）
+  // Misskey クライアント初期化
+  const misskeyClient = new MisskeyClient(config.misskey.host, config.misskey.token);
+  const myUserId = await misskeyClient.getMyUserId();
+  logger.info(`Logged in as userId: ${myUserId}`);
 
-  logger.info('Bot initialized. Waiting for Phase 1 implementation...');
+  // レートリミッター初期化
+  const rateLimiter = new RateLimiter(
+    config.rateLimit.replyCooldownMs,
+    config.rateLimit.globalPerHour,
+  );
+
+  // メンション受信ループ開始
+  misskeyClient.onMention(async (note) => {
+    // @username メンション部分を除去してテキストを抽出
+    const rawText = note.text ?? '';
+    const text = rawText.replace(/@\S+/g, '').trim();
+
+    const event: MentionEvent = {
+      noteId: note.id,
+      userId: note.userId,
+      text,
+      replyId: note.replyId ?? undefined,
+    };
+
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter });
+  });
+
+  logger.info('Bot is listening for mentions...');
+
+  // プロセス終了時のクリーンアップ
+  const shutdown = (): void => {
+    logger.info('Shutting down...');
+    misskeyClient.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 main().catch((err: unknown) => {
