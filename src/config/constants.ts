@@ -1,0 +1,16 @@
+export const BOT_CONSTANTS = {
+  /** 日常投稿の最大文字数（仕様: 100文字以内） */
+  MAX_NOTE_LENGTH: 100,
+
+  /** 自発投稿のデフォルト公開範囲（ホーム投稿: フォロワーのみTLに流れる） */
+  DEFAULT_VISIBILITY: 'home' as const,
+
+  /** コアフォルダ形態へのキーワードトリガー（暫定） */
+  CORE_FOLDER_TRIGGERS: ['もふもふ', 'コアフォルダ', '球体型', 'ぷに', 'ぽてぽて'] as const,
+
+  /** ヒューマノイド形態へのキーワードトリガー */
+  HUMANOID_TRIGGERS: ['人型モード', 'ヒューマノイド'] as const,
+
+  /** NT本作直接関与ハッシュタグ（全体監視対象） */
+  WATCHED_HASHTAGS: ['ナンバーテールズ', 'ナンバーテールズの主人より'] as const,
+} as const;

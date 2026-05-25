@@ -88,9 +88,27 @@ docs/
 
 ### 0-3: 初期アーキテクチャ確認
 
-- [ ] AI APIの抽象レイヤー（AIProviderインターフェース）の設計
-- [ ] Bot全体のエントリポイント設計（`src/index.ts`）
-- [ ] イベントハンドラの責務分割設計
+- [x] AI APIの抽象レイヤー（AIProviderインターフェース）の設計 → `src/ai/`
+- [x] Bot全体のエントリポイント設計（`src/index.ts`）→ 初期化フロー実装
+- [x] イベントハンドラの責務分割設計 → `src/bot/handlers/` 3本作成
+
+#### 作成ファイル一覧（0-3）
+
+| ファイル | 内容 |
+|---------|------|
+| `src/config/env.ts` | 環境変数の読み込み・バリデーション |
+| `src/config/constants.ts` | Bot定数（文字数・トリガーキーワード等）|
+| `src/utils/logger.ts` | シンプルなロガー（console ラッパー）|
+| `src/ai/provider.ts` | `AIProvider` インターフェース定義 |
+| `src/ai/openai.ts` | OpenAI GPT-4o-mini 実装 |
+| `src/ai/gemini.ts` | Gemini 1.5 Flash 実装 |
+| `src/ai/index.ts` | `createAIProvider` ファクトリ（openai/gemini 切り替え）|
+| `src/bot/handlers/mention.ts` | メンションハンドラ（Phase 1 実装予定）|
+| `src/bot/handlers/timeline.ts` | TL観測ハンドラ（Phase 2 実装予定）|
+| `src/bot/handlers/scheduler.ts` | 自発投稿スケジューラー（Phase 2 実装予定）|
+| `src/index.ts` | エントリポイント（初期化フロー）|
+
+`tsc --noEmit` による型チェック: **エラー 0 件** ✅
 
 ---
 
