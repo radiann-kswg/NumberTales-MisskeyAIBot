@@ -1,7 +1,7 @@
 # Phase 0 キックオフ — 技術スタック確定・環境準備
 
 > 作成日: 2026-05-25
-> ステータス: 進行中
+> ステータス: **完了** ✅
 
 ---
 
@@ -19,7 +19,7 @@ Phase 0 では技術スタックの最終確定と開発環境のセットアッ
 | 実行ランタイム       | **Node.js (TypeScript)**        | Misskey.js等APIライブラリの充実度・OpenAI SDKとの統合しやすさ                |
 | Misskey連携          | **misskey.js**                  | WebSocket購読・ノート投稿等を統合したライブラリ                              |
 | AI API（プライマリ） | **OpenAI GPT-4o-mini**          | 日本語精度・キャラクター維持・コスト効率のバランスが最良                     |
-| AI API（セカンダリ） | **Google Gemini 1.5 Flash**     | 差し替え可能な抽象レイヤー経由で維持。コスト優先・大コンテキスト時に切り替え |
+| AI API（セカンダリ） | **Google Gemini 2.5 Flash**     | 差し替え可能な抽象レイヤー経由で維持。コスト優先・大コンテキスト時に切り替え |
 | 軽量分類             | ルールベース（正規表現 + 辞書） | 意図分類・感情カテゴリ判定。APIコスト削減                                    |
 | 一時ストレージ       | SQLite / メモリキャッシュ       | セッションコンテキストの一時保持（TTL付き）                                  |
 | 数式パーサ           | mathjs（未確定）                | F-06 計算コマンド用。eval()禁止のため必須                                    |
@@ -77,9 +77,9 @@ docs/
 - [x] パッケージインストール完了（脆弱性 0 件）
   - `misskey-js` / `openai` / `@google/generative-ai` / `mathjs@^15.2.0` / `dotenv`
   - `better-sqlite3` は Node.js v24 組み込みの `node:sqlite` に置き換え
-- [ ] `misskey-js` 疎通確認（APIトークン取得後に実施）
-- [ ] OpenAI SDK 疎通確認（APIキー取得後に実施）
-- [ ] Google Generative AI SDK 疎通確認（APIキー取得後に実施）
+- [x] `misskey-js` 疎通確認 → **@APHR_NTs** (`radiann6631.net`) ログイン成功 ✅
+- [x] OpenAI SDK 疎通確認 → `gpt-4o-mini` 応答確認 ✅
+- [x] Google Generative AI SDK 疎通確認 → `gemini-2.5-flash` 応答確認 ✅（`gemini-1.5-flash` は廃止済みのため `gemini-2.5-flash` に変更）
 
 #### 備考
 
@@ -101,7 +101,7 @@ docs/
 | `src/utils/logger.ts` | シンプルなロガー（console ラッパー）|
 | `src/ai/provider.ts` | `AIProvider` インターフェース定義 |
 | `src/ai/openai.ts` | OpenAI GPT-4o-mini 実装 |
-| `src/ai/gemini.ts` | Gemini 1.5 Flash 実装 |
+| `src/ai/gemini.ts` | Gemini 2.5 Flash 実装 |
 | `src/ai/index.ts` | `createAIProvider` ファクトリ（openai/gemini 切り替え）|
 | `src/bot/handlers/mention.ts` | メンションハンドラ（Phase 1 実装予定）|
 | `src/bot/handlers/timeline.ts` | TL観測ハンドラ（Phase 2 実装予定）|
