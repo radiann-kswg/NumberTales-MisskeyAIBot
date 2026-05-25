@@ -31,8 +31,9 @@ jobs:
 
             cd ~/NumberTales-MisskeyAIBot
 
-            # 最新コードを取得
-            git pull origin master
+            # 最新コードを取得（ローカル変更を破棄してリモートに合わせる）
+            git fetch origin master
+            git reset --hard origin/master
 
             # 依存パッケージをインストール（ビルドに devDependencies が必要）
             npm install
