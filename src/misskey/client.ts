@@ -27,7 +27,7 @@ export class MisskeyClient {
     });
 
     this.stream.on('_disconnected_', () => {
-      logger.warn('Misskey WebSocket disconnected. Reconnecting...');
+      logger.debug('Misskey WebSocket disconnected. Reconnecting...');
     });
   }
 
