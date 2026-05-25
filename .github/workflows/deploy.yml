@@ -1,0 +1,39 @@
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: SSH deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.GCP_SSH_HOST }}
+          username: ${{ secrets.GCP_SSH_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.GCP_SSH_PORT }}
+          script: |
+            set -e
+            cd ~/NumberTales-MisskeyAIBot
+
+            # 最新コードを取得
+            git pull origin master
+
+            # 依存パッケージをインストール（devDependencies 除外）
+            npm install --omit=dev
+
+            # TypeScript ビルド
+            npm run build
+
+            # Bot を再起動（初回は start、以降は reload でダウンタイムなし）
+            pm2 reload ecosystem.config.cjs --env production || \
+              pm2 start ecosystem.config.cjs --env production
+
+            # ステータス確認
+            pm2 list
