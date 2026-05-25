@@ -18,6 +18,7 @@ jobs:
           username: ${{ secrets.GCP_SSH_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           port: ${{ secrets.GCP_SSH_PORT }}
+          debug: true
           script: |
             set -e
             cd ~/NumberTales-MisskeyAIBot
