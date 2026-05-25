@@ -33,9 +33,11 @@ export class RateLimiter {
     // 全体の時間あたり上限チェック
     if (this.globalPostTimes.length >= this.globalPerHour) return false;
 
-    // 同一ユーザーへのクールダウン
-    const last = this.lastReply.get(userId);
-    if (last !== undefined && now - last < this.cooldownMs) return false;
+    // 同一ユーザーへのクールダウン（0 の場合は無効）
+    if (this.cooldownMs > 0) {
+      const last = this.lastReply.get(userId);
+      if (last !== undefined && now - last < this.cooldownMs) return false;
+    }
 
     return true;
   }
