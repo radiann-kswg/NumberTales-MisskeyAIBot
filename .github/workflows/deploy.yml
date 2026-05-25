@@ -25,11 +25,14 @@ jobs:
             # 最新コードを取得
             git pull origin master
 
-            # 依存パッケージをインストール（devDependencies 除外）
-            npm install --omit=dev
+            # 依存パッケージをインストール（ビルドに devDependencies が必要）
+            npm install
 
             # TypeScript ビルド
             npm run build
+
+            # ビルド後に devDependencies を削除して本番用に最適化
+            npm prune --omit=dev
 
             # Bot を再起動（初回は start、以降は reload でダウンタイムなし）
             pm2 reload ecosystem.config.cjs --env production || \

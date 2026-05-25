@@ -53,7 +53,7 @@ git submodule update --init --recursive
 ### 1-5. 依存パッケージのインストールとビルド
 
 ```bash
-npm install --omit=dev
+npm install
 npm run build
 ```
 
@@ -66,17 +66,17 @@ nano .env   # または vim .env
 
 以下の値を本番用に設定する:
 
-| 変数 | 設定値の例 |
-|------|------------|
-| `MISSKEY_HOST` | `https://radiann6631.net` |
-| `MISSKEY_TOKEN` | Bot アカウントの API トークン |
-| `AI_PROVIDER` | `openai` |
-| `OPENAI_API_KEY` | OpenAI の API キー |
-| `GEMINI_API_KEY` | Gemini の API キー |
-| `NODE_ENV` | **`production`** |
-| `LOG_LEVEL` | `info` |
-| `RATE_LIMIT_REPLY_COOLDOWN_MS` | `1800000`（30分） |
-| `RATE_LIMIT_GLOBAL_PER_HOUR` | `10` |
+| 変数                           | 設定値の例                    |
+| ------------------------------ | ----------------------------- |
+| `MISSKEY_HOST`                 | `https://radiann6631.net`     |
+| `MISSKEY_TOKEN`                | Bot アカウントの API トークン |
+| `AI_PROVIDER`                  | `openai`                      |
+| `OPENAI_API_KEY`               | OpenAI の API キー            |
+| `GEMINI_API_KEY`               | Gemini の API キー            |
+| `NODE_ENV`                     | **`production`**              |
+| `LOG_LEVEL`                    | `info`                        |
+| `RATE_LIMIT_REPLY_COOLDOWN_MS` | `1800000`（30分）             |
+| `RATE_LIMIT_GLOBAL_PER_HOUR`   | `10`                          |
 
 ### 1-7. ログディレクトリの作成
 
@@ -112,12 +112,12 @@ pm2 save
 
 リポジトリの `Settings > Secrets and variables > Actions` に以下を登録する:
 
-| Secret 名 | 値 |
-|-----------|-----|
-| `GCP_SSH_HOST` | VM の外部 IP アドレス |
-| `GCP_SSH_USER` | SSH ユーザー名（例: `ubuntu`, `deploy`） |
+| Secret 名             | 値                                                                 |
+| --------------------- | ------------------------------------------------------------------ |
+| `GCP_SSH_HOST`        | VM の外部 IP アドレス                                              |
+| `GCP_SSH_USER`        | SSH ユーザー名（例: `ubuntu`, `deploy`）                           |
 | `GCP_SSH_PRIVATE_KEY` | SSH 秘密鍵の内容（`-----BEGIN OPENSSH PRIVATE KEY-----` から全文） |
-| `GCP_SSH_PORT` | `22`（変更していない場合） |
+| `GCP_SSH_PORT`        | `22`（変更していない場合）                                         |
 
 ### 2-2. SSH 鍵ペアの生成（VM に登録済みでない場合）
 

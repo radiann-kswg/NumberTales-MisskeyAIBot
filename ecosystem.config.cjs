@@ -6,7 +6,7 @@ module.exports = {
     {
       name: 'numbertales-bot',
       script: 'dist/index.js',
-      cwd: '/home/snine9801/NumberTales-MisskeyAIBot',
+      cwd: `${process.env.HOME}/NumberTales-MisskeyAIBot`,
 
       // インスタンス数（シングルプロセス）
       instances: 1,
