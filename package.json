@@ -1,7 +1,7 @@
 {
   "name": "numbertales-misskey-ai-bot",
   "version": "0.1.0",
-  "description": "ナンバーテールズ0番機 000(チトセ) を模した Misskey AI Bot",
+  "description": "ナンバーテールズ各個体を模した Misskey AI Bot（000(チトセ) を主軸とし、公開済みキャラクターへのマルチキャラクター対応）",
   "private": true,
   "main": "dist/index.js",
   "scripts": {
@@ -33,5 +33,5 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "license": "UNLICENSED"
+  "license": "CC-BY-NC-4.0"
 }
