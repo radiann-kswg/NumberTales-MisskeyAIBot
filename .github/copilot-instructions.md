@@ -1,10 +1,56 @@
 # NumberTales Misskey AI Bot — Copilot Instructions
 
-このプロジェクトは **ナンバーテールズ0番機 000(チトセ)** を模したMisskey AI Botの開発リポジトリです。
+## このドキュメントについて
+
+GitHub Copilot や各種 AI ツールが本リポジトリのコンテキストを理解しやすくするためのガイドです。
 詳細なコンテキストは [AGENTS.md](../AGENTS.md) を参照してください。
 
-## Copilot向け補足
+## 前提条件
 
-- プロンプトやBot応答文を生成するとき、[_roleplay-datas/roleplay-prompt.md](../_roleplay-datas/roleplay-prompt.md) の口調・性格設定に準拠すること
-- キャラクターデータを参照する際は `_creations-db/data/` 配下のJSONを使用する
-- ナンバーテールズに関する設定は公式ガイドライン([百花繚乱研究所 創作DB](https://github.com/radiann-kswg/100BeautiesLab_CreationsDB))を遵守すること
+- 回答は必ず **日本語** でしてください。
+- 不確かな点がある場合は、リポジトリのファイルを探索し確認してください。
+- 大きな変更（複数ファイルにまたがる新規作成・構成変更など）を行う場合は、事前に計画を提示してください。
+- **ナンバーテールズ / 百花繚乱研究所の創作ガイドライン**（[CC BY-NC 4.0](https://github.com/radiann-kswg/100BeautiesLab_CreationsDB)）を常に遵守してください。
+
+## プロジェクト概要
+
+ナンバーテールズ0番機 **000(チトセ)** を模した生成AI Botを [Misskey](https://misskey-hub.net/)（分散型SNS）上で動作させるためのアイデア整理・開発リポジトリです。
+
+- **Bot キャラクター**: 000(チトセ) — 中性的・若手エンジニア肌のポータブルヒューマノイド
+- **AI 基盤**: ChatGPT / Gemini 等の生成AI API（現在はアイデア検討段階）
+- **現在のフェーズ**: アイデア整理・プロンプト設計
+
+## ディレクトリ構成
+
+```
+_roleplay-datas/       # ロールプレイ用プロンプト・AI連携情報
+  roleplay-prompt.md   # 000(チトセ)の性格・口調・命令文（必読）
+  ai-link.md           # 連携中のAIサービスへのリンク集
+_rough-idea/           # Bot機能アイデア検討メモ（ChatGPT/Geminiとの対話ログ）
+_creations-db/         # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
+  data/                # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
+  docs/                # DB仕様ドキュメント
+```
+
+## キャラクター設定・口調の参照
+
+- Bot 応答文・プロンプトを生成するときは必ず [\_roleplay-datas/roleplay-prompt.md](../_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
+  - 一人称「私(わたし)」、二人称「君」または「クライアント君」
+  - 中性的でフレンドリー、職人気質な若手エンジニア口調
+- キャラクターデータは `_creations-db/data/Works_NumberTales/` 配下の JSON を参照すること
+- 000(チトせ) のキャラクター詳細: https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=
+
+## Bot 開発の設計方針
+
+- 投稿文字数: 日常会話は **100文字以内** を目安、詳細は CW（注釈）内に格納
+- カスタム絵文字を積極活用し、AI感を出しすぎない自然な投稿を心がける
+- **ユーザー個人情報の永続保存は行わない**
+- 球体型（55cm）/人型（165cm）のモード切り替えはBot上の演出として活用可
+
+## アンチパターン（禁止事項）
+
+- **創作内容の自動生成**: 000(チトせ) や他ナンバーテールズの未公開設定・台詞・ストーリーを Copilot が自動生成しないこと。キャラクター設定の値はユーザーが手動で入力・監修する
+- **ガイドライン違反表現**: 反社会的表現、著しい性的表現、ヘイト行為、公式設定からの著しい逸脱
+- **商用利用**: 創作DB（CC BY-NC 4.0）のデータを商用目的で運用しないこと
+- **サブモジュールへの直接編集**: `_creations-db/` 配下のファイルは参照専用とし、直接編集しないこと
+- **`_rough-idea/` への実装コードの配置**: アイデアメモ専用フォルダのため、コードファイルは置かないこと
