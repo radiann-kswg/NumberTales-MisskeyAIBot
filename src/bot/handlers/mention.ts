@@ -135,7 +135,7 @@ export async function handleMention(
 /**
  * 応答テキストを Misskey 投稿フォーマットに変換する
  * - 100文字以内: そのまま text に
- * - 100文字超: CW に要約（最初の MAX_NOTE_LENGTH 文字 + "…"）、text に全文
+ * - 100文字超: CW に固定ラベル「000の返信」、text に全文
  */
 function formatForNote(text: string): { text: string; cw?: string } {
   if (text.length <= BOT_CONSTANTS.MAX_NOTE_LENGTH) {
@@ -143,6 +143,6 @@ function formatForNote(text: string): { text: string; cw?: string } {
   }
   return {
     text,
-    cw: text.slice(0, BOT_CONSTANTS.MAX_NOTE_LENGTH - 1) + '…',
+    cw: `${BOT_CONSTANTS.CHITOSE_NUM}の返信`,
   };
 }
