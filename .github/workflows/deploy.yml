@@ -21,6 +21,9 @@ jobs:
           debug: true
           script: |
             set -e
+            # root 所有ファイルが混在する場合に備えて所有権を修正
+            sudo chown -R "$(whoami)" ~/NumberTales-MisskeyAIBot/ 2>/dev/null || true
+
             cd ~/NumberTales-MisskeyAIBot
 
             # 最新コードを取得
