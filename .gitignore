@@ -1,0 +1,19 @@
+# 依存パッケージ
+node_modules/
+
+# ビルド成果物
+dist/
+
+# 環境変数（APIキー等の機密情報）
+.env
+
+# 一時キャッシュ（セッションDB等）
+.cache/
+
+# ログファイル
+*.log
+logs/
+
+# エディタ・OS設定
+.DS_Store
+Thumbs.db
