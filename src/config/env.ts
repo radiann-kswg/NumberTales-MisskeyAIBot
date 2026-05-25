@@ -32,7 +32,7 @@ export const config = {
     logLevel: optionalEnv('LOG_LEVEL', 'info') as 'error' | 'warn' | 'info' | 'debug',
   },
   rateLimit: {
-    replyCooldownMs: parseInt(optionalEnv('RATE_LIMIT_REPLY_COOLDOWN_MS', '1800000'), 10),
+    replyCooldownMs: parseInt(optionalEnv('RATE_LIMIT_REPLY_COOLDOWN_MS', '60000'), 10),
     globalPerHour: parseInt(optionalEnv('RATE_LIMIT_GLOBAL_PER_HOUR', '10'), 10),
   },
 } as const;
