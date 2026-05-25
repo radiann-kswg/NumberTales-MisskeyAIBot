@@ -71,12 +71,20 @@ docs/
 
 ### 0-2: 開発環境セットアップ
 
-- [ ] Node.js バージョン確認（LTS推奨）
-- [ ] TypeScript + tsconfig 初期設定
-- [ ] ESLint / Prettier 設定（コードスタイル統一）
-- [ ] `misskey.js` パッケージのインストール・疎通確認
-- [ ] OpenAI SDK (`openai`) のインストール・疎通確認（APIキーは環境変数で管理）
-- [ ] Google Generative AI SDK (`@google/generative-ai`) のインストール
+- [x] Node.js バージョン確認 → **v24.11.0**（npm 11.6.1）
+- [x] TypeScript + tsconfig 初期設定 → `tsconfig.json` 作成（target: ES2022, module: Node16）
+- [x] ESLint / Prettier 設定 → `.eslintrc.json` / `.prettierrc.json` 作成・動作確認済み
+- [x] パッケージインストール完了（脆弱性 0 件）
+  - `misskey-js` / `openai` / `@google/generative-ai` / `mathjs@^15.2.0` / `dotenv`
+  - `better-sqlite3` は Node.js v24 組み込みの `node:sqlite` に置き換え
+- [ ] `misskey-js` 疎通確認（APIトークン取得後に実施）
+- [ ] OpenAI SDK 疎通確認（APIキー取得後に実施）
+- [ ] Google Generative AI SDK 疎通確認（APIキー取得後に実施）
+
+#### 備考
+
+- `better-sqlite3` はネイティブビルドが必要でビルド失敗 → Node.js v24 組み込みの `node:sqlite` を採用（外部依存なし）
+- ESLint v8 + TypeScript 5.9.x の非公式サポート警告が出るが動作に支障なし（将来 ESLint v9 移行を検討）
 
 ### 0-3: 初期アーキテクチャ確認
 
