@@ -3,6 +3,7 @@ import { config } from './config/env.js';
 import { createAIProvider } from './ai/index.js';
 import { MisskeyClient } from './misskey/client.js';
 import { RateLimiter } from './bot/ratelimit/index.js';
+import { SessionStore } from './storage/session.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { logger } from './utils/logger.js';
 
@@ -30,6 +31,11 @@ async function main(): Promise<void> {
     config.rateLimit.globalPerHour,
   );
 
+  // セッションコンテキストストア初期化（TTL 付き SQLite）
+  const sessionStore = new SessionStore(config.storage.dbPath);
+  sessionStore.pruneExpired(); // 起動時に期限切れをクリーン
+  logger.info(`Session store ready: ${config.storage.dbPath}`);
+
   // メンション受信ループ開始
   misskeyClient.onMention(async (note) => {
     // @username メンション部分を除去してテキストを抽出
@@ -43,7 +49,7 @@ async function main(): Promise<void> {
       replyId: note.replyId ?? undefined,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -52,6 +58,7 @@ async function main(): Promise<void> {
   const shutdown = (): void => {
     logger.info('Shutting down...');
     misskeyClient.close();
+    sessionStore.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);

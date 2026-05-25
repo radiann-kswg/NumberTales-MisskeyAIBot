@@ -3,6 +3,7 @@
 import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
+import type { SessionStore } from '../../storage/session.js';
 import { classifyIntent } from '../classifier/intent.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -54,6 +55,7 @@ export interface MentionHandlerDeps {
   misskeyClient: MisskeyClient;
   myUserId: string;
   rateLimiter: RateLimiter;
+  sessionStore: SessionStore;
 }
 
 /**
@@ -72,7 +74,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore } = deps;
 
   // 1. 自己メンション除外
   if (event.userId === myUserId) return;
@@ -94,13 +96,20 @@ export async function handleMention(
   if (intent === 'greeting') {
     speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, pickGreetingResponse());
   } else {
+    // 会話履歴を取得して LLM に注入
+    const history = sessionStore.getHistory(event.userId);
     const messages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
+      ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user' as const, content: event.text },
     ];
     try {
       const result = await ai.chat(messages, { maxTokens: 150 });
-      speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, result.text.trim());
+      const replyText = result.text.trim();
+      speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, replyText);
+      // 履歴に記録（台詞部分のみ、書式なし）
+      sessionStore.addMessage(event.userId, 'user', event.text);
+      sessionStore.addMessage(event.userId, 'assistant', replyText);
     } catch (err) {
       logger.error('AI chat error:', err);
       speechText = formatSpeech(
