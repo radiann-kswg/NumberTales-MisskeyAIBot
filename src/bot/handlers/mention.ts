@@ -5,6 +5,7 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import { classifyIntent } from '../classifier/intent.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
+import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
 
@@ -88,10 +89,10 @@ export async function handleMention(
   // 4. 意図分類
   const intent = classifyIntent(event.text);
 
-  // 5. 応答生成
-  let responseText: string;
+  // 5. 応答生成 → 000(チトセ) 発言書式に整形
+  let speechText: string;
   if (intent === 'greeting') {
-    responseText = pickGreetingResponse();
+    speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, pickGreetingResponse());
   } else {
     const messages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
@@ -99,16 +100,18 @@ export async function handleMention(
     ];
     try {
       const result = await ai.chat(messages, { maxTokens: 150 });
-      responseText = result.text.trim();
+      speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, result.text.trim());
     } catch (err) {
       logger.error('AI chat error:', err);
-      responseText =
-        'ごめんね、今ちょっと調子が悪いみたい。また話しかけてくれると嬉しいな。';
+      speechText = formatSpeech(
+        BOT_CONSTANTS.CHITOSE_NUM,
+        'ごめんね、今ちょっと調子が悪いみたい。また話しかけてくれると嬉しいな。',
+      );
     }
   }
 
   // 6. 文字数制御（MAX_NOTE_LENGTH を超えたら CW 折りたたみ）
-  const { text, cw } = formatForNote(responseText);
+  const { text, cw } = formatForNote(speechText);
 
   // 7. 返信投稿
   try {

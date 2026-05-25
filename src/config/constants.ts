@@ -2,6 +2,9 @@ export const BOT_CONSTANTS = {
   /** 日常投稿の最大文字数（仕様: 100文字以内） */
   MAX_NOTE_LENGTH: 100,
 
+  /** 000(チトセ) のキャラクター番号 */
+  CHITOSE_NUM: '000',
+
   /** 自発投稿のデフォルト公開範囲（ホーム投稿: フォロワーのみTLに流れる） */
   DEFAULT_VISIBILITY: 'home' as const,
 
