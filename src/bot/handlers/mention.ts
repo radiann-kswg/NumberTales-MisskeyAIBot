@@ -7,6 +7,7 @@ import type { SessionStore } from '../../storage/session.js';
 import { classifyIntent } from '../classifier/intent.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
+import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
 
@@ -186,6 +187,13 @@ export async function handleMention(
     await misskeyClient.reply(text, event.noteId, { cw });
     rateLimiter.recordReply(event.userId);
     logger.info(`Replied to ${event.userId}: "${text.slice(0, 40)}..."`);
+
+    // 元ノートにリアクションを付与（失敗しても返信自体は成功とみなす）
+    const reactionPool = MENTION_REACTION_MAP[intent] ?? MENTION_REACTION_MAP['chat']!;
+    const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+    misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+      logger.warn('Failed to add reaction to mention:', err);
+    });
   } catch (err) {
     logger.error('Failed to post reply:', err);
   }

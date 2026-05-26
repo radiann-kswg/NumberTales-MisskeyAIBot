@@ -83,6 +83,30 @@ export class MisskeyClient {
     return me.id;
   }
 
+  /**
+   * homeTimeline チャンネルを購読してノートイベントを受け取る
+   * @param callback ノート受信時のコールバック
+   */
+  onHomeTL(callback: (note: Note) => void | Promise<void>): void {
+    const channel = this.stream.useChannel('homeTimeline');
+    channel.on('note', (note) => {
+      void callback(note);
+    });
+    logger.info('Subscribed to homeTimeline');
+  }
+
+  /**
+   * ノートにカスタム絵文字リアクションを付与する
+   * @param noteId 対象ノート ID
+   * @param emojiName 絵文字名（:と@.なし。例: iine_aphrnts42）
+   */
+  async react(noteId: string, emojiName: string): Promise<void> {
+    await this.apiClient.request('notes/reactions/create', {
+      noteId,
+      reaction: `:${emojiName}@.:`,
+    });
+  }
+
   /** WebSocket 接続を閉じる */
   close(): void {
     this.stream.close();

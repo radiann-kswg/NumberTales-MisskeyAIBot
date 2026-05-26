@@ -5,6 +5,7 @@ import { MisskeyClient } from './misskey/client.js';
 import { RateLimiter } from './bot/ratelimit/index.js';
 import { SessionStore } from './storage/session.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
+import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { PostScheduler } from './bot/scheduler/index.js';
 import { logger } from './utils/logger.js';
 
@@ -54,6 +55,10 @@ async function main(): Promise<void> {
   });
 
   logger.info('Bot is listening for mentions...');
+
+  // homeTimeline リアクションハンドラ起動
+  const handleTimelineNote = createTimelineHandler({ misskeyClient, myUserId });
+  misskeyClient.onHomeTL(handleTimelineNote);
 
   // 時間帯別自発投稿スケジューラー起動
   const scheduler = new PostScheduler({ ai, misskeyClient });
