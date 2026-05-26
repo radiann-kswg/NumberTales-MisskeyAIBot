@@ -18,7 +18,13 @@ Misskey インスタンス (radiann6631.net)
   │    └─ handlers/mention.ts
   │         ├─ 意図分類 (classifier/intent.ts)
   │         │    greeting / form-switch / creative-consultation / chat
-  │         ├─ 応答生成
+  │         │    calculate / numerology / dice / trivia  (F-06)
+  │         ├─ F-06 早期 return (features/f06/)
+  │         │    ├─ calculate  → safeEvaluate (mathjs)
+  │         │    ├─ numerology → ライフパス / 九星気学
+  │         │    ├─ dice       → Math.random() ダイス・乱数
+  │         │    └─ trivia     → LLM 委譲 (maxTokens 120)
+  │         ├─ 応答生成 (F-06 以外)
   │         │    ├─ 定型返答テンプレート (responder/templates/)
   │         │    └─ LLM 呼び出し (ai/ 経由)
   │         ├─ 返信投稿 (misskeyClient.reply)
@@ -64,19 +70,28 @@ AI プロバイダーの抽象レイヤー。`createAIProvider()` に `provider:
 メンションテキストから意図を分類する。返り値は `ClassificationResult`。
 
 ```typescript
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat';
+export type Intent =
+  | 'greeting'
+  | 'form-switch'
+  | 'creative-consultation'
+  | 'chat'
+  | 'calculate'    // F-06: 数式計算
+  | 'numerology'   // F-06: ライフパス・九星気学
+  | 'dice'         // F-06: ダイスロール・乱数
+  | 'trivia';      // F-06: 数字うんちく（LLM 委譲）
+
 export interface ClassificationResult {
   intent: Intent;
   formTarget?: 'core-folder' | 'humanoid'; // form-switch のときのみ
+  numerologyType?: 'life-path' | 'kyusei'; // numerology のときのみ
 }
 ```
 
-優先順: greeting → form-switch → creative-consultation → chat
+優先順: greeting → form-switch → creative-consultation → (life-path) → (kyusei) → dice → trivia → calculate → chat
 
 ### `src/bot/handlers/mention.ts`
 
-メンション受信時のメインハンドラ。intent に応じた 4 分岐。
-返信後に `MENTION_REACTION_MAP[intent]` から絵文字を選んでリアクション（fire-and-forget）。
+メンション受信時のメインハンドラ。F-06 グループ（calculate / numerology / dice / trivia）は early return で `features/f06/` に委譲し、trivia のみ LLM を呼ぶ。それ以外は greeting・form-switch・creative-consultation・chat の 4 分岐。返信後に `MENTION_REACTION_MAP[intent]` から絵文字を選んでリアクション（fire-and-forget）。
 
 ### `src/bot/handlers/timeline.ts`
 
@@ -117,6 +132,27 @@ TL ノートのフィルタリングと感情分類。
 
 時間帯別自発投稿スケジューラー。`PostScheduler` クラス。
 `setInterval` 10 分ごとに JST 時刻を判定し、対象スロット内かつクールダウン経過済みなら投稿。
+
+### `src/features/f06/`
+
+F-06 コマンド処理モジュール群。`mention.ts` の F-06 早期 return ブロックから呼ばれる。
+
+| ファイル        | 役割                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `calculator.ts` | `mathjs` ラッパー。`safeEvaluate()` で最大 200 文字の式を安全評価。禁止キーワードを弾く     |
+| `numerology.ts` | `lifePathNumber()` / `honmeisei()` / `TAROT_MAP` を提供                                     |
+| `responder.ts`  | 全 F-06 応答テンプレート + `TRIVIA_SYSTEM_PROMPT` / `buildTriviaUserPrompt()`              |
+| `index.ts`      | `handleCalculate` / `handleLifePath` / `handleKyusei` / `handleDice` / `extractTriviaNumber` を公開 |
+
+`F06Result` 型:
+
+```typescript
+export interface F06Result {
+  text: string;      // 通常ノート本文（100 文字以内を推奨）
+  cwBody?: string;   // CW 折りたたみ内テキスト
+  cwLabel?: string;  // CW ラベル文字列
+}
+```
 
 ### `src/misskey/client.ts`
 

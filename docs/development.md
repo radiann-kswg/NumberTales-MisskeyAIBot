@@ -104,6 +104,12 @@ src/
         emoji-map.ts           # EMOJI_POOL 定義
     scheduler/
       index.ts                 # PostScheduler（時間帯別自発投稿）
+  features/
+    f06/
+      calculator.ts            # mathjs ラッパー（safeEvaluate）
+      numerology.ts            # ライフパスナンバー・九星気学・タロット計算
+      responder.ts             # F-06 応答テンプレート + LLM プロンプト定数
+      index.ts                 # ディスパッチャー（4 ハンドラ + extractTriviaNumber）
   config/
     constants.ts               # BOT_CONSTANTS 定数
     env.ts                     # 環境変数の読み込みと検証
@@ -119,15 +125,19 @@ src/
 
 ```typescript
 // src/bot/classifier/intent.ts
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat';
+export type Intent =
+  | 'greeting' | 'form-switch' | 'creative-consultation' | 'chat'
+  | 'calculate' | 'numerology' | 'dice' | 'trivia';  // F-06
+
 export interface ClassificationResult {
   intent: Intent;
-  formTarget?: 'core-folder' | 'humanoid';
+  formTarget?: 'core-folder' | 'humanoid';   // form-switch のときのみ
+  numerologyType?: 'life-path' | 'kyusei';   // numerology のときのみ
 }
 
 // classifyIntent の返り値は ClassificationResult（文字列ではない）
 // 呼び出し側でデストラクチャリングすること
-const { intent, formTarget } = classifyIntent(text);
+const { intent, formTarget, numerologyType } = classifyIntent(text);
 ```
 
 ### 新しい絵文字を追加する際
