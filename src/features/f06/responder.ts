@@ -92,6 +92,38 @@ export function kyuseiHeadline(): string {
 }
 
 // ----------------------------------------------------------------
+// 月命星
+// ----------------------------------------------------------------
+
+/**
+ * 月命星結果の見出し（CW 上のテキスト）。
+ */
+export function tsukimeiHeadline(): string {
+  return '年命星と月命星を計算したよ。CW内に詳細をまとめたから見てね';
+}
+
+/**
+ * 月命星結果の本文（CW 内テキスト）。
+ */
+export function tsukimeiCwBody(
+  year: number,
+  month: number,
+  day: number,
+  yearStar: string,
+  moonStar: string,
+): string {
+  const yearDesc = KYUSEI_TEXTS[yearStar] ?? `${yearStar}についてはまだデータを整理中だよ。`;
+  const moonDesc = KYUSEI_TEXTS[moonStar] ?? `${moonStar}についてはまだデータを整理中だよ。`;
+  return (
+    `✦ ${year}年${month}月${day}日生まれ\n` +
+    `✦ 年命星: ${yearStar}\n` +
+    `✦ 月命星: ${moonStar}\n\n` +
+    `【年命星】${yearDesc}\n\n` +
+    `【月命星】${moonDesc}`
+  );
+}
+
+// ----------------------------------------------------------------
 // 共通エラー応答
 // ----------------------------------------------------------------
 
@@ -101,6 +133,9 @@ export function numerologyErrorResponse(type: NumerologyType): string {
   }
   if (type === 'kyusei') {
     return '生年を読み取れなかったよ。「1990」のように西暦4桁で書いてみてくれる？';
+  }
+  if (type === 'moon-star') {
+    return '生年月日を読み取れなかったよ。「1990年1月15日生まれ」のように書いてみてくれる？';
   }
   return 'うまく処理できなかったよ。もう一度試してみてくれる？';
 }

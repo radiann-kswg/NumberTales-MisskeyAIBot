@@ -20,7 +20,7 @@ import {
   resolveCharacterSwitchTarget,
   resolveDefaultCharacterTarget,
 } from '../character/switch.js';
-import { handleCalculate, handleLifePath, handleKyusei, handleDice, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
+import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -252,7 +252,9 @@ export async function handleMention(
             ? handleDice(event.text)
             : numerologyType === 'life-path'
               ? handleLifePath(event.text)
-              : handleKyusei(event.text);
+              : numerologyType === 'moon-star'
+                ? handleTsukimeisei(event.text)
+                : handleKyusei(event.text);
     }
 
     const noteText =

@@ -10,7 +10,7 @@
 
 export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'dice' | 'trivia';
 export type FormTarget = 'core-folder' | 'humanoid';
-export type NumerologyType = 'life-path' | 'kyusei';
+export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
 export interface ClassificationResult {
   intent: Intent;
@@ -86,6 +86,11 @@ const KYUSEI_PATTERNS: RegExp[] = [
   /\/kyusei\s/i,
 ];
 
+const TSUKIMEI_PATTERNS: RegExp[] = [
+  /月命星|つきめいせい|月の星/i,
+  /\/tsukimei\s/i,
+];
+
 function matchesAny(text: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
@@ -130,6 +135,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of LIFE_PATH_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'life-path' };
+  }
+
+  for (const pattern of TSUKIMEI_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'moon-star' };
   }
 
   for (const pattern of KYUSEI_PATTERNS) {

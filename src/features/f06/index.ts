@@ -2,7 +2,7 @@
 // 入力テキストを解析して計算・数秘術の各機能に振り分ける
 
 import { safeEvaluate } from './calculator.js';
-import { lifePathNumber, honmeisei } from './numerology.js';
+import { lifePathNumber, honmeisei, kyuseiPair } from './numerology.js';
 import {
   calcResponse,
   calcErrorResponse,
@@ -10,6 +10,8 @@ import {
   lifePathHeadline,
   kyuseiCwBody,
   kyuseiHeadline,
+  tsukimeiHeadline,
+  tsukimeiCwBody,
   numerologyErrorResponse,
   diceRollResponse,
   rangeRollResponse,
@@ -17,7 +19,7 @@ import {
   NUMEROLOGY_CW_LABEL,
 } from './responder.js';
 
-export type NumerologyType = 'life-path' | 'kyusei' | 'tarot';
+export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
 
 /** F-06 の処理結果 */
 export interface F06Result {
@@ -190,6 +192,46 @@ export function handleDice(text: string): F06Result {
   }
 
   return { text: diceErrorResponse() };
+}
+
+/** 月命星を処理する */
+export function handleTsukimeisei(text: string): F06Result {
+  const slashMatch = SLASH_CMD_PATTERN.exec(text.trim());
+  let year: number | undefined, month: number | undefined, day: number | undefined;
+
+  if (slashMatch?.[1] === 'tsukimei' && slashMatch[3]) {
+    const raw = slashMatch[3].replace(/\D/g, '');
+    if (raw.length === 8) {
+      year  = Number(raw.slice(0, 4));
+      month = Number(raw.slice(4, 6));
+      day   = Number(raw.slice(6, 8));
+    }
+  } else {
+    const dateMatch = DATE_PATTERN.exec(text);
+    if (dateMatch) {
+      if (dateMatch[4]) {
+        const raw = dateMatch[4];
+        year  = Number(raw.slice(0, 4));
+        month = Number(raw.slice(4, 6));
+        day   = Number(raw.slice(6, 8));
+      } else {
+        year  = Number(dateMatch[1]);
+        month = Number(dateMatch[2]);
+        day   = Number(dateMatch[3]);
+      }
+    }
+  }
+
+  if (!year || !month || !day) {
+    return { text: numerologyErrorResponse('moon-star') };
+  }
+
+  const { yearStar, moonStar } = kyuseiPair(year, month, day);
+  return {
+    text: tsukimeiHeadline(),
+    cwBody: tsukimeiCwBody(year, month, day, yearStar, moonStar),
+    cwLabel: NUMEROLOGY_CW_LABEL,
+  };
 }
 
 /**
