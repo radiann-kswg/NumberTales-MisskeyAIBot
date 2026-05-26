@@ -68,10 +68,10 @@ export interface ClassificationResult {
 ### A. 自然文方式
 
 ```
-@000chitose ライフパスナンバー教えて！1990年1月15日生まれ
-@000chitose 九星気学で本命星を教えて 1990
-@000chitose √144 を計算して
-@000chitose sin(30) + cos(60) は？
+@APHR_NTs ライフパスナンバー教えて！1990年1月15日生まれ
+@APHR_NTs 九星気学で本命星を教えて 1990
+@APHR_NTs √144 を計算して
+@APHR_NTs sin(30) + cos(60) は？
 ```
 
 ハンドラー内で `event.text` から日付・数式・年を正規表現で抽出する。
@@ -99,9 +99,9 @@ const EXPR_PATTERN = /([0-9\.\+\-\*\/\^\(\)√∑sincostanlogsqrt\s]+)/i;
 ### B. スラッシュコマンド方式
 
 ```
-@000chitose /calc 1 + sin(30deg)
-@000chitose /numerology lp 19900115
-@000chitose /kyusei 1990
+@APHR_NTs /calc 1 + sin(30deg)
+@APHR_NTs /numerology lp 19900115
+@APHR_NTs /kyusei 1990
 ```
 
 コマンドパーサー:
