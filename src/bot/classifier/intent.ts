@@ -86,6 +86,24 @@ const KYUSEI_PATTERNS: RegExp[] = [
   /\/kyusei\s/i,
 ];
 
+function matchesAny(text: string, patterns: readonly RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+export function detectFormTarget(text: string): FormTarget | null {
+  const normalized = text.trim();
+
+  if (matchesAny(normalized, CORE_FOLDER_PATTERNS)) {
+    return 'core-folder';
+  }
+
+  if (matchesAny(normalized, HUMANOID_PATTERNS)) {
+    return 'humanoid';
+  }
+
+  return null;
+}
+
 // ----------------------------------------------------------------
 // 分類関数
 // ----------------------------------------------------------------
@@ -101,12 +119,9 @@ export function classifyIntent(text: string): ClassificationResult {
     if (pattern.test(normalized)) return { intent: 'greeting' };
   }
 
-  for (const pattern of CORE_FOLDER_PATTERNS) {
-    if (pattern.test(normalized)) return { intent: 'form-switch', formTarget: 'core-folder' };
-  }
-
-  for (const pattern of HUMANOID_PATTERNS) {
-    if (pattern.test(normalized)) return { intent: 'form-switch', formTarget: 'humanoid' };
+  const formTarget = detectFormTarget(normalized);
+  if (formTarget) {
+    return { intent: 'form-switch', formTarget };
   }
 
   for (const pattern of CREATIVE_PATTERNS) {

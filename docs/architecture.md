@@ -16,9 +16,17 @@ Misskey インスタンス (radiann6631.net)
   │
   ├─ main チャンネル ──────────────────── mention イベント
   │    └─ handlers/mention.ts
+  │         ├─ キャラクター状態解決 (bot/character/store.ts)
+  │         │    ├─ ユーザー別アクティブ担当
+  │         │    └─ 全体デフォルト担当
   │         ├─ 意図分類 (classifier/intent.ts)
   │         │    greeting / form-switch / creative-consultation / chat
   │         │    calculate / numerology / dice / trivia  (F-06)
+  │         ├─ 切り替え系コマンド (bot/character/switch.ts)
+  │         │    ├─ 個別担当切り替え
+  │         │    ├─ 個別担当解除
+  │         │    ├─ 管理者デフォルト変更
+  │         │    └─ ヘルプ応答
   │         ├─ F-06 早期 return (features/f06/)
   │         │    ├─ calculate  → safeEvaluate (mathjs)
   │         │    ├─ numerology → ライフパス / 九星気学
@@ -45,6 +53,10 @@ Misskey インスタンス (radiann6631.net)
   │
   ├─ SessionStore (storage/session.ts) ── better-sqlite3
   │    └─ 会話履歴 TTL 30分・最大3往復6メッセージ
+  │
+  ├─ ActiveCharacterStore (bot/character/store.ts) ── better-sqlite3
+  │    ├─ ユーザー別担当キャラクター
+  │    └─ 全体デフォルト担当
   │
   └─ AIProvider (ai/) ── 抽象レイヤー
        ├─ OpenAI GPT-4o-mini (プライマリ)
@@ -91,7 +103,27 @@ export interface ClassificationResult {
 
 ### `src/bot/handlers/mention.ts`
 
-メンション受信時のメインハンドラ。F-06 グループ（calculate / numerology / dice / trivia）は early return で `features/f06/` に委譲し、trivia のみ LLM を呼ぶ。それ以外は greeting・form-switch・creative-consultation・chat の 4 分岐。返信後に `MENTION_REACTION_MAP[intent]` から絵文字を選んでリアクション（fire-and-forget）。
+メンション受信時のメインハンドラ。先頭でユーザー別のアクティブキャラクターと全体デフォルト担当を解決し、切り替え系コマンドを優先処理する。
+
+- キャラクター切り替え: 番号指定・名前指定でユーザー単位に担当を変更
+- キャラクター解除: 個別担当を消して全体デフォルト担当へ戻す
+- 管理者デフォルト変更: `ADMIN_USER_IDS` に含まれるユーザーのみ全体デフォルトを変更
+- キャラ切り替えヘルプ: 現在担当・標準担当・利用例を返信
+- F-06 グループ（calculate / numerology / dice / trivia）は early return で `features/f06/` に委譲し、trivia のみ LLM を呼ぶ
+- 上記以外は greeting・form-switch・creative-consultation・chat の 4 分岐
+
+切り替え・解除時は `SessionStore.clearHistory(userId)` を呼んで、前のキャラクター文脈が会話履歴に残らないようにしている。返信後は `MENTION_REACTION_MAP` から絵文字を選んでリアクション（fire-and-forget）。
+
+### `src/bot/character/`
+
+マルチキャラクター機能の中核モジュール群。
+
+| ファイル            | 役割 |
+| ------------------- | ---- |
+| `loader.ts`         | `_creations-db` の `db_Primary.json` から `Progress = released` の個体を読み込み、キャッシュする |
+| `prompt-builder.ts` | `ConversationPattern` や `Character` / `Summary` / `Relation` から動的システムプロンプトを組み立てる |
+| `switch.ts`         | 番号指定・名前指定・解除・管理者デフォルト変更・ヘルプ要求を解決し、応答文面を生成する |
+| `store.ts`          | SQLite にユーザー別担当と全体デフォルト担当を永続化し、再起動後も復元する |
 
 ### `src/bot/handlers/timeline.ts`
 
@@ -175,6 +207,14 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 `better-sqlite3` を使ったセッション会話履歴ストア。
 保存パス: `.cache/session.db`（`.gitignore` 対象）。TTL 30 分・最大 3 往復。
 
+### `src/bot/character/store.ts`
+
+`better-sqlite3` を使ったアクティブキャラクター状態ストア。
+同じ SQLite ファイル内に以下を保持する。
+
+- `active_character_state`: ユーザー別の現在担当キャラクター
+- `bot_settings`: 全体デフォルト担当などの Bot 設定
+
 ### `src/config/env.ts` / `src/config/constants.ts`
 
 環境変数の読み込みと定数定義。`.env` ファイルから `dotenv` 経由で読み込む。
@@ -192,10 +232,13 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 | `GEMINI_API_KEY`               | —    | Gemini API キー                       | —                   |
 | `NODE_ENV`                     | —    | `development` / `production`          | `development`       |
 | `LOG_LEVEL`                    | —    | `debug` / `info` / `warn` / `error`   | `info`              |
+| `DEFAULT_CHARACTER_NUM`        | —    | 個別指定がない場合の標準担当番号      | `000`               |
+| `ADMIN_USER_IDS`               | —    | 管理者ユーザー ID のカンマ区切り一覧  | 空                  |
 | `RATE_LIMIT_REPLY_COOLDOWN_MS` | —    | 同一ユーザーへの返信クールダウン (ms) | `0`（無制限）       |
 | `RATE_LIMIT_GLOBAL_PER_HOUR`   | —    | 全体の 1 時間あたり最大投稿数         | `10`                |
-| `SESSION_TTL_MS`               | —    | セッション会話履歴の有効期間 (ms)     | `1800000`（30分）   |
 | `DB_PATH`                      | —    | SQLite ファイルパス                   | `.cache/session.db` |
+
+`DB_PATH` は会話履歴だけでなく、ユーザー別担当キャラクターと全体デフォルト担当の永続化にも使われる。
 
 > ⚠️ `RATE_LIMIT_REPLY_COOLDOWN_MS` を明示的に設定する場合は `0`（無制限）が推奨。
 > 過去に `1800000`（30 分）を設定したまま放置してリプライが届かなくなった事例あり。

@@ -73,6 +73,7 @@ export type ReactionCategory = keyof typeof REACTION_EMOJI_MAP;
  */
 export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   greeting: ['yoroshiku_aphrnts27', 'iine_aphrnts42'],
+  'character-switch': ['okay_aphrnts25', 'yoroshiku_aphrnts27'],
   'form-switch': ['iine_aphrnts42', 'okay_aphrnts25'],
   'creative-consultation': ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8'],
   chat: ['naruhodo_aphrnts24', 'wakaru_aphrnts22', 'iine_aphrnts42', 'tashikani_aphrnts75'],

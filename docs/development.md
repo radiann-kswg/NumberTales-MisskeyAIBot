@@ -39,7 +39,16 @@ AI_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 NODE_ENV=development
 LOG_LEVEL=debug
+DEFAULT_CHARACTER_NUM=000
+ADMIN_USER_IDS=your_admin_user_id
 ```
+
+マルチキャラクター機能を使う場合の追加設定:
+
+- `DEFAULT_CHARACTER_NUM`: 個別指定のない相手に返答する標準担当キャラクター番号
+- `ADMIN_USER_IDS`: 管理者コマンドを許可する Misskey ユーザー ID のカンマ区切り一覧
+  - 例: `全体のデフォルトを3番機にして`
+  - 一般ユーザーは自分専用の担当切り替えのみ可能
 
 ---
 
@@ -90,8 +99,13 @@ src/
     classifier/
       intent.ts                # メンション意図分類（返り値: ClassificationResult）
     handlers/
-      mention.ts               # メンション受信ハンドラ（4 分岐）
+      mention.ts               # メンション受信ハンドラ（切り替え / F-06 / 雑談）
       timeline.ts              # homeTimeline リアクションハンドラ
+    character/
+      loader.ts                # 公開済みキャラクターDBの読み込み
+      prompt-builder.ts        # キャラクタープロンプト動的生成
+      store.ts                 # アクティブキャラクター状態ストア（SQLite永続化）
+      switch.ts                # 切り替え解決・ヘルプ文・フォーム文面生成
     ratelimit/
       index.ts                 # RateLimiter クラス
     reactor/
@@ -156,6 +170,17 @@ Invoke-RestMethod -Uri "https://radiann6631.net/api/emojis" -Method Post `
 ---
 
 ## 動作確認のポイント
+
+### マルチキャラクター切り替えのテスト
+
+```bash
+node --input-type=module << 'EOF'
+import { resolveCharacterSwitchTarget, isCharacterSwitchResetRequest } from './dist/bot/character/switch.js';
+console.log(resolveCharacterSwitchTarget('1番機と話したい'));
+console.log(resolveCharacterSwitchTarget('ハジメちゃんをコアフォルダにして'));
+console.log(isCharacterSwitchResetRequest('担当を標準に戻して'));
+EOF
+```
 
 ### メンション意図分類のテスト
 

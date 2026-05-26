@@ -75,6 +75,15 @@ export class SessionStore {
   }
 
   /**
+   * ユーザーの会話履歴を全削除する
+   */
+  clearHistory(userId: string): void {
+    this.db
+      .prepare(`DELETE FROM session_messages WHERE user_id = ?`)
+      .run(userId);
+  }
+
+  /**
    * TTL 切れのメッセージを一括削除する（起動時・定期クリーン用）
    */
   pruneExpired(): void {

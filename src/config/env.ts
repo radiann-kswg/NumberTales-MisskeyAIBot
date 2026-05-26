@@ -10,6 +10,14 @@ function optionalEnv(key: string, defaultValue: string): string {
   return process.env[key] ?? defaultValue;
 }
 
+function parseCsvEnv(key: string): string[] {
+  const value = process.env[key] ?? '';
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   misskey: {
     host: requireEnv('MISSKEY_HOST'),
@@ -30,6 +38,8 @@ export const config = {
   bot: {
     nodeEnv: optionalEnv('NODE_ENV', 'development') as 'development' | 'production',
     logLevel: optionalEnv('LOG_LEVEL', 'info') as 'error' | 'warn' | 'info' | 'debug',
+    defaultCharacterNum: optionalEnv('DEFAULT_CHARACTER_NUM', '000'),
+    adminUserIds: parseCsvEnv('ADMIN_USER_IDS'),
   },
   rateLimit: {
     replyCooldownMs: parseInt(optionalEnv('RATE_LIMIT_REPLY_COOLDOWN_MS', '0'), 10),

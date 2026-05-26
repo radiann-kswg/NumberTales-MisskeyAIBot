@@ -75,8 +75,13 @@ nano .env   # または vim .env
 | `GEMINI_API_KEY`               | Gemini の API キー            |
 | `NODE_ENV`                     | **`production`**              |
 | `LOG_LEVEL`                    | `info`                        |
+| `DEFAULT_CHARACTER_NUM`        | `000`                         |
+| `ADMIN_USER_IDS`               | `misskey_user_id_1,misskey_user_id_2` |
 | `RATE_LIMIT_REPLY_COOLDOWN_MS` | `0`（無制限 ← 推奨）          |
 | `RATE_LIMIT_GLOBAL_PER_HOUR`   | `10`                          |
+
+`ADMIN_USER_IDS` に含まれるユーザーだけが、全体デフォルト担当の変更コマンドを実行できる。
+個別担当キャラクターと全体デフォルト担当は `DB_PATH` の SQLite に永続化され、再起動後も維持される。
 
 ### 1-7. ログディレクトリの作成
 
@@ -212,6 +217,12 @@ grep -vE "TOKEN|KEY|SECRET" .env
 
 > **⚠️ `-E` フラグが必須**: `grep -v "TOKEN|KEY"` のように `-E` を省くと `|` がリテラル文字として扱われ、
 > すべての行が表示されてシークレットが漏洩する。必ず `grep -vE` を使うこと。
+
+### マルチキャラクターの設定が反映されない
+
+- `.env` の `DEFAULT_CHARACTER_NUM` と `ADMIN_USER_IDS` が正しいか確認する
+- 反映済みの個別担当や標準担当は `DB_PATH` の SQLite に残るため、設定変更後に挙動を初期化したい場合は Bot 停止後に対象 DB を退避または削除する
+- 管理者コマンドは `ADMIN_USER_IDS` に含まれないユーザーからは実行できない
 
 ### メモリ不足で再起動が頻発する
 
