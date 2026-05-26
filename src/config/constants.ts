@@ -16,4 +16,13 @@ export const BOT_CONSTANTS = {
 
   /** NT本作直接関与ハッシュタグ（全体監視対象） */
   WATCHED_HASHTAGS: ['ナンバーテールズ', 'ナンバーテールズの主人より'] as const,
+
+  /** スケジューラーの投稿チェック間隔（10分） */
+  SCHEDULER_CHECK_INTERVAL_MS: 10 * 60 * 1000,
+
+  /** スケジューラークールダウン: 最短1時間 */
+  SCHEDULER_MIN_COOLDOWN_MS: 60 * 60 * 1000,
+
+  /** スケジューラークールダウン: 最長2時間 */
+  SCHEDULER_MAX_COOLDOWN_MS: 2 * 60 * 60 * 1000,
 } as const;

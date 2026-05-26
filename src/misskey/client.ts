@@ -63,6 +63,19 @@ export class MisskeyClient {
   }
 
   /**
+   * 自発投稿する（返信なし、ホーム公開）
+   * @param text 投稿本文
+   * @param options.cw CW（ContentWarning）テキスト
+   */
+  async post(text: string, options?: { cw?: string }): Promise<void> {
+    await this.apiClient.request('notes/create', {
+      text,
+      cw: options?.cw ?? undefined,
+      visibility: 'home',
+    });
+  }
+
+  /**
    * 自分のユーザー ID を取得（自己メンション除外用）
    */
   async getMyUserId(): Promise<string> {

@@ -5,6 +5,7 @@ import { MisskeyClient } from './misskey/client.js';
 import { RateLimiter } from './bot/ratelimit/index.js';
 import { SessionStore } from './storage/session.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
+import { PostScheduler } from './bot/scheduler/index.js';
 import { logger } from './utils/logger.js';
 
 async function main(): Promise<void> {
@@ -54,9 +55,14 @@ async function main(): Promise<void> {
 
   logger.info('Bot is listening for mentions...');
 
+  // 時間帯別自発投稿スケジューラー起動
+  const scheduler = new PostScheduler({ ai, misskeyClient });
+  scheduler.start();
+
   // プロセス終了時のクリーンアップ
   const shutdown = (): void => {
     logger.info('Shutting down...');
+    scheduler.stop();
     misskeyClient.close();
     sessionStore.close();
     process.exit(0);
