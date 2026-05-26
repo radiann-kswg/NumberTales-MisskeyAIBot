@@ -124,7 +124,10 @@ function normalizeCalling(value: string | undefined, fallback: string): string {
   return value?.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '').trim() || fallback;
 }
 
-export function buildFormSwitchText(target: CharacterRecord, formTarget: FormTarget): string {
+export function buildFormSwitchText(
+  target: CharacterRecord,
+  formTarget: FormTarget,
+): string {
   const name = target.Name ?? `${String(target.Num)}番機`;
   const firstPerson = normalizeCalling(target.FirstPersonCalling, '私');
 

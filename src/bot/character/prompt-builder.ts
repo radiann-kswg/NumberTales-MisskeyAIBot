@@ -4,6 +4,7 @@ import type {
   CharacterRecord,
   CharacterRelationItem,
 } from './loader.js';
+import type { FormTarget } from '../classifier/intent.js';
 
 export type PromptMode = 'chat' | 'creative-consultation';
 
@@ -66,7 +67,11 @@ function buildStyleFallback(profile: CharacterRecord): string {
   return pieces.join(' ');
 }
 
-export function buildCharacterSystemPrompt(profile: CharacterRecord, mode: PromptMode): string {
+export function buildCharacterSystemPrompt(
+  profile: CharacterRecord,
+  mode: PromptMode,
+  formTarget: FormTarget = 'humanoid',
+): string {
   const num = String(profile.Num);
   const name = normalizeText(profile.Name) ?? `${num}番機`;
   const firstPerson = normalizeText(profile.FirstPersonCalling) ?? '私';
@@ -104,6 +109,13 @@ export function buildCharacterSystemPrompt(profile: CharacterRecord, mode: Promp
   }
 
   lines.push('', '【会話スタイル】');
+
+  if (formTarget === 'core-folder') {
+    lines.push('- 現在はコアフォルダ形態。短文寄りで、ひらがな多め、ぷにっとした静かな仕草が少し混じる。');
+    lines.push('- すでにコアフォルダ形態で行動中なので、毎回「切り替わった」とは言わず、その姿のまま自然に会話を続ける。');
+  } else {
+    lines.push('- 現在はヒューマノイド形態。通常の会話スタイルで応答する。');
+  }
 
   if (pattern) {
     if (normalizeText(pattern.TalkingTone)) {

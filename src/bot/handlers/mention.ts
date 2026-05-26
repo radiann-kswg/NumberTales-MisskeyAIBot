@@ -67,6 +67,7 @@ export async function handleMention(
 ): Promise<void> {
   const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
+  const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
     getReleasedCharacterByNum(resolvedCharacterNumForUser) ??
     getDefaultCharacterProfile();
@@ -75,8 +76,8 @@ export async function handleMention(
     getReleasedCharacterByNum(activeCharacterStore.getDefault()) ??
     getDefaultCharacterProfile();
   const defaultCharacterNum = String(defaultCharacter.Num);
-  const chatSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat');
-  const creativeSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'creative-consultation');
+  const chatSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget);
+  const creativeSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'creative-consultation', activeFormTarget);
   const requestedFormTarget = detectFormTarget(event.text);
   const isAdminUser = config.bot.adminUserIds.includes(event.userId);
 
@@ -179,44 +180,55 @@ export async function handleMention(
   if (switchTarget) {
     const switchTargetNum = String(switchTarget.Num);
     const alreadyActive = activeCharacterNum === switchTargetNum;
+    const targetForm = requestedFormTarget ?? activeFormTarget;
+    const alreadyInTargetForm = alreadyActive && activeFormTarget === targetForm;
 
-    activeCharacterStore.set(event.userId, switchTargetNum);
-    if (!alreadyActive) {
-      sessionStore.clearHistory(event.userId);
+    if (requestedFormTarget && alreadyInTargetForm) {
+      // すでに同じフォームなら切り替え応答は出さず、そのまま通常会話へ流す。
+    } else {
+      activeCharacterStore.set(event.userId, switchTargetNum);
+      activeCharacterStore.setForm(event.userId, targetForm);
+      if (!alreadyActive) {
+        sessionStore.clearHistory(event.userId);
+      }
+
+      const speechText = formatSpeech(
+        switchTargetNum,
+        requestedFormTarget
+          ? buildFormSwitchText(switchTarget, requestedFormTarget)
+          : buildCharacterSwitchText(switchTarget, alreadyActive),
+      );
+      const { text, cw } = formatForNote(speechText, switchTargetNum);
+
+      try {
+        await misskeyClient.reply(text, event.noteId, { cw });
+        rateLimiter.recordReply(event.userId);
+        logger.info(`Switched active character for ${event.userId} to ${switchTargetNum}`);
+
+        const reactionPool = MENTION_REACTION_MAP['character-switch'] ?? MENTION_REACTION_MAP['chat']!;
+        const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+        misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+          logger.warn('Failed to add reaction to character switch mention:', err);
+        });
+      } catch (err) {
+        logger.error('Failed to post character switch reply:', err);
+      }
+      return;
     }
-
-    const speechText = formatSpeech(
-      switchTargetNum,
-      requestedFormTarget
-        ? buildFormSwitchText(switchTarget, requestedFormTarget)
-        : buildCharacterSwitchText(switchTarget, alreadyActive),
-    );
-    const { text, cw } = formatForNote(speechText, switchTargetNum);
-
-    try {
-      await misskeyClient.reply(text, event.noteId, { cw });
-      rateLimiter.recordReply(event.userId);
-      logger.info(`Switched active character for ${event.userId} to ${switchTargetNum}`);
-
-      const reactionPool = MENTION_REACTION_MAP['character-switch'] ?? MENTION_REACTION_MAP['chat']!;
-      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
-      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
-        logger.warn('Failed to add reaction to character switch mention:', err);
-      });
-    } catch (err) {
-      logger.error('Failed to post character switch reply:', err);
-    }
-    return;
   }
 
   // 4. 意図分類
   const { intent, formTarget, numerologyType } = classifyIntent(event.text);
+  const effectiveIntent =
+    intent === 'form-switch' && formTarget !== undefined && activeFormTarget === formTarget
+      ? 'chat'
+      : intent;
 
   // 4a. F-06 計算・ダイス・数秘術・うんちく（early return）
-  if (intent === 'calculate' || intent === 'numerology' || intent === 'dice' || intent === 'trivia') {
+  if (effectiveIntent === 'calculate' || effectiveIntent === 'numerology' || effectiveIntent === 'dice' || effectiveIntent === 'trivia') {
     let f06Result: F06Result;
 
-    if (intent === 'trivia') {
+    if (effectiveIntent === 'trivia') {
       // 数字うんちく: LLM に婔託する
       const triviaNum = extractTriviaNumber(event.text);
       try {
@@ -234,9 +246,9 @@ export async function handleMention(
       }
     } else {
       f06Result =
-        intent === 'calculate'
+        effectiveIntent === 'calculate'
           ? handleCalculate(event.text)
-          : intent === 'dice'
+          : effectiveIntent === 'dice'
             ? handleDice(event.text)
             : numerologyType === 'life-path'
               ? handleLifePath(event.text)
@@ -253,7 +265,7 @@ export async function handleMention(
       rateLimiter.recordReply(event.userId);
       logger.info(`Replied (F06) to ${event.userId}: "${noteText.slice(0, 40)}..."`);
 
-      const reactionPool = MENTION_REACTION_MAP[intent] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionPool = MENTION_REACTION_MAP[effectiveIntent] ?? MENTION_REACTION_MAP['chat']!;
       const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
       misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
         logger.warn('Failed to add reaction to mention:', err);
@@ -266,14 +278,18 @@ export async function handleMention(
 
   // 5. 応答生成 → 000(チトセ) 発言書式に整形
   let speechText: string;
-  if (intent === 'greeting') {
+  if (effectiveIntent === 'greeting') {
     // 挨拶: 定型返答
     speechText = formatSpeech(activeCharacterNum, pickGreetingResponse());
-  } else if (intent === 'form-switch') {
+  } else if (effectiveIntent === 'form-switch') {
     // 形態切り替え演出: テンプレートからランダム選択
     const targetForm = formTarget ?? 'humanoid';
-    speechText = formatSpeech(activeCharacterNum, buildFormSwitchText(activeCharacter, targetForm));
-  } else if (intent === 'creative-consultation') {
+    activeCharacterStore.setForm(event.userId, targetForm);
+    speechText = formatSpeech(
+      activeCharacterNum,
+      buildFormSwitchText(activeCharacter, targetForm),
+    );
+  } else if (effectiveIntent === 'creative-consultation') {
     // 創作相談: 専用プロンプトで LLM 生成（履歴は使用しない）
     try {
       const result = await ai.chat(
@@ -326,7 +342,7 @@ export async function handleMention(
     logger.info(`Replied to ${event.userId}: "${text.slice(0, 40)}..."`);
 
     // 元ノートにリアクションを付与（失敗しても返信自体は成功とみなす）
-    const reactionPool = MENTION_REACTION_MAP[intent] ?? MENTION_REACTION_MAP['chat']!;
+    const reactionPool = MENTION_REACTION_MAP[effectiveIntent] ?? MENTION_REACTION_MAP['chat']!;
     const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
     misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
       logger.warn('Failed to add reaction to mention:', err);

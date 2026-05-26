@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { FormTarget } from '../classifier/intent.js';
 
 /**
  * ユーザーごとのアクティブキャラクター状態を保持するストア。
@@ -10,6 +11,7 @@ import { dirname } from 'node:path';
  */
 export class ActiveCharacterStore {
   private readonly activeCharacters = new Map<string, string>();
+  private readonly activeForms = new Map<string, FormTarget>();
   private readonly db: Database.Database;
   private defaultCharacterNum: string;
 
@@ -29,6 +31,11 @@ export class ActiveCharacterStore {
         character_num TEXT NOT NULL,
         updated_at    INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS active_form_state (
+        user_id     TEXT PRIMARY KEY,
+        form_target TEXT NOT NULL CHECK(form_target IN ('core-folder', 'humanoid')),
+        updated_at  INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS bot_settings (
         key        TEXT PRIMARY KEY,
         value      TEXT NOT NULL,
@@ -44,6 +51,14 @@ export class ActiveCharacterStore {
 
     for (const row of rows) {
       this.activeCharacters.set(row.user_id, row.character_num);
+    }
+
+    const formRows = this.db
+      .prepare(`SELECT user_id, form_target FROM active_form_state`)
+      .all() as Array<{ user_id: string; form_target: FormTarget }>;
+
+    for (const row of formRows) {
+      this.activeForms.set(row.user_id, row.form_target);
     }
 
     const defaultRow = this.db
@@ -76,6 +91,27 @@ export class ActiveCharacterStore {
       .run(userId, characterNum, Date.now());
   }
 
+  getForm(userId: string): FormTarget | null {
+    return this.activeForms.get(userId) ?? null;
+  }
+
+  resolveForm(userId: string): FormTarget {
+    return this.getForm(userId) ?? 'humanoid';
+  }
+
+  setForm(userId: string, formTarget: FormTarget): void {
+    this.activeForms.set(userId, formTarget);
+    this.db
+      .prepare(
+        `INSERT INTO active_form_state (user_id, form_target, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           form_target = excluded.form_target,
+           updated_at = excluded.updated_at`,
+      )
+      .run(userId, formTarget, Date.now());
+  }
+
   getDefault(): string {
     return this.defaultCharacterNum;
   }
@@ -97,6 +133,13 @@ export class ActiveCharacterStore {
     this.activeCharacters.delete(userId);
     this.db
       .prepare(`DELETE FROM active_character_state WHERE user_id = ?`)
+      .run(userId);
+  }
+
+  clearForm(userId: string): void {
+    this.activeForms.delete(userId);
+    this.db
+      .prepare(`DELETE FROM active_form_state WHERE user_id = ?`)
       .run(userId);
   }
 
