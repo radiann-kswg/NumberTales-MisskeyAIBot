@@ -8,13 +8,16 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology';
 export type FormTarget = 'core-folder' | 'humanoid';
+export type NumerologyType = 'life-path' | 'kyusei';
 
 export interface ClassificationResult {
   intent: Intent;
   /** form-switch のときのみ設定される */
   formTarget?: FormTarget;
+  /** numerology のときのみ設定される */
+  numerologyType?: NumerologyType;
 }
 
 // ----------------------------------------------------------------
@@ -54,6 +57,22 @@ const CREATIVE_PATTERNS: RegExp[] = [
   /創作.*(相談|話)/,
 ];
 
+const CALCULATE_PATTERNS: RegExp[] = [
+  /計算して|計算お願い|を計算|を求めて/i,
+  /\/calc\s/i,
+  /sqrt|sin|cos|tan|log|factorial|√|∑/i,
+];
+
+const LIFE_PATH_PATTERNS: RegExp[] = [
+  /ライフパス|lifepath|life\s*path|誕生数|運命数/i,
+  /\/numerology|\/lp\s/i,
+];
+
+const KYUSEI_PATTERNS: RegExp[] = [
+  /九星|本命星|気学|きゅうせい/i,
+  /\/kyusei\s/i,
+];
+
 // ----------------------------------------------------------------
 // 分類関数
 // ----------------------------------------------------------------
@@ -79,6 +98,18 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of CREATIVE_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'creative-consultation' };
+  }
+
+  for (const pattern of LIFE_PATH_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'life-path' };
+  }
+
+  for (const pattern of KYUSEI_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'kyusei' };
+  }
+
+  for (const pattern of CALCULATE_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'calculate' };
   }
 
   return { intent: 'chat' };

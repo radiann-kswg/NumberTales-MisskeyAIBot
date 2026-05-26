@@ -5,6 +5,7 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import { classifyIntent } from '../classifier/intent.js';
+import { handleCalculate, handleLifePath, handleKyusei } from '../../features/f06/index.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
@@ -124,7 +125,37 @@ export async function handleMention(
   }
 
   // 4. 意図分類
-  const { intent, formTarget } = classifyIntent(event.text);
+  const { intent, formTarget, numerologyType } = classifyIntent(event.text);
+
+  // 4a. F-06 計算・数秘術（early return）
+  if (intent === 'calculate' || intent === 'numerology') {
+    const f06Result =
+      intent === 'calculate'
+        ? handleCalculate(event.text)
+        : numerologyType === 'life-path'
+          ? handleLifePath(event.text)
+          : handleKyusei(event.text);
+
+    const noteText =
+      formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, f06Result.text) +
+      (f06Result.cwBody ? '\n\n' + f06Result.cwBody : '');
+    const noteCw = f06Result.cwLabel;
+
+    try {
+      await misskeyClient.reply(noteText, event.noteId, { cw: noteCw });
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (F06) to ${event.userId}: "${noteText.slice(0, 40)}..."`);
+
+      const reactionPool = MENTION_REACTION_MAP[intent] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+        logger.warn('Failed to add reaction to mention:', err);
+      });
+    } catch (err) {
+      logger.error('Failed to post F06 reply:', err);
+    }
+    return;
+  }
 
   // 5. 応答生成 → 000(チトセ) 発言書式に整形
   let speechText: string;
