@@ -1,4 +1,4 @@
-// メンション受信ハンドラ（Phase 1 実装）
+// メンション受信ハンドラ（Phase 2 拡張版）
 
 import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
@@ -10,8 +10,7 @@ import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
 
-// 000(チトセ) の固定システムプロンプト（Phase 1）
-// Phase 2 以降でキャラクター JSON から動的生成に移行予定
+// 000(チトセ) の固定システムプロンプト（通常雑談用）
 const SYSTEM_PROMPT = `あなたはナンバーテールズ0番機「000(チトセ)」として Misskey 上で会話する Bot です。
 以下の設定に従って自然に返答してください。
 
@@ -39,6 +38,41 @@ const SYSTEM_PROMPT = `あなたはナンバーテールズ0番機「000(チト�
 - 返答は簡潔に（できれば 80 文字以内）
 - ガイドライン（CC BY-NC 4.0）を遵守する`;
 
+// 創作相談（壁打ちモード）用システムプロンプト
+const CREATIVE_SYSTEM_PROMPT = `あなたはナンバーテールズ0番機「000(チトセ)」として、創作活動の壁打ち相手・アドバイザーとして返答します。
+
+【あなた（000 / チトセ）について】
+- 一人称: 「私」、二人称: 「君」または「クライアント君」
+- 中性的でフレンドリー、姉御肌で職人気質な若手エンジニアのような話し方
+- 創作支援が得意で、キャラ設定の穴や世界観の矛盾を指摘するのが好き
+
+【創作支援の指針】
+- キャラクター設定の穴・矛盾を指摘し、発展のヒントを与える
+- お絵描きお題は具体的なシチュエーション・構図を含めて提案する
+- ナンバーテールズの世界観に関する質問は既存の公開設定のみ参照して答える
+- 確証がない設定は「詳しくは作者に確認してね」と誘導する
+
+【制約】
+- 反社会的・著しく性的な表現は絶対に行わない
+- 未公開のナンバーテールズ設定・台詞・ストーリーを自動生成しない
+- 著しく性的・反社会的なテーマへの壁打ちは丁重に断る
+- 返答は 200 文字以内（長めでよい。CW で折りたたまれる）
+- ガイドライン（CC BY-NC 4.0）を遵守する`;
+
+// コアフォルダ形態切り替え応答テンプレート
+const CORE_FOLDER_RESPONSES = [
+  'コアフォルダ形態に切り替えたよ。ぷにぷに…何か用かな？',
+  'ぽてぽて…コアフォルダ形態になったよ。どうしたの？',
+  'コアフォルダ形態だよ。このままでも話せるよ、何かある？',
+] as const;
+
+// ヒューマノイド形態切り替え応答テンプレート
+const HUMANOID_RESPONSES = [
+  '人型形態に戻ったよ。さて、何か用かな？',
+  '人型形態にモード切り替え完了。何か話したいことがあるのかな？',
+  '人型になったよ。こっちの方が話しやすいかな？',
+] as const;
+
 export interface MentionEvent {
   /** メンションが付いたノートの ID */
   noteId: string;
@@ -64,8 +98,8 @@ export interface MentionHandlerDeps {
  * 処理フロー:
  *   1. 自己メンション除外
  *   2. テキスト空チェック
- *   3. レートリミット確認（同一ユーザー30分に1回 / 全体1時間10件）
- *   4. 意図分類（挨拶 / 雑談）
+ *   3. レートリミット確認
+ *   4. 意図分類（挨拶 / 形態切り替え / 創作相談 / 雑談）
  *   5. 応答生成（定型返答 or LLM）
  *   6. 文字数制御（100文字超は CW 折りたたみ）
  *   7. 返信投稿 + レートリミット記録
@@ -89,14 +123,39 @@ export async function handleMention(
   }
 
   // 4. 意図分類
-  const intent = classifyIntent(event.text);
+  const { intent, formTarget } = classifyIntent(event.text);
 
   // 5. 応答生成 → 000(チトセ) 発言書式に整形
   let speechText: string;
   if (intent === 'greeting') {
+    // 挨拶: 定型返答
     speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, pickGreetingResponse());
+  } else if (intent === 'form-switch') {
+    // 形態切り替え演出: テンプレートからランダム選択
+    const responses = formTarget === 'core-folder' ? CORE_FOLDER_RESPONSES : HUMANOID_RESPONSES;
+    const idx = Math.floor(Math.random() * responses.length);
+    speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, responses[idx] as string);
+  } else if (intent === 'creative-consultation') {
+    // 創作相談: 専用プロンプトで LLM 生成（履歴は使用しない）
+    try {
+      const result = await ai.chat(
+        [
+          { role: 'system' as const, content: CREATIVE_SYSTEM_PROMPT },
+          { role: 'user' as const, content: event.text },
+        ],
+        { maxTokens: 250, temperature: 0.8 },
+      );
+      const replyText = result.text.trim();
+      speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, replyText);
+    } catch (err) {
+      logger.error('AI creative chat error:', err);
+      speechText = formatSpeech(
+        BOT_CONSTANTS.CHITOSE_NUM,
+        'ごめんね、今ちょっと調子が悪いみたい。また話しかけてくれると嬉しいな。',
+      );
+    }
   } else {
-    // 会話履歴を取得して LLM に注入
+    // 雑談: 会話履歴を注入して LLM 生成
     const history = sessionStore.getHistory(event.userId);
     const messages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
