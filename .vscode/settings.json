@@ -10,6 +10,26 @@
 		},
 		"npx.cmd": true,
 		"ConvertFrom-Json": true,
-		"ConvertTo-Json": true
+		"ConvertTo-Json": true,
+		"/^node -e \"\nconst fs = require\\('fs'\\);\nconst data = JSON\\.parse\\(fs\\.readFileSync\\('_creations-db/data/Works_NumberTales/DataBases/db_Primary\\.json', 'utf8'\\)\\);\nconst released = data\\.filter\\(e => e\\.Progress === 'released'\\);\nconsole\\.log\\('released:', released\\.length\\);\nconst sample = released\\[0\\];\nconsole\\.log\\('sample Num:', sample\\.Num, 'Name:', sample\\.Name\\);\nconsole\\.log\\('HasConversationPattern:', !!sample\\.ConversationPattern\\);\nconsole\\.log\\('HasAbilityStats:', !!sample\\.AbilityStats\\);\nconsole\\.log\\('HasNumerospecStats:', !!sample\\.NumerospecStats\\);\nif\\(sample\\.ConversationPattern\\) console\\.log\\('CP keys:', Object\\.keys\\(sample\\.ConversationPattern\\)\\.join\\(', '\\)\\);\n\" 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^node -e \"\nconst fs = require\\('fs'\\);\nconst data = JSON\\.parse\\(fs\\.readFileSync\\('_creations-db/data/Works_NumberTales/DataBases/db_Primary\\.json', 'utf8'\\)\\);\nconst released = data\\.filter\\(e => e\\.Progress === 'released'\\);\nconst sample = released\\[0\\]; // Num=1 ハジメ\nconsole\\.log\\('Summary:', JSON\\.stringify\\(sample\\.Summary, null, 2\\)\\);\nconsole\\.log\\('---'\\);\nconsole\\.log\\('Relations \\(first 2\\):', JSON\\.stringify\\(\\(sample\\.Relations \\?\\? \\[\\]\\)\\.slice\\(0, 2\\), null, 2\\)\\);\n// noCP の個体も確認\nconst noCP = released\\.find\\(e => !e\\.ConversationPattern\\);\nif\\(noCP\\) \\{\n  console\\.log\\('--- ConversationPattern なし個体 ---'\\);\n  console\\.log\\('Num:', noCP\\.Num, 'Name:', noCP\\.Name\\);\n  console\\.log\\('Character:', noCP\\.Character\\);\n  console\\.log\\('Summary:', JSON\\.stringify\\(noCP\\.Summary, null, 2\\)\\);\n  console\\.log\\('HasRelations:', !!\\(noCP\\.Relations && noCP\\.Relations\\.length > 0\\)\\);\n\\}\n\" 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^node -e \"const fs=require\\('fs'\\); const data=JSON\\.parse\\(fs\\.readFileSync\\('_creations-db/data/Works_NumberTales/DataBases/db_Primary\\.json','utf8'\\)\\); const zero=data\\.find\\(e=>String\\(e\\.Num\\)==='0'\\|\\|String\\(e\\.Num\\)==='000'\\); console\\.log\\(JSON\\.stringify\\(zero \\? \\{Num:zero\\.Num, Name:zero\\.Name, FirstPersonCalling:zero\\.FirstPersonCalling, SecondPersonCalling:zero\\.SecondPersonCalling, Character:zero\\.Character, Summary:zero\\.Summary, Relation:zero\\.Relation, ConversationPattern:zero\\.ConversationPattern\\} : null, null, 2\\)\\.slice\\(0,2000\\)\\);\" 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^cd \"d:\\\\VisualStudio Code Userfile\\\\NumberTales-MisskeyAIBot\" ; node --input-type=module -e \"import \\{ resolveCharacterSwitchTarget, resolveDefaultCharacterTarget, buildFormSwitchText \\} from '\\./dist/bot/character/switch\\.js'; import \\{ detectFormTarget \\} from '\\./dist/bot/classifier/intent\\.js'; import \\{ getReleasedCharacterByNum \\} from '\\./dist/bot/character/loader\\.js'; const cases=\\['ハジメちゃん呼んで','3番機に来て','ナオで頼む','ハジメちゃんをコアフォルダにして'\\]; for \\(const text of cases\\) \\{ const target = resolveCharacterSwitchTarget\\(text\\); console\\.log\\(text \\+ ' => ' \\+ \\(target \\? String\\(target\\.Num\\) \\+ ':' \\+ String\\(target\\.Name\\) : 'null'\\)\\); \\} const defaultCase='全体のデフォルトを3番機にして'; const defaultTarget = resolveDefaultCharacterTarget\\(defaultCase\\); console\\.log\\(defaultCase \\+ ' => ' \\+ \\(defaultTarget \\? String\\(defaultTarget\\.Num\\) \\+ ':' \\+ String\\(defaultTarget\\.Name\\) : 'null'\\)\\); const formCase='ハジメちゃんをコアフォルダにして'; const form = detectFormTarget\\(formCase\\); const target = getReleasedCharacterByNum\\('1'\\); console\\.log\\('form => ' \\+ form\\); console\\.log\\('form text => ' \\+ \\(target ; form \\? buildFormSwitchText\\(target, form\\) : 'null'\\)\\);\" 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^cd \"d:\\\\VisualStudio Code Userfile\\\\NumberTales-MisskeyAIBot\" ; node --input-type=module -e \"import \\{ resolveCharacterSwitchTarget, resolveDefaultCharacterTarget \\} from '\\./dist/bot/character/switch\\.js'; const a=resolveCharacterSwitchTarget\\('\\\\u30cf\\\\u30b8\\\\u30e1\\\\u3061\\\\u3083\\\\u3093\\\\u547c\\\\u3093\\\\u3067'\\); const b=resolveCharacterSwitchTarget\\('3\\\\u756a\\\\u6a5f\\\\u306b\\\\u6765\\\\u3066'\\); const c=resolveDefaultCharacterTarget\\('\\\\u5168\\\\u4f53\\\\u306e\\\\u30c7\\\\u30d5\\\\u30a9\\\\u30eb\\\\u30c8\\\\u30923\\\\u756a\\\\u6a5f\\\\u306b\\\\u3057\\\\u3066'\\); console\\.log\\('A=' \\+ \\(a \\? String\\(a\\.Num\\)\\+':' \\+ String\\(a\\.Name\\) : 'null'\\)\\); console\\.log\\('B=' \\+ \\(b \\? String\\(b\\.Num\\)\\+':' \\+ String\\(b\\.Name\\) : 'null'\\)\\); console\\.log\\('C=' \\+ \\(c \\? String\\(c\\.Num\\)\\+':' \\+ String\\(c\\.Name\\) : 'null'\\)\\);\" 2>&1$/": {
+			"approve": true,
+			"matchCommandLine": true
+		}
 	}
 }

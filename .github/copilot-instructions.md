@@ -56,8 +56,8 @@ GitHub Copilot や各種 AI ツールが本リポジトリのコンテキスト�
 | F-02 | 時間帯別自発投稿スケジューラー（朝/昼/夕方/深夜） | ✅ 完了 |
 | F-03 | 創作壁打ちモード（creative-consultation ブランチ） | ✅ 完了 |
 | F-04 | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類） | ✅ 完了 |
-| F-06 | 数字・ヌメロジーコマンド | ⬜ 未着手 |
-| — | マルチキャラクター切り替え | ⬜ 未着手 |
+| F-06 | 数字・ヌメロジーコマンド | ✅ 完了 |
+| — | マルチキャラクター切り替え | ✅ 実装済み |
 
 ## ディレクトリ構成
 
@@ -66,8 +66,9 @@ src/
   index.ts                    # エントリポイント
   ai/                         # AIProvider 抽象レイヤー（OpenAI / Gemini）
   bot/
+    character/                # マルチキャラクター切り替え・動的プロンプト生成
     classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
-    handlers/mention.ts       # メンション受信ハンドラ（4 分岐）
+    handlers/mention.ts       # メンション受信ハンドラ（切り替え / F-06 / 雑談）
     handlers/timeline.ts      # homeTimeline リアクションハンドラ
     ratelimit/                  # RateLimiter クラス
     reactor/                    # 絵文字マップ・感情分類
@@ -102,6 +103,7 @@ _creations-db/                # サブモジュール: 百花繚乱研究所 創
 - カスタム絵文字を積極活用し、AI感を出しすぎない自然な投稿を心がける
 - **ユーザー個人情報の永続保存は行わない**
 - 球体型（55cm）/人型（165cm）のモード切り替えはBot上の演出として活用可
+- 同一フォームへの再切り替え要求では状態説明を繰り返さず、そのフォームのまま自然に会話を継続する
 
 ## アンチパターン（禁止事項）
 
