@@ -11,14 +11,31 @@
 ## リポジトリ構成
 
 ```
-_roleplay-datas/       # ロールプレイ用プロンプト・AI連携情報
-  roleplay-prompt.md   # 000(チトセ)のキャラクター設定・命令文
-  ai-link.md           # 連携中のAIサービスリンク
-_rough-idea/           # アイディア検討メモ（ChatGPT/Geminiとの対話ログ）
-_creations-db/         # サブモジュール: 百花繚乱研究所 創作DB
-  data/                # キャラクターJSONデータ
-  api/                 # 擬似API
-  docs/                # ドキュメント
+src/
+  index.ts                    # エントリポイント
+  ai/                         # AIProvider 抽象レイヤー（OpenAI / Gemini）
+  bot/
+    classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
+    handlers/mention.ts       # メンション受信ハンドラ（4 分岐）
+    handlers/timeline.ts      # homeTimeline リアクションハンドラ
+    ratelimit/                 # RateLimiter クラス
+    reactor/                   # 絵文字マップ・感情分類
+    responder/                 # 発言書式・テンプレート
+    scheduler/                 # 時間帯別自発投稿
+  config/                     # 環境変数・定数
+  misskey/client.ts           # Misskey WebSocket クライアントラッパー
+  storage/session.ts          # SQLite セッションコンテキスト
+  utils/                      # ロガー等
+docs/                         # 詳細ドキュメント（architecture / development / deployment）
+_ideas/bot-spec/              # 仕様書・設計ドキュメント
+_roleplay-datas/              # ロールプレイ用プロンプト・AI連携情報
+  roleplay-prompt.md          # 000(チトセ)のキャラクター設定・命令文
+  ai-link.md                  # 連携中のAIサービスリンク
+_rough-idea/                  # アイディア検討メモ（ChatGPT/Geminiとの対話ログ）
+_creations-db/                # サブモジュール: 百花繚乱研究所 創作DB
+  data/                       # キャラクターJSONデータ
+  api/                        # 擬似API
+  docs/                       # ドキュメント
 ```
 
 ## 重要なリファレンス
@@ -37,6 +54,19 @@ _creations-db/         # サブモジュール: 百花繚乱研究所 創作DB
 - 創作DBのライセンスは **CC BY-NC 4.0** — 商用利用不可
 
 ## Bot開発に関するコンテキスト
+
+### 実装済み機能
+
+| 機能 ID | 内容 | 状態 |
+|---|---|---|
+| Phase 1 | WebSocket 接続・メンション受信・LLM 返信・CW 制御 | ✅ 完了 |
+| Phase 1 | SQLite セッション会話履歴（TTL 30分・最大3往復） | ✅ 完了 |
+| F-01 拡張 | 意図分類 4 分岐（greeting / form-switch / creative-consultation / chat） | ✅ 完了 |
+| F-02 | 時間帯別自発投稿スケジューラー（朝/昼/夕方/深夜） | ✅ 完了 |
+| F-03 | 創作壁打ちモード（creative-consultation ブランチ） | ✅ 完了 |
+| F-04 | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類） | ✅ 完了 |
+| F-06 | 数字・ヌメロジーコマンド | ⬜ 未着手 |
+| — | マルチキャラクター切り替え | ⬜ 未着手 |
 
 ### 検討中のBot機能アイデア
 
@@ -59,6 +89,52 @@ _creations-db/         # サブモジュール: 百花繚乱研究所 創作DB
 ```bash
 # 最新データを取得する場合
 git submodule update --remote _creations-db
+```
+
+## VM 操作・SSH 作業上の注意（重要）
+
+### `.env` ファイル確認コマンド
+
+**必ず `-E` フラグを付けること。**
+
+```bash
+# ✅ 正しい（-E フラグが必須）
+grep -vE "TOKEN|KEY|SECRET" .env
+
+# ❌ 間違い（-E なしでは | がリテラル文字として扱われ全行通過 → シークレット漏洩）
+grep -v "TOKEN|KEY" .env
+```
+
+### git deploy の操作
+
+VM 側に `dist/` などのローカル変更があると `git pull` が失敗する。  
+**GitHub Actions および手動デプロイでは必ず `git reset --hard` を使用すること。**
+
+```bash
+# ✅ 正しい手順
+git fetch origin master
+git reset --hard origin/master
+npm install --omit=dev
+npm run build
+pm2 reload ecosystem.config.cjs
+
+# ❌ 間違い（ローカル変更があるとコンフリクトで止まる）
+git pull origin master
+```
+
+### Bot が返信しない場合の確認
+
+`.env` の `RATE_LIMIT_REPLY_COOLDOWN_MS` を確認する。`0` 以外（例: `1800000`）が設定されていると  
+同一ユーザーへの返信が指定ミリ秒間ブロックされる。基本的に `0`（無制限）が推奨。
+
+```bash
+grep -vE "TOKEN|KEY|SECRET" .env | grep RATE_LIMIT
+```
+
+### PM2 ログ確認
+
+```bash
+pm2 logs numbertales-bot --lines 20
 ```
 
 ## 開発スタイル

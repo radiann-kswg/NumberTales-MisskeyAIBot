@@ -75,7 +75,7 @@ nano .env   # または vim .env
 | `GEMINI_API_KEY`               | Gemini の API キー            |
 | `NODE_ENV`                     | **`production`**              |
 | `LOG_LEVEL`                    | `info`                        |
-| `RATE_LIMIT_REPLY_COOLDOWN_MS` | `1800000`（30分）             |
+| `RATE_LIMIT_REPLY_COOLDOWN_MS` | `0`（無制限 ← 推奨）          |
 | `RATE_LIMIT_GLOBAL_PER_HOUR`   | `10`                          |
 
 ### 1-7. ログディレクトリの作成
@@ -143,7 +143,8 @@ GitHub Actions が起動
        ▼
 SSH で VM に接続
        │
-       ├─ git pull origin master
+       ├─ git fetch origin master
+       ├─ git reset --hard origin/master   ← git pull ではなくこちらを使用
        ├─ npm install --omit=dev
        ├─ npm run build
        └─ pm2 reload ecosystem.config.cjs
@@ -151,6 +152,10 @@ SSH で VM に接続
               ▼
          ダウンタイムなしで Bot が再起動
 ```
+
+> **⚠️ `git pull` ではなく `git reset --hard` を使う理由**
+> VM にローカル変更（`dist/` の生成物など）があると `git pull` が競合で失敗する。
+> `git reset --hard origin/master` なら強制的にリモートの状態に揃えられる。
 
 ---
 
@@ -193,6 +198,20 @@ pm2 logs numbertales-bot --lines 50
 - VM のファイアウォールルールで GitHub Actions のサーバー範囲から SSH が許可されているか確認
   - または GCP のファイアウォールで `0.0.0.0/0` → TCP:22 を一時的に許可して切り分ける
 - SSH 秘密鍵が正しく登録されているか確認（改行を含む全文が Secrets に入っているか）
+
+### メンションに返答しない・Bot がリプライを無視する
+
+`.env` の `RATE_LIMIT_REPLY_COOLDOWN_MS` が大きな値（例: `1800000`）になっていないか確認する。
+この値が設定されていると、同一ユーザーへの返信が指定ミリ秒間ブロックされる。
+通常は `0`（無制限）が推奨。
+
+```bash
+# VM 上で .env を確認（API キーを伏せて表示）
+grep -vE "TOKEN|KEY|SECRET" .env
+```
+
+> **⚠️ `-E` フラグが必須**: `grep -v "TOKEN|KEY"` のように `-E` を省くと `|` がリテラル文字として扱われ、
+> すべての行が表示されてシークレットが漏洩する。必ず `grep -vE` を使うこと。
 
 ### メモリ不足で再起動が頻発する
 

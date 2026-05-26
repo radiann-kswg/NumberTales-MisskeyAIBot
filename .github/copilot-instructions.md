@@ -40,22 +40,52 @@ GitHub Copilot や各種 AI ツールが本リポジトリのコンテキスト�
 
 ## プロジェクト概要
 
-ナンバーテールズ0番機 **000(チトセ)** を模した生成AI Botを [Misskey](https://misskey-hub.net/)（分散型SNS）上で動作させるためのアイデア整理・開発リポジトリです。
+ナンバーテールズ0番機 **000(チトセ)** を模した生成AI Botを [Misskey](https://misskey-hub.net/)（分散型SNS）上で動作させるリポジトリです。
 
 - **Bot キャラクター**: 000(チトセ) — 中性的・若手エンジニア肌のポータブルヒューマノイド
-- **AI 基盤**: ChatGPT / Gemini 等の生成AI API（現在はアイデア検討段階）
-- **現在のフェーズ**: アイデア整理・プロンプト設計
+- **AI 基盤**: OpenAI GPT-4o-mini（メイン） / Google Gemini 1.5 Flash（差し替え可能な抽象レイヤー経由）
+- **現在のフェーズ**: 実装中（Phase 1 完了・Phase 2 大部分完了）
+
+### 実装済み機能
+
+| 機能 ID | 内容 | 状態 |
+|---|---|---|
+| Phase 1 | WebSocket 接続・メンション受信・LLM 返信・CW 制御 | ✅ 完了 |
+| Phase 1 | SQLite セッション会話履歴（TTL 30分・最大3往復） | ✅ 完了 |
+| F-01 拡張 | 意図分類 4 分岐（greeting/form-switch/creative-consultation/chat） | ✅ 完了 |
+| F-02 | 時間帯別自発投稿スケジューラー（朝/昼/夕方/深夜） | ✅ 完了 |
+| F-03 | 創作壁打ちモード（creative-consultation ブランチ） | ✅ 完了 |
+| F-04 | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類） | ✅ 完了 |
+| F-06 | 数字・ヌメロジーコマンド | ⬜ 未着手 |
+| — | マルチキャラクター切り替え | ⬜ 未着手 |
 
 ## ディレクトリ構成
 
 ```
-_roleplay-datas/       # ロールプレイ用プロンプト・AI連携情報
-  roleplay-prompt.md   # 000(チトセ)の性格・口調・命令文（必読）
-  ai-link.md           # 連携中のAIサービスへのリンク集
-_rough-idea/           # Bot機能アイデア検討メモ（ChatGPT/Geminiとの対話ログ）
-_creations-db/         # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
-  data/                # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
-  docs/                # DB仕様ドキュメント
+src/
+  index.ts                    # エントリポイント
+  ai/                         # AIProvider 抽象レイヤー（OpenAI / Gemini）
+  bot/
+    classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
+    handlers/mention.ts       # メンション受信ハンドラ（4 分岐）
+    handlers/timeline.ts      # homeTimeline リアクションハンドラ
+    ratelimit/                  # RateLimiter クラス
+    reactor/                    # 絵文字マップ・感情分類
+    responder/                  # 発言書式・テンプレート
+    scheduler/                  # 時間帯別自発投稿
+  config/                     # 環境変数・定数
+  misskey/client.ts           # Misskey WebSocket クライアントラッパー
+  storage/session.ts          # SQLite セッションコンテキスト
+  utils/                      # ロガー等
+docs/                         # 詳細ドキュメント（architecture / development / deployment）
+_ideas/bot-spec/              # 仕様書・設計ドキュメント
+_roleplay-datas/              # キャラクタープロンプト・AI連携情報
+  roleplay-prompt.md          # 000(チトセ)の性格・口調・命令文（必読）
+  ai-link.md                  # 連携中のAIサービスへのリンク集
+_rough-idea/                  # Bot機能アイデア検討メモ（ChatGPT/Geminiとの対話ログ）
+_creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
+  data/                       # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
+  docs/                       # DB仕様ドキュメント
 ```
 
 ## キャラクター設定・口調の参照
@@ -80,3 +110,80 @@ _creations-db/         # サブモジュール: 百花繚乱研究所 創作DB�
 - **商用利用**: 創作DB（CC BY-NC 4.0）のデータを商用目的で運用しないこと
 - **サブモジュールへの直接編集**: `_creations-db/` 配下のファイルは参照専用とし、直接編集しないこと
 - **`_rough-idea/` への実装コードの配置**: アイデアメモ専用フォルダのため、コードファイルは置かないこと
+
+---
+
+## VM 操作・SSH 作業上の注意（重要）
+
+### `.env` ファイル確認コマンド
+
+**必ず `-E` フラグを付けること。**
+
+```bash
+# ✅ 正しい（-E フラグが必須）
+grep -vE "TOKEN|KEY|SECRET" .env
+
+# ❌ 間違い（-E なしでは | がリテラル文字として扱われ全行通過 → シークレット漏洩）
+grep -v "TOKEN|KEY" .env
+```
+
+### git deploy の操作
+
+VM 側に `dist/` などのローカル変更があると `git pull` が失敗する。  
+**GitHub Actions および手動デプロイでは必ず `git reset --hard` を使用すること。**
+
+```bash
+# ✅ 正しい手順
+git fetch origin master
+git reset --hard origin/master
+npm install --omit=dev
+npm run build
+pm2 reload ecosystem.config.cjs
+
+# ❌ 間違い（ローカル変更があるとコンフリクトで止まる）
+git pull origin master
+```
+
+### Bot が返信しない場合の確認
+
+`.env` の `RATE_LIMIT_REPLY_COOLDOWN_MS` を確認する。`0` 以外（例: `1800000`）が設定されていると  
+同一ユーザーへの返信が指定ミリ秒間ブロックされる。基本的に `0`（無制限）が推奨。
+
+```bash
+grep -vE "TOKEN|KEY|SECRET" .env | grep RATE_LIMIT
+```
+
+### PM2 ログ確認
+
+```bash
+pm2 logs numbertales-bot --lines 20
+```
+
+---
+
+## コードを変更する際の注意
+
+### 型変更の伝播
+
+`classifyIntent()` の戻り値型など **関数の返り値型を変更した場合は、すべての呼び出し側も同時に更新すること**。  
+TypeScript の型エラーは `npm run typecheck` で一括確認できる。
+
+```bash
+npm run typecheck
+```
+
+### `ClassificationResult` の使い方
+
+```typescript
+// src/bot/classifier/intent.ts の型
+export interface ClassificationResult {
+  intent: Intent;
+  formTarget?: 'core-folder' | 'humanoid';
+}
+
+// ✅ 正しい呼び出し方（デストラクチャリング）
+const { intent, formTarget } = classifyIntent(text);
+
+// ❌ 間違い（文字列として扱おうとするとコンパイルエラー）
+const intent = classifyIntent(text);
+```
