@@ -62,7 +62,10 @@ export function handleCalculate(text: string): F06Result {
       .replace(/[－]/g, '-')
       .replace(/[×]/g, '*')
       .replace(/[÷]/g, '/')
-      .replace(/√/g, 'sqrt');
+      // √N → sqrt(N)、√(expr) → sqrt(expr) の順で処理して括弧を補う
+      .replace(/√\s*([0-9.]+)/g, 'sqrt($1)')
+      .replace(/√\s*\(/g, 'sqrt(')
+      .replace(/√/g, 'sqrt');   // それ以外の残った √ はそのまま変換
     const match = EXPR_PATTERN.exec(normalized);
     expr = match?.[1]?.trim();
   }
