@@ -5,7 +5,8 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import { classifyIntent } from '../classifier/intent.js';
-import { handleCalculate, handleLifePath, handleKyusei } from '../../features/f06/index.js';
+import { handleCalculate, handleLifePath, handleKyusei, handleDice, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
+import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
@@ -127,14 +128,36 @@ export async function handleMention(
   // 4. 意図分類
   const { intent, formTarget, numerologyType } = classifyIntent(event.text);
 
-  // 4a. F-06 計算・数秘術（early return）
-  if (intent === 'calculate' || intent === 'numerology') {
-    const f06Result =
-      intent === 'calculate'
-        ? handleCalculate(event.text)
-        : numerologyType === 'life-path'
-          ? handleLifePath(event.text)
-          : handleKyusei(event.text);
+  // 4a. F-06 計算・ダイス・数秘術・うんちく（early return）
+  if (intent === 'calculate' || intent === 'numerology' || intent === 'dice' || intent === 'trivia') {
+    let f06Result: F06Result;
+
+    if (intent === 'trivia') {
+      // 数字うんちく: LLM に婔託する
+      const triviaNum = extractTriviaNumber(event.text);
+      try {
+        const aiResult = await ai.chat(
+          [
+            { role: 'system' as const, content: TRIVIA_SYSTEM_PROMPT },
+            { role: 'user' as const, content: buildTriviaUserPrompt(triviaNum) },
+          ],
+          { maxTokens: 120, temperature: 0.9 },
+        );
+        f06Result = { text: aiResult.text.trim() };
+      } catch (err) {
+        logger.error('AI trivia error:', err);
+        f06Result = { text: triviaErrorResponse() };
+      }
+    } else {
+      f06Result =
+        intent === 'calculate'
+          ? handleCalculate(event.text)
+          : intent === 'dice'
+            ? handleDice(event.text)
+            : numerologyType === 'life-path'
+              ? handleLifePath(event.text)
+              : handleKyusei(event.text);
+    }
 
     const noteText =
       formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, f06Result.text) +

@@ -104,3 +104,60 @@ export function numerologyErrorResponse(type: NumerologyType): string {
   }
   return 'うまく処理できなかったよ。もう一度試してみてくれる？';
 }
+
+// ----------------------------------------------------------------
+// ダイスロール / 乱数
+// ----------------------------------------------------------------
+
+const DICE_ROLL_TEMPLATES: ReadonlyArray<(die: string, result: string) => string> = [
+  (die, result) => `ちょっと待ってね……${die} でロール！→ ${result} だよ`,
+  (die, result) => `えーっと…${die} の出目は…… ${result} だよ`,
+  (die, result) => `精度は保証するよ。${die} → ${result} が出たよ`,
+];
+
+/**
+ * ダイスロール結果の応答文（B ランク Precision 演出）。
+ */
+export function diceRollResponse(die: string, result: string): string {
+  const idx = Math.floor(Math.random() * DICE_ROLL_TEMPLATES.length);
+  return DICE_ROLL_TEMPLATES[idx]!(die, result);
+}
+
+/**
+ * 範囲乱数結果の応答文。
+ */
+export function rangeRollResponse(min: number, max: number, result: number): string {
+  return `${min}〜${max} の乱数、ちょっと計算するね……${result} が出たよ`;
+}
+
+/**
+ * ダイス記法が解釈できなかった場合のエラー応答。
+ */
+export function diceErrorResponse(): string {
+  return 'ダイスの書き方がわからなかった。「2d6」「d20」「1から100」のように書いてみてくれる？';
+}
+
+// ----------------------------------------------------------------
+// 数字うんちく（LLM 委譲）
+// ----------------------------------------------------------------
+
+/**
+ * 数字うんちく LLM 呼び出し用システムプロンプト。
+ */
+export const TRIVIA_SYSTEM_PROMPT = `あなたはナンバーテールズ0番機「000(チトセ)」として Misskey 上で会話する Bot です。
+一人称「私」、中性的でフレンドリー、若手エンジニア口調で話します。
+未公開のキャラクター設定・台詞・ストーリーを自動生成しないでください。`;
+
+/**
+ * 数字うんちく LLM 呼び出し用ユーザープロンプト。
+ */
+export function buildTriviaUserPrompt(n: number): string {
+  return `数字「${n}」にまつわる豆知識を1つだけ、60文字以内で教えてください。数学・文化・自然・歴史から面白い観点を選んで、「〜らしいよ」「〜なんだよ」などの口調で話してください。断言する表現は避けてください。`;
+}
+
+/**
+ * うんちく生成エラー時の応答文。
+ */
+export function triviaErrorResponse(): string {
+  return 'うんちく、今はちょっと思い浮かばないな……また聞いてね';
+}

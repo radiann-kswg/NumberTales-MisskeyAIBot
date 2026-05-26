@@ -11,6 +11,9 @@ import {
   kyuseiCwBody,
   kyuseiHeadline,
   numerologyErrorResponse,
+  diceRollResponse,
+  rangeRollResponse,
+  diceErrorResponse,
   NUMEROLOGY_CW_LABEL,
 } from './responder.js';
 
@@ -155,4 +158,48 @@ export function handleKyusei(text: string): F06Result {
     cwBody: kyuseiCwBody(year, kyusei),
     cwLabel: NUMEROLOGY_CW_LABEL,
   };
+}
+
+/** ダイスロール / 範囲乱数を処理する */
+export function handleDice(text: string): F06Result {
+  // nDm 記法 (例: 2d6, D20, d100)
+  const diceMatch = /^.*?(\d*)([dD])(\d+).*$/.exec(text);
+  if (diceMatch) {
+    const count = Math.max(1, parseInt(diceMatch[1] || '1', 10));
+    const sides = parseInt(diceMatch[3]!, 10);
+    if (count > 100 || sides < 2 || sides > 10000) {
+      return { text: 'そのダイスは対応範囲外だよ。ダイス数は1〜100、面数は2〜10000で指定してね' };
+    }
+    const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+    const total = rolls.reduce((a, b) => a + b, 0);
+    const dieStr = `${count === 1 ? '' : count}D${sides}`;
+    const rollStr = count === 1 ? String(total) : `[${rolls.join(', ')}] = ${total}`;
+    return { text: diceRollResponse(dieStr, rollStr) };
+  }
+
+  // 範囲指定乱数 (例: 1から100、0〜9)
+  const rangeMatch = /(\d+)\s*(?:から|〜|~)\s*(\d+)/.exec(text);
+  if (rangeMatch) {
+    const min = parseInt(rangeMatch[1]!, 10);
+    const max = parseInt(rangeMatch[2]!, 10);
+    if (min > max || max - min > 1_000_000) {
+      return { text: 'その範囲ちょっと変だよ。小さい数から大きい数の順で書いてね' };
+    }
+    const result = Math.floor(Math.random() * (max - min + 1)) + min;
+    return { text: rangeRollResponse(min, max, result) };
+  }
+
+  return { text: diceErrorResponse() };
+}
+
+/**
+ * 数字うんちく対象の数字をテキストから抽出する。
+ * 「今日の数字」の場合は当日の日付（日）を返す。
+ */
+export function extractTriviaNumber(text: string): number {
+  if (/今日の数字/.test(text)) {
+    return new Date().getDate();
+  }
+  const match = /(\d+)/.exec(text);
+  return match ? parseInt(match[1]!, 10) : new Date().getDate();
 }

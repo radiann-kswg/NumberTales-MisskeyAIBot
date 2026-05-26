@@ -78,4 +78,6 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   chat: ['naruhodo_aphrnts24', 'wakaru_aphrnts22', 'iine_aphrnts42', 'tashikani_aphrnts75'],
   calculate: ['naruhodo_aphrnts24', 'sugoi_aphrnts57'],
   numerology: ['omoshiroi_i_aphrnts65', 'naruhodo_aphrnts24'],
+  dice: ['yattaze_aphrnts41', 'okay_aphrnts25'],
+  trivia: ['omoshiroi_i_aphrnts65', 'tiken_aphrnts71'],
 };

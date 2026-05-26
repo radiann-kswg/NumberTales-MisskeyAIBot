@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'dice' | 'trivia';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei';
 
@@ -55,6 +55,19 @@ const CREATIVE_PATTERNS: RegExp[] = [
   /壁打ち/,
   /お絵描き.*お題/,
   /創作.*(相談|話)/,
+];
+
+const DICE_PATTERNS: RegExp[] = [
+  /\d*[dD]\d+/,
+  /ダイス(?:ロール)?を?振|サイコロを?振/,
+  /\d+\s*(?:から|〜|~)\s*\d+.*(?:乱数|ランダム)/,
+  /(?:乱数|ランダム).*\d+\s*(?:から|〜|~)\s*\d+/,
+];
+
+const TRIVIA_PATTERNS: RegExp[] = [
+  /\d+\s*(?:という数字|について(?:教えて|の話|話して)|のうんちく|の豆知識)/,
+  /今日の数字/,
+  /数字(?:うんちく|の豆知識)/,
 ];
 
 const CALCULATE_PATTERNS: RegExp[] = [
@@ -106,6 +119,14 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of KYUSEI_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'kyusei' };
+  }
+
+  for (const pattern of DICE_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'dice' };
+  }
+
+  for (const pattern of TRIVIA_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'trivia' };
   }
 
   for (const pattern of CALCULATE_PATTERNS) {
