@@ -10,11 +10,12 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 
 ## マイルストーン一覧
 
-| ファイル                                                                                         | フェーズ | 概要                                         | ステータス |
-| ------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------- | ---------- |
-| [2026-05-25_milestone_phase0-kickoff.md](./2026-05-25_milestone_phase0-kickoff.md)               | Phase 0  | キックオフ・技術スタック確定・環境準備       | 完了 ✅    |
-| [2026-05-26_milestone_phase2-multicharacter.md](./2026-05-26_milestone_phase2-multicharacter.md) | Phase 2  | マルチキャラクター切り替え・永続化・本番確認 | 完了 ✅    |
-| [F-06_stage-a-spec.md](./F-06_stage-a-spec.md)                                                   | Phase 3  | F-06 Stage A（計算・占い・ダイス・うんちく） | 完了 ✅    |
+| ファイル                                                                                               | フェーズ | 概要                                         | ステータス |
+| ------------------------------------------------------------------------------------------------------ | -------- | -------------------------------------------- | ---------- |
+| [2026-05-25_milestone_phase0-kickoff.md](./2026-05-25_milestone_phase0-kickoff.md)                     | Phase 0  | キックオフ・技術スタック確定・環境準備       | 完了 ✅    |
+| [2026-05-26_milestone_phase2-multicharacter.md](./2026-05-26_milestone_phase2-multicharacter.md)       | Phase 2  | マルチキャラクター切り替え・永続化・本番確認 | 完了 ✅    |
+| [F-06_stage-a-spec.md](./F-06_stage-a-spec.md)                                                         | Phase 3  | F-06 Stage A（計算・占い・ダイス・うんちく） | 完了 ✅    |
+| [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) | 横断     | 返答 LLM 化・フォローバック機能追加          | 完了 ✅    |
 
 ## フェーズ概要
 
@@ -27,16 +28,18 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 
 ## 機能進捗表
 
-| 機能 ID                    | 機能名                                           | 実装状況  | milestone / 参照                                                                                 |
-| -------------------------- | ------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------ |
-| F-01                       | ゆる会話（メンション応答）                       | 完了 ✅   | Phase 1 実装済み                                                                                 |
-| F-02                       | 深夜雑談モード                                   | 完了 ✅   | Phase 2 実装済み                                                                                 |
-| F-03                       | 創作支援（壁打ちモード）                         | 完了 ✅   | Phase 3 実装済み                                                                                 |
-| F-04                       | リアクション・エモパシー                         | 完了 ✅   | Phase 2 実装済み                                                                                 |
-| F-05                       | TL観測レポート                                   | 未着手 ⏳ | bot-spec 上は構想のみ                                                                            |
-| F-06 Stage A               | 数式計算・数秘術・ダイス・数字うんちく           | 完了 ✅   | [F-06_stage-a-spec.md](./F-06_stage-a-spec.md)                                                   |
-| マルチキャラクター Phase A | 個別切り替え・解除・管理者デフォルト変更・永続化 | 完了 ✅   | [2026-05-26_milestone_phase2-multicharacter.md](./2026-05-26_milestone_phase2-multicharacter.md) |
-| F-06 Stage B/C             | NumerospecStats 連携・AbilityStats 演出拡張      | 未着手 ⏳ | bot-spec 上は仕様あり                                                                            |
+| 機能 ID                    | 機能名                                                    | 実装状況  | milestone / 参照                                                                                       |
+| -------------------------- | --------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------ |
+| F-01                       | ゆる会話（メンション応答）                                | 完了 ✅   | Phase 1 実装済み                                                                                       |
+| F-02                       | 深夜雑談モード                                            | 完了 ✅   | Phase 2 実装済み                                                                                       |
+| F-03                       | 創作支援（壁打ちモード）                                  | 完了 ✅   | Phase 3 実装済み                                                                                       |
+| F-04                       | リアクション・エモパシー                                  | 完了 ✅   | Phase 2 実装済み                                                                                       |
+| F-05                       | TL観測レポート                                            | 未着手 ⏳ | bot-spec 上は構想のみ                                                                                  |
+| F-06 Stage A               | 数式計算・数秘術・ダイス・数字うんちく                    | 完了 ✅   | [F-06_stage-a-spec.md](./F-06_stage-a-spec.md)                                                         |
+| マルチキャラクター Phase A | 個別切り替え・解除・管理者デフォルト変更・永続化          | 完了 ✅   | [2026-05-26_milestone_phase2-multicharacter.md](./2026-05-26_milestone_phase2-multicharacter.md)       |
+| 返答 LLM 化                | 切替メッセージ・DB呈稱パース・挨拶LLM化・F-06フレーミング | 完了 ✅   | [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) |
+| フォローバック             | フォローされた際に自動フォローバック（5 分クールダウン）  | 完了 ✅   | [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) |
+| F-06 Stage B/C             | NumerospecStats 連携・AbilityStats 演出拡張               | 未着手 ⏳ | bot-spec 上は仕様あり                                                                                  |
 
 ## bot-spec 残タスク
 

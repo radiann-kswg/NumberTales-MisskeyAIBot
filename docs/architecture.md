@@ -1,6 +1,6 @@
 # 技術アーキテクチャ — NumberTales Misskey AI Bot
 
-> 最終更新: 2026-05-26
+> 最終更新: 2026-05-27
 > 実装状況を反映したライブドキュメント（仕様案は [`_ideas/bot-spec/03_tech-architecture.md`](../_ideas/bot-spec/03_tech-architecture.md) を参照）
 
 ---
@@ -23,7 +23,7 @@ Misskey インスタンス (radiann6631.net)
   │         │    greeting / form-switch / creative-consultation / chat
   │         │    calculate / numerology / dice / trivia  (F-06)
   │         ├─ 切り替え系コマンド (bot/character/switch.ts)
-  │         │    ├─ 個別担当切り替え
+  │         │    ├─ 個別担当切り替え（LLM生成メッセージ付き）
   │         │    ├─ 個別担当解除
   │         │    ├─ 管理者デフォルト変更
   │         │    └─ ヘルプ応答
@@ -33,10 +33,17 @@ Misskey インスタンス (radiann6631.net)
   │         │    ├─ dice       → Math.random() ダイス・乱数
   │         │    └─ trivia     → LLM 委譲 (maxTokens 120)
   │         ├─ 応答生成 (F-06 以外)
-  │         │    ├─ 定型返答テンプレート (responder/templates/)
-  │         │    └─ LLM 呼び出し (ai/ 経由)
+  │         │    ├─ greeting   → LLM 生成（時間帯プロンプト注入）
+  │         │    ├─ chat       → LLM 生成
+  │         │    └─ form-switch → LLM 生成（5シナリオ切り替えメッセージ）
   │         ├─ 返信投稿 (misskeyClient.reply)
   │         └─ リアクション付与 (misskeyClient.react) ← F-04
+  │
+  │              ──────────────────────── followed イベント
+  │    └─ handlers/follow.ts
+  │         ├─ 自己フォロー除外
+  │         ├─ 重複フォローバック防止（5 分クールダウン）
+  │         └─ misskeyClient.follow(userId) でフォローバック実行
   │
   ├─ homeTimeline チャンネル ────────── note イベント
   │    └─ handlers/timeline.ts
@@ -87,10 +94,10 @@ export type Intent =
   | 'form-switch'
   | 'creative-consultation'
   | 'chat'
-  | 'calculate'    // F-06: 数式計算
-  | 'numerology'   // F-06: ライフパス・九星気学
-  | 'dice'         // F-06: ダイスロール・乱数
-  | 'trivia';      // F-06: 数字うんちく（LLM 委譲）
+  | 'calculate' // F-06: 数式計算
+  | 'numerology' // F-06: ライフパス・九星気学
+  | 'dice' // F-06: ダイスロール・乱数
+  | 'trivia'; // F-06: 数字うんちく（LLM 委譲）
 
 export interface ClassificationResult {
   intent: Intent;
@@ -105,25 +112,36 @@ export interface ClassificationResult {
 
 メンション受信時のメインハンドラ。先頭でユーザー別のアクティブキャラクターと全体デフォルト担当を解決し、切り替え系コマンドを優先処理する。
 
-- キャラクター切り替え: 番号指定・名前指定でユーザー単位に担当を変更
+- キャラクター切り替え: 番号指定・名前指定でユーザー単位に担当を変更。切り替えメッセージは **LLM 生成**（5 シナリオ: 初回登場・再登場・復帰・同一担当・解除後戻り）
 - キャラクター解除: 個別担当を消して全体デフォルト担当へ戻す
 - 管理者デフォルト変更: `ADMIN_USER_IDS` に含まれるユーザーのみ全体デフォルトを変更
-- キャラ切り替えヘルプ: 現在担当・標準担当・利用例を返信
+- キャラ切り替えヘルプ: 現在担当・標準担当・利用例を返信（常に 000(チトセ) 固定）
 - F-06 グループ（calculate / numerology / dice / trivia）は early return で `features/f06/` に委譲し、trivia のみ LLM を呼ぶ
-- 上記以外は greeting・form-switch・creative-consultation・chat の 4 分岐
+- **greeting**: LLM 生成。JST 時間帯（朝/昼/夕/深夜）をプロンプトに注入し、時間帯に合った挨拶を返す
+- **form-switch / chat / creative-consultation**: LLM 生成
+- **F-06（trivia 以外）**: LLM なしで確定応答 + 結果への前置き一言（30 文字以内）のみ LLM 生成
 
 切り替え・解除時は `SessionStore.clearHistory(userId)` を呼んで、前のキャラクター文脈が会話履歴に残らないようにしている。返信後は `MENTION_REACTION_MAP` から絵文字を選んでリアクション（fire-and-forget）。
+
+### `src/bot/handlers/follow.ts`
+
+`main` チャンネルの `followed` イベントハンドラ（クロージャーで生成）。
+`createFollowBackHandler(deps)` ファクトリ関数を通じて依存注入する。
+
+- 自己フォロー除外（`user.id === myUserId` の場合はスキップ）
+- 同一ユーザーへの重複フォローバックを 5 分クールダウンで防止（インメモリ `Map`）
+- `misskeyClient.follow(userId)` → Misskey API `following/create` を呼び出し
 
 ### `src/bot/character/`
 
 マルチキャラクター機能の中核モジュール群。
 
-| ファイル            | 役割 |
-| ------------------- | ---- |
-| `loader.ts`         | `_creations-db` の `db_Primary.json` から `Progress = released` の個体を読み込み、キャッシュする |
+| ファイル            | 役割                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| `loader.ts`         | `_creations-db` の `db_Primary.json` から `Progress = released` の個体を読み込み、キャッシュする     |
 | `prompt-builder.ts` | `ConversationPattern` や `Character` / `Summary` / `Relation` から動的システムプロンプトを組み立てる |
-| `switch.ts`         | 番号指定・名前指定・解除・管理者デフォルト変更・ヘルプ要求を解決し、応答文面を生成する |
-| `store.ts`          | SQLite にユーザー別担当と全体デフォルト担当を永続化し、再起動後も復元する |
+| `switch.ts`         | 番号指定・名前指定・解除・管理者デフォルト変更・ヘルプ要求を解決し、応答文面を生成する               |
+| `store.ts`          | SQLite にユーザー別担当と全体デフォルト担当を永続化し、再起動後も復元する                            |
 
 ### `src/bot/handlers/timeline.ts`
 
@@ -169,20 +187,20 @@ TL ノートのフィルタリングと感情分類。
 
 F-06 コマンド処理モジュール群。`mention.ts` の F-06 早期 return ブロックから呼ばれる。
 
-| ファイル        | 役割                                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| `calculator.ts` | `mathjs` ラッパー。`safeEvaluate()` で最大 200 文字の式を安全評価。禁止キーワードを弾く     |
-| `numerology.ts` | `lifePathNumber()` / `honmeisei()` / `TAROT_MAP` を提供                                     |
-| `responder.ts`  | 全 F-06 応答テンプレート + `TRIVIA_SYSTEM_PROMPT` / `buildTriviaUserPrompt()`              |
+| ファイル        | 役割                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `calculator.ts` | `mathjs` ラッパー。`safeEvaluate()` で最大 200 文字の式を安全評価。禁止キーワードを弾く             |
+| `numerology.ts` | `lifePathNumber()` / `honmeisei()` / `TAROT_MAP` を提供                                             |
+| `responder.ts`  | 全 F-06 応答テンプレート + `TRIVIA_SYSTEM_PROMPT` / `buildTriviaUserPrompt()`                       |
 | `index.ts`      | `handleCalculate` / `handleLifePath` / `handleKyusei` / `handleDice` / `extractTriviaNumber` を公開 |
 
 `F06Result` 型:
 
 ```typescript
 export interface F06Result {
-  text: string;      // 通常ノート本文（100 文字以内を推奨）
-  cwBody?: string;   // CW 折りたたみ内テキスト
-  cwLabel?: string;  // CW ラベル文字列
+  text: string; // 通常ノート本文（100 文字以内を推奨）
+  cwBody?: string; // CW 折りたたみ内テキスト
+  cwLabel?: string; // CW ラベル文字列
 }
 ```
 
@@ -190,15 +208,17 @@ export interface F06Result {
 
 Misskey WebSocket クライアントのラッパー。公開メソッド:
 
-| メソッド                     | 説明                                |
-| ---------------------------- | ----------------------------------- |
-| `onMention(cb)`              | `main` チャンネルのメンションを購読 |
-| `onHomeTL(cb)`               | `homeTimeline` チャンネルを購読     |
-| `reply(text, replyId, opts)` | ノートに返信（visibility: home）    |
-| `post(text, opts)`           | 自発投稿（visibility: home）        |
-| `react(noteId, emojiName)`   | カスタム絵文字リアクション送信      |
-| `getMyUserId()`              | 自分のユーザー ID を取得            |
-| `close()`                    | WebSocket 接続を閉じる              |
+| メソッド                     | 説明                                         |
+| ---------------------------- | -------------------------------------------- |
+| `onMention(cb)`              | `main` チャンネルのメンションを購読          |
+| `onFollowed(cb)`             | `main` チャンネルのフォローイベントを購読    |
+| `onHomeTL(cb)`               | `homeTimeline` チャンネルを購読              |
+| `reply(text, replyId, opts)` | ノートに返信（visibility: home）             |
+| `post(text, opts)`           | 自発投稿（visibility: home）                 |
+| `follow(userId)`             | 指定ユーザーをフォロー（`following/create`） |
+| `react(noteId, emojiName)`   | カスタム絵文字リアクション送信               |
+| `getMyUserId()`              | 自分のユーザー ID を取得                     |
+| `close()`                    | WebSocket 接続を閉じる                       |
 
 `react()` の絵文字名フォーマット: `:emojiName@.:` （ローカルインスタンス指定）
 
