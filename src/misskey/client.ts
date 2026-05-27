@@ -1,4 +1,5 @@
-import { Stream, api as MisskeyApi, entities } from 'misskey-js';
+import { Stream, ChannelConnection, api as MisskeyApi, entities } from 'misskey-js';
+import type { Channels } from 'misskey-js';
 import { logger } from '../utils/logger.js';
 
 type Note = entities.Note;
@@ -14,6 +15,7 @@ export type MentionCallback = (note: Note) => void | Promise<void>;
 export class MisskeyClient {
   private readonly stream: Stream;
   private readonly apiClient: MisskeyApi.APIClient;
+  private readonly mainCh: ChannelConnection<Channels['main']>;
 
   constructor(
     private readonly origin: string,
@@ -21,6 +23,7 @@ export class MisskeyClient {
   ) {
     this.apiClient = new MisskeyApi.APIClient({ origin, credential: token });
     this.stream = new Stream(origin, { token });
+    this.mainCh = this.stream.useChannel('main');
 
     this.stream.on('_connected_', () => {
       logger.info(`Misskey WebSocket connected: ${this.origin}`);
@@ -36,11 +39,29 @@ export class MisskeyClient {
    * @param callback メンション受信時のコールバック
    */
   onMention(callback: MentionCallback): void {
-    const channel = this.stream.useChannel('main');
-    channel.on('mention', (note) => {
+    this.mainCh.on('mention', (note) => {
       void callback(note);
     });
     logger.info('Subscribed to mentions via main channel');
+  }
+
+  /**
+   * main チャンネルのフォローイベントを受け取る
+   * @param callback フォロー受信時のコールバック
+   */
+  onFollowed(callback: (user: entities.UserDetailed | entities.UserLite) => void | Promise<void>): void {
+    this.mainCh.on('followed', (user) => {
+      void callback(user);
+    });
+    logger.info('Subscribed to followed events via main channel');
+  }
+
+  /**
+   * 指定ユーザーをフォローする
+   * @param userId フォロー対象のユーザー ID
+   */
+  async follow(userId: string): Promise<void> {
+    await this.apiClient.request('following/create', { userId });
   }
 
   /**

@@ -7,6 +7,7 @@ import { ActiveCharacterStore } from './bot/character/store.js';
 import { SessionStore } from './storage/session.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
+import { createFollowBackHandler } from './bot/handlers/follow.js';
 import { PostScheduler } from './bot/scheduler/index.js';
 import { logger } from './utils/logger.js';
 
@@ -66,6 +67,10 @@ async function main(): Promise<void> {
   // homeTimeline リアクションハンドラ起動
   const handleTimelineNote = createTimelineHandler({ misskeyClient, myUserId });
   misskeyClient.onHomeTL(handleTimelineNote);
+
+  // フォローバックハンドラ起動
+  const handleFollowed = createFollowBackHandler({ misskeyClient, myUserId });
+  misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
   const scheduler = new PostScheduler({ ai, misskeyClient });
