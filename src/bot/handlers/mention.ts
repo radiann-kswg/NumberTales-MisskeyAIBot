@@ -78,6 +78,70 @@ async function generateSwitchReply(
   }
 }
 
+/** F-06 コマンド結果の前に置くキャラクター個性の一言を LLM で生成する。失敗時は null を返す（一言なしで続行）。 */
+async function generateF06Framing(
+  ai: AIProvider,
+  character: CharacterRecord,
+  formTarget: FormTarget,
+  framingType: string,
+  resultSummary: string,
+): Promise<string | null> {
+  const typeLabel: Record<string, string> = {
+    calculate: '計算',
+    dice: 'ダイスロール',
+    'life-path': 'ライフパス数（数秘術）',
+    kyusei: '九星気学',
+    'moon-star': '月命星',
+  };
+  const label = typeLabel[framingType] ?? '';
+  const systemPrompt = buildCharacterSystemPrompt(character, 'chat', formTarget);
+  const userContent = `${label}コマンドの結果: 「${resultSummary.slice(0, 60)}」\nこの結果に対して、あなたのキャラクターとして一言そえてください（台詞のみ・30文字以内）。`;
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userContent },
+      ],
+      { maxTokens: 50, temperature: 0.85 },
+    );
+    return result.text.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** 挨拶に対して現在の時間帯を加味したキャラクター応答を LLM で生成する。失敗時は定型にフォールバック。 */
+async function generateGreetingReply(
+  ai: AIProvider,
+  character: CharacterRecord,
+  formTarget: FormTarget,
+  userMessage: string,
+): Promise<string> {
+  const jstHour = (new Date().getUTCHours() + 9) % 24;
+  const timeOfDay =
+    jstHour >= 5 && jstHour < 12
+      ? '朝（5〜12時）'
+      : jstHour >= 12 && jstHour < 17
+        ? '昼（12〜17時）'
+        : jstHour >= 17 && jstHour < 21
+          ? '夕方（17〜21時）'
+          : '夜〜深夜（21〜翌5時）';
+  const systemPrompt = buildCharacterSystemPrompt(character, 'chat', formTarget);
+  const userContent = `現在の時間帯: ${timeOfDay}\nユーザーの発言: 「${userMessage.slice(0, 80)}」\n時間帯に合った自然な挨拶を返してください（60文字以内）。`;
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userContent },
+      ],
+      { maxTokens: 80, temperature: 0.85 },
+    );
+    return result.text.trim();
+  } catch {
+    return pickGreetingResponse();
+  }
+}
+
 /**
  * メンション受信時の処理エントリポイント
  *
@@ -117,15 +181,16 @@ export async function handleMention(
   if (!event.text.trim()) return;
 
   if (isCharacterSwitchHelpRequest(event.text)) {
+    // 機能説明UIは開発者代理個体の 000(チトセ) が常に担当する
     const speechText = formatSpeech(
-      activeCharacterNum,
+      BOT_CONSTANTS.CHITOSE_NUM,
       buildCharacterSwitchHelpText({
         activeCharacterName: activeCharacter.Name ?? `${activeCharacterNum}番機`,
         defaultCharacterName: defaultCharacter.Name ?? `${String(defaultCharacter.Num)}番機`,
         isAdmin: isAdminUser,
       }),
     );
-    const { text, cw } = formatForNote(speechText, activeCharacterNum);
+    const { text, cw } = formatForNote(speechText, BOT_CONSTANTS.CHITOSE_NUM);
 
     try {
       await misskeyClient.reply(text, event.noteId, { cw });
@@ -315,6 +380,20 @@ export async function handleMention(
               : numerologyType === 'moon-star'
                 ? handleTsukimeisei(event.text)
                 : handleKyusei(event.text);
+
+      // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
+      const framingType =
+        effectiveIntent === 'calculate' ? 'calculate'
+        : effectiveIntent === 'dice' ? 'dice'
+        : numerologyType === 'life-path' ? 'life-path'
+        : numerologyType === 'moon-star' ? 'moon-star'
+        : 'kyusei';
+      const framingLine = await generateF06Framing(
+        ai, activeCharacter, activeFormTarget, framingType, f06Result.text,
+      );
+      if (framingLine) {
+        f06Result = { ...f06Result, text: `${framingLine}\n${f06Result.text}` };
+      }
     }
 
     const noteText =
@@ -341,8 +420,10 @@ export async function handleMention(
   // 5. 応答生成 → 000(チトセ) 発言書式に整形
   let speechText: string;
   if (effectiveIntent === 'greeting') {
-    // 挨拶: 定型返答
-    speechText = formatSpeech(activeCharacterNum, pickGreetingResponse());
+    speechText = formatSpeech(
+      activeCharacterNum,
+      await generateGreetingReply(ai, activeCharacter, activeFormTarget, event.text),
+    );
   } else if (effectiveIntent === 'form-switch') {
     const targetForm = formTarget ?? 'humanoid';
     activeCharacterStore.setForm(event.userId, targetForm);
