@@ -15,19 +15,26 @@ src/
   index.ts                    # エントリポイント
   ai/                         # AIProvider 抽象レイヤー（OpenAI / Gemini）
   bot/
+    character/                # マルチキャラクター切り替え・動的プロンプト生成
     classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
-    handlers/mention.ts       # メンション受信ハンドラ（4 分岐）
+    handlers/mention.ts       # メンション受信ハンドラ（切り替え / F-06 / 雑談）
     handlers/timeline.ts      # homeTimeline リアクションハンドラ
+    handlers/follow.ts        # フォローバックハンドラ
     ratelimit/                 # RateLimiter クラス
     reactor/                   # 絵文字マップ・感情分類
     responder/                 # 発言書式・テンプレート
     scheduler/                 # 時間帯別自発投稿
+  features/f06/               # 数字・ヌメロジーコマンド（F-06）
   config/                     # 環境変数・定数
   misskey/client.ts           # Misskey WebSocket クライアントラッパー
   storage/session.ts          # SQLite セッションコンテキスト
   utils/                      # ロガー等
 docs/                         # 詳細ドキュメント（architecture / development / deployment）
-_ideas/bot-spec/              # 仕様書・設計ドキュメント
+_ideas/
+  bot-spec/                   # 仕様書・設計ドキュメント
+  milestone/                  # 実装予定マイルストーン（着手待ち・進行中）
+  future-plan/                # 将来的な機能・改修の検討メモ
+  archived/                   # 完了・破棄済みアイデアのアーカイブ
 _roleplay-datas/              # ロールプレイ用プロンプト・AI連携情報
   roleplay-prompt.md          # 000(チトセ)のキャラクター設定・命令文
   ai-link.md                  # 連携中のAIサービスリンク
@@ -66,17 +73,20 @@ _creations-db/                # サブモジュール: 百花繚乱研究所 創
 | F-03      | 創作壁打ちモード（creative-consultation ブランチ）                       | ✅ 完了     |
 | F-04      | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類）            | ✅ 完了     |
 | F-06      | 数字・ヌメロジーコマンド                                                 | ✅ 完了     |
-| —         | マルチキャラクター切り替え                                               | ✅ 実装済み |     | —   | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング） | ✅ 実装済み |
+| —         | マルチキャラクター切り替え                                               | ✅ 実装済み |
+| —         | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング） | ✅ 実装済み |
 | —         | フォローバック（followed イベント受信時に自動フォロー）                  | ✅ 実装済み |
 
 ### 検討中のBot機能アイデア
 
-詳細は [`_rough-idea/`](./_rough-idea/) を参照:
+初期アイデアは [`_rough-idea/`](./_rough-idea/) を参照。詳細仕様・実装計画は [`_ideas/`](./_ideas/) を参照:
 
-- **ゆる会話系**: 深夜雑談・インスタンス文化学習
-- **創作支援系**: お題生成・キャラ設定補助・世界観深掘り
-- **リアクション特化系**: カスタム絵文字感情妖精・リアクションBot
-- **000(チトセ)固有**: 球体型/人型のモード切り替え・開発者代行キャラとしての振る舞い
+- **Phase 3 優先機能**: キャラプロンプト個性化強化 / 週次担当選出 / ハラスメント仲介（F-07）
+  → [`_ideas/milestone/`](./_ideas/milestone/)
+- **Phase 3 後続機能**: ヌメロジー相談モード / 自発投稿キャラローテーション
+  → [`_ideas/future-plan/`](./_ideas/future-plan/)
+- **内部処理改修（将来）**: 創作DB参照手段の拡張（HTTP動的フェッチ検討）
+  → [`_ideas/future-plan/creations-db-reference-expansion.md`](./_ideas/future-plan/creations-db-reference-expansion.md)
 
 ### Misskey Bot実装上の注意
 

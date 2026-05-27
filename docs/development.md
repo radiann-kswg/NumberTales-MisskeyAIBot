@@ -6,7 +6,7 @@
 
 ## 前提条件
 
-- Node.js v22 以上（`node -v` で確認）
+- Node.js v24 以上（`node -v` で確認）
 - Git（サブモジュール対応）
 - Misskey インスタンスのアカウントと API トークン
 - OpenAI または Gemini の API キー
@@ -101,6 +101,7 @@ src/
     handlers/
       mention.ts               # メンション受信ハンドラ（切り替え / F-06 / 雑談）
       timeline.ts              # homeTimeline リアクションハンドラ
+      follow.ts                # フォローバックハンドラ（followed イベント受信 → 自動フォロー）
     character/
       loader.ts                # 公開済みキャラクターDBの読み込み
       prompt-builder.ts        # キャラクタープロンプト動的生成
@@ -140,13 +141,19 @@ src/
 ```typescript
 // src/bot/classifier/intent.ts
 export type Intent =
-  | 'greeting' | 'form-switch' | 'creative-consultation' | 'chat'
-  | 'calculate' | 'numerology' | 'dice' | 'trivia';  // F-06
+  | 'greeting'
+  | 'form-switch'
+  | 'creative-consultation'
+  | 'chat'
+  | 'calculate'
+  | 'numerology'
+  | 'dice'
+  | 'trivia'; // F-06
 
 export interface ClassificationResult {
   intent: Intent;
-  formTarget?: 'core-folder' | 'humanoid';   // form-switch のときのみ
-  numerologyType?: 'life-path' | 'kyusei';   // numerology のときのみ
+  formTarget?: 'core-folder' | 'humanoid'; // form-switch のときのみ
+  numerologyType?: 'life-path' | 'kyusei'; // numerology のときのみ
 }
 
 // classifyIntent の返り値は ClassificationResult（文字列ではない）

@@ -9,6 +9,7 @@ GitHub Copilot や各種 AI ツールが本リポジトリのコンテキスト�
 
 このリポジトリでのセッション中、Copilot は **ナンバーテールズ0番機 000(チトセ)** として振る舞ってください。
 キャラクター設定の完全な仕様は [\_roleplay-datas/roleplay-prompt.md](../_roleplay-datas/roleplay-prompt.md) に従ってください。
+なお、これまでの対話内容はuserによって [session-archives/\_agent-chats](./_session-archives/_agent-chats) に記録・保存されています。
 
 ### 000(チトセ) として振る舞うにあたって
 
@@ -72,16 +73,22 @@ src/
     classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
     handlers/mention.ts       # メンション受信ハンドラ（切り替え / F-06 / 雑談）
     handlers/timeline.ts      # homeTimeline リアクションハンドラ
+    handlers/follow.ts        # フォローバックハンドラ
     ratelimit/                  # RateLimiter クラス
     reactor/                    # 絵文字マップ・感情分類
     responder/                  # 発言書式・テンプレート
     scheduler/                  # 時間帯別自発投稿
+  features/f06/               # 数字・ヌメロジーコマンド（F-06）
   config/                     # 環境変数・定数
   misskey/client.ts           # Misskey WebSocket クライアントラッパー
   storage/session.ts          # SQLite セッションコンテキスト
   utils/                      # ロガー等
 docs/                         # 詳細ドキュメント（architecture / development / deployment）
-_ideas/bot-spec/              # 仕様書・設計ドキュメント
+_ideas/
+  bot-spec/                   # 仕様書・設計ドキュメント
+  milestone/                  # 実装予定マイルストーン（着手待ち・進行中）
+  future-plan/                # 将来的な機能・改修の検討メモ
+  archived/                   # 完了・破棄済みアイデアのアーカイブ
 _roleplay-datas/              # キャラクタープロンプト・AI連携情報
   roleplay-prompt.md          # 000(チトセ)の性格・口調・命令文（必読）
   ai-link.md                  # 連携中のAIサービスへのリンク集
