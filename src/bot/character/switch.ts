@@ -102,12 +102,13 @@ export function isCharacterSwitchResetRequest(text: string): boolean {
 
 export function buildCharacterSwitchText(target: CharacterRecord, alreadyActive: boolean): string {
   const name = target.Name ?? `${String(target.Num)}番機`;
+  const firstPerson = normalizeCalling(target.FirstPersonCalling, 'この子');
 
   if (alreadyActive) {
     return `${name}で待機しているよ。続けて話してみて。`;
   }
 
-  return `${name}に切り替わったよ。これからは私が応答するね。`;
+  return `${name}に切り替わったよ。これからは${firstPerson}が応答するね。`;
 }
 
 export function buildDefaultCharacterSwitchText(target: CharacterRecord, alreadyDefault: boolean): string {
@@ -121,7 +122,18 @@ export function buildDefaultCharacterSwitchText(target: CharacterRecord, already
 }
 
 function normalizeCalling(value: string | undefined, fallback: string): string {
-  return value?.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '').trim() || fallback;
+  if (!value?.trim()) return fallback;
+  // 改行区切りの最初の行から、※ 以前の先頭項目（, または / 区切り）のみ採用する
+  const firstLine = value.split('\n')[0]!.trim();
+  if (/^\[.*\]$/.test(firstLine)) return fallback;
+  const noteIdx = firstLine.indexOf('※');
+  const itemsPart = noteIdx >= 0 ? firstLine.slice(0, noteIdx).trim() : firstLine;
+  const primary = itemsPart
+    .split(/[,/]/)[0]!
+    .replace(/\([^)]*\)/g, '')
+    .replace(/（[^）]*）/g, '')
+    .trim();
+  return primary || fallback;
 }
 
 export function buildFormSwitchText(

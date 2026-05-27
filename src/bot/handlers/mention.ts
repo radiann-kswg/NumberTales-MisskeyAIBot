@@ -4,10 +4,10 @@ import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
-import { classifyIntent, detectFormTarget } from '../classifier/intent.js';
+import { classifyIntent, detectFormTarget, type FormTarget } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
-import { getDefaultCharacterProfile } from '../character/loader.js';
-import { getReleasedCharacterByNum } from '../character/loader.js';
+import type { CharacterRecord } from '../character/loader.js';
+import { getDefaultCharacterProfile, getReleasedCharacterByNum } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
 import {
   buildCharacterResetText,
@@ -47,6 +47,35 @@ export interface MentionHandlerDeps {
   rateLimiter: RateLimiter;
   sessionStore: SessionStore;
   activeCharacterStore: ActiveCharacterStore;
+}
+
+/**
+ * キャラクター切替・フォーム切替の応答を LLM で生成する。
+ * 生成エラー時はテンプレートテキストにフォールバックする。
+ */
+async function generateSwitchReply(
+  ai: AIProvider,
+  targetCharacter: CharacterRecord,
+  formTarget: FormTarget,
+  userMessage: string,
+  scenarioInstruction: string,
+  fallback: string,
+): Promise<string> {
+  const systemPrompt = buildCharacterSystemPrompt(targetCharacter, 'chat', formTarget);
+  const userContent = `ユーザーの発言: 「${userMessage.slice(0, 80)}」\n${scenarioInstruction}`;
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: userContent },
+      ],
+      { maxTokens: 80, temperature: 0.85 },
+    );
+    return result.text.trim();
+  } catch (err) {
+    logger.warn('Switch reply generation failed, using fallback:', err);
+    return fallback;
+  }
 }
 
 /**
@@ -118,13 +147,22 @@ export async function handleMention(
     activeCharacterStore.clear(event.userId);
     sessionStore.clearHistory(event.userId);
 
-    const speechText = formatSpeech(
-      defaultCharacterNum,
-      buildCharacterResetText(
-        defaultCharacter.Name ?? `${defaultCharacterNum}番機`,
-        !hadOverride,
-      ),
+    const fallbackResetText = buildCharacterResetText(
+      defaultCharacter.Name ?? `${defaultCharacterNum}番機`,
+      !hadOverride,
     );
+    const resetScenario = hadOverride
+      ? 'ユーザーへの個別担当が解除されて、あなたが再び応答します。あなたのキャラクターとして自然に一言どうぞ（70文字以内）。'
+      : 'ユーザーとの会話を引き続き担当します。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。';
+    const resetReplyText = await generateSwitchReply(
+      ai,
+      defaultCharacter,
+      activeCharacterStore.resolveForm(event.userId),
+      event.text,
+      resetScenario,
+      fallbackResetText,
+    );
+    const speechText = formatSpeech(defaultCharacterNum, resetReplyText);
     const { text, cw } = formatForNote(speechText, defaultCharacterNum);
 
     try {
@@ -148,10 +186,19 @@ export async function handleMention(
     const alreadyDefault = activeCharacterStore.getDefault() === defaultTargetNum;
 
     activeCharacterStore.setDefault(defaultTargetNum);
-    const speechText = formatSpeech(
-      defaultTargetNum,
-      buildDefaultCharacterSwitchText(defaultSwitchTarget, alreadyDefault),
+    const fallbackDefaultText = buildDefaultCharacterSwitchText(defaultSwitchTarget, alreadyDefault);
+    const defaultSwitchScenario = alreadyDefault
+      ? 'あなたはすでに全体の標準担当です。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。'
+      : 'あなたが全体の新しい標準担当になりました。あなたのキャラクターとして自然に一言どうぞ（70文字以内）。';
+    const defaultSwitchReplyText = await generateSwitchReply(
+      ai,
+      defaultSwitchTarget,
+      activeCharacterStore.resolveForm(event.userId),
+      event.text,
+      defaultSwitchScenario,
+      fallbackDefaultText,
     );
+    const speechText = formatSpeech(defaultTargetNum, defaultSwitchReplyText);
     const { text, cw } = formatForNote(speechText, defaultTargetNum);
 
     try {
@@ -192,12 +239,25 @@ export async function handleMention(
         sessionStore.clearHistory(event.userId);
       }
 
-      const speechText = formatSpeech(
-        switchTargetNum,
-        requestedFormTarget
-          ? buildFormSwitchText(switchTarget, requestedFormTarget)
-          : buildCharacterSwitchText(switchTarget, alreadyActive),
+      const switchFallback = requestedFormTarget
+        ? buildFormSwitchText(switchTarget, requestedFormTarget)
+        : buildCharacterSwitchText(switchTarget, alreadyActive);
+      const switchScenario = requestedFormTarget
+        ? requestedFormTarget === 'core-folder'
+          ? 'コアフォルダ形態（球体型）に切り替わりました。ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+          : 'ヒューマノイド形態に戻りました。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。'
+        : alreadyActive
+          ? 'ユーザーが再度あなたを指名しました。すでにあなたが担当中であることを、あなたのキャラクターとして短く伝えてください（60文字以内）。'
+          : 'ユーザーがあなたを担当キャラクターに指名しました。あなたのキャラクターとして短い一言で挨拶してください（70文字以内）。';
+      const switchReplyText = await generateSwitchReply(
+        ai,
+        switchTarget,
+        targetForm,
+        event.text,
+        switchScenario,
+        switchFallback,
       );
+      const speechText = formatSpeech(switchTargetNum, switchReplyText);
       const { text, cw } = formatForNote(speechText, switchTargetNum);
 
       try {
@@ -284,12 +344,16 @@ export async function handleMention(
     // 挨拶: 定型返答
     speechText = formatSpeech(activeCharacterNum, pickGreetingResponse());
   } else if (effectiveIntent === 'form-switch') {
-    // 形態切り替え演出: テンプレートからランダム選択
     const targetForm = formTarget ?? 'humanoid';
     activeCharacterStore.setForm(event.userId, targetForm);
+    const formScenario =
+      targetForm === 'core-folder'
+        ? 'コアフォルダ形態（球体型）に切り替わりました。ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+        : 'ヒューマノイド形態に戻りました。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。';
+    const formFallback = buildFormSwitchText(activeCharacter, targetForm);
     speechText = formatSpeech(
       activeCharacterNum,
-      buildFormSwitchText(activeCharacter, targetForm),
+      await generateSwitchReply(ai, activeCharacter, targetForm, event.text, formScenario, formFallback),
     );
   } else if (effectiveIntent === 'creative-consultation') {
     // 創作相談: 専用プロンプトで LLM 生成（履歴は使用しない）

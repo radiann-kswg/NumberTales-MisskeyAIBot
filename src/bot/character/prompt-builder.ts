@@ -67,6 +67,98 @@ function buildStyleFallback(profile: CharacterRecord): string {
   return pieces.join(' ');
 }
 
+interface CallingEntry {
+  items: string[];        // 一人称・二人称の表記ゆれ候補
+  annotations: string[];  // 使用状況の注釈（※以降）
+}
+
+interface ParsedCallingField {
+  isVariable: boolean;    // [※？？？] → 状況によって変わる
+  groups: CallingEntry[]; // TPO優先順（先頭ほど使用頻度が高い）
+}
+
+/**
+ * DB の calling フィールド値をパースする。
+ * 書式: "主項目[/発言揺れ] [※注釈[,注釈...]][\n副項目...]"
+ * - 改行: TPOグループ区切り（先行ほど優先）
+ * - ※前の , / /: 同グループ内の発言揺れ
+ * - ※後の ,: 複数注釈の区切り
+ * - [※？？？]: 一人称が状況により変わる特殊値
+ */
+function parseCallingField(value: string | undefined): ParsedCallingField {
+  const empty: ParsedCallingField = { isVariable: false, groups: [] };
+  if (!value?.trim()) return empty;
+
+  const lines = value.trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  let isVariable = false;
+  const groups: CallingEntry[] = [];
+
+  for (const line of lines) {
+    // [※？？？] 等の特殊ブラケット書式
+    if (/^\[.*\]$/.test(line)) {
+      if (/？/.test(line)) isVariable = true;
+      continue;
+    }
+
+    const noteIdx = line.indexOf('※');
+    const itemsPart = noteIdx >= 0 ? line.slice(0, noteIdx).trim() : line;
+    const annotationsPart = noteIdx >= 0 ? line.slice(noteIdx + 1).trim() : '';
+
+    // , または / で並列項目を分割、読み仮名 (...)（...）を除去
+    const items = itemsPart
+      .split(/[,/]/)
+      .map((i) => i.replace(/\([^)]*\)/g, '').replace(/（[^）]*）/g, '').trim())
+      .filter(Boolean);
+
+    // ※後のカンマは複数注釈の区切り（内容はそのまま保持）
+    const annotations = annotationsPart
+      ? annotationsPart.split(',').map((a) => a.trim()).filter(Boolean)
+      : [];
+
+    if (items.length > 0) groups.push({ items, annotations });
+  }
+
+  return { isVariable, groups };
+}
+
+/** ParsedCallingField をシステムプロンプト用の行配列に変換する */
+function formatCallingLines(
+  field: ParsedCallingField,
+  fallback: string,
+  label: string,
+): string[] {
+  if (field.isVariable) {
+    const lines = [`- ${label}: 状況・気分によって変える（固定しない）。`];
+    for (const group of field.groups) {
+      const itemStr = group.items.map((i) => `「${i}」`).join('・');
+      const noteStr = group.annotations.length > 0 ? `（${group.annotations.join('・')}）` : '';
+      lines.push(`  - ${itemStr}${noteStr}は稀に使う。`);
+    }
+    return lines;
+  }
+
+  if (field.groups.length === 0) {
+    return [`- ${label}: 必ず「${fallback}」を使うこと（他は使わない）。`];
+  }
+
+  const [primary, ...secondaries] = field.groups;
+  const primaryItems = primary!.items.map((i) => `「${i}」`).join('・');
+  const primaryNote =
+    primary!.annotations.length > 0 ? `（${primary!.annotations.join('・')}）` : '';
+
+  if (secondaries.length === 0) {
+    return [`- ${label}: 必ず${primaryItems}${primaryNote}を使うこと（他は使わない）。`];
+  }
+
+  const result = [`- ${label}: ${primaryItems}${primaryNote}を主に使うこと。`];
+  for (const sec of secondaries) {
+    const secItems = sec.items.map((i) => `「${i}」`).join('・');
+    const secNote = sec.annotations.length > 0 ? `（${sec.annotations.join('・')}）` : '';
+    result.push(`  - ${secItems}${secNote}は状況によって使ってもよい。`);
+  }
+  return result;
+}
+
 export function buildCharacterSystemPrompt(
   profile: CharacterRecord,
   mode: PromptMode,
@@ -74,8 +166,8 @@ export function buildCharacterSystemPrompt(
 ): string {
   const num = String(profile.Num);
   const name = normalizeText(profile.Name) ?? `${num}番機`;
-  const firstPerson = normalizeText(profile.FirstPersonCalling) ?? '私';
-  const secondPerson = normalizeText(profile.SecondPersonCalling) ?? '君';
+  const firstPersonField = parseCallingField(profile.FirstPersonCalling);
+  const secondPersonField = parseCallingField(profile.SecondPersonCalling);
   const forMaster = normalizeText(profile.ForMasterCalling);
   const character = normalizeText(profile.Character);
   const summary = normalizeText(profile.Summary);
@@ -84,16 +176,17 @@ export function buildCharacterSystemPrompt(
   const dialogueExamples = buildDialogueExamples(pattern);
   const styleFallback = buildStyleFallback(profile);
 
-  const lines = [
+  const lines: string[] = [
     `あなたはナンバーテールズの公開済みキャラクター「${name}」として Misskey 上で会話する Bot です。`,
     '公開済み設定のみを参照し、自然に返答してください。',
     '',
     '【基本情報】',
     `- 番号: ${num}`,
     `- 名前: ${name}`,
-    `- 一人称: ${firstPerson}`,
-    `- 二人称: ${secondPerson}`,
   ];
+
+  lines.push(...formatCallingLines(firstPersonField, '私', '一人称'));
+  lines.push(...formatCallingLines(secondPersonField, '君', '二人称'));
 
   if (forMaster) {
     lines.push(`- 呼称メモ: ${forMaster}`);
