@@ -206,28 +206,33 @@ A と C は同一セッション内で完結できる規模。B は Misskey Poll
 
 ### 前提 A
 
-- [ ] A-1: `CharacterRecord` 型に `Hobby` / `SpecialSkill` / `Favor` / `NumerospecAbout` を追加
-- [ ] A-2: `buildCharacterSystemPrompt()` に専門性セクションを追加
-- [ ] A-3: 型チェック通過・実機動作確認
+- [x] A-1: `CharacterRecord` 型に `Hobby` / `SpecialSkill` / `Favor` / `NumerospecAbout` を追加
+- [x] A-2: `buildCharacterSystemPrompt()` に専門性セクションを追加
+- [x] A-3: 型チェック通過・実機動作確認
 
 ### 前提 B
 
-- [ ] B-1: `bot_state` テーブル追加・ユーティリティ実装
-- [ ] B-2: Poll ノート投稿処理実装
-- [ ] B-3: 集計・担当確定処理実装
-- [ ] B-4: F-02 スケジューラーへの担当連携
+- [x] B-1: `bot_state` テーブル追加・ユーティリティ実装
+- [x] B-2: Poll ノート投稿処理実装
+- [x] B-3: 集計・担当確定処理実装
+- [x] B-4: F-02 スケジューラーへの担当連携
 
 ### 機能③ (F-07)
 
-- [ ] C-1: `harassment` インテント + レベル判定追加
-- [ ] C-2: `ClassificationResult` 型拡張・型チェック通過
-- [ ] C-3: `mention.ts` への仲介ロジック追加
-- [ ] C-4: L1 受け流し用プロンプト指示追加
-- [ ] C-5: 動作確認（L1/L2/L3 シナリオ）
+- [x] C-1: `harassment` インテント + レベル判定追加
+- [x] C-2: `ClassificationResult` 型拡張・型チェック通過
+- [x] C-3: `mention.ts` への仲介ロジック追加
+- [x] C-4: L1 受け流し用プロンプト指示追加
+- [x] C-5: 動作確認（L1/L2/L3 シナリオ）
+
+### セッション追加実装
+
+- [x] インシデントロガー: `src/utils/incident-logger.ts` 新規作成、ハラスメント検知時に `INCIDENT_LOG_PATH` へ NDJSON 追記
+- [x] エラーロガー: `Logger.enableFileOutput()` 追加、error/warn を `ERROR_LOG_PATH` へ NDJSON 追記
 
 ---
 
-## 保留事項
+## 保留事項（解決済み）
 
-- 10(ミツル) の L3 用キャラクタープロンプト・口調例（クライアントから別途提供）
-- Misskey Poll API（`notes/create` の `poll` パラメータ）の実動作確認
+- [x] 10(ミツル) の L3 用キャラクタープロンプト → サブモジュール更新で `ConversationPattern` を取得・適用済み
+- [x] Misskey Poll API（`notes/create` の `poll` パラメータ）の実動作確認 → 前提 B 実装時に確認済み

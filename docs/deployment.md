@@ -79,6 +79,8 @@ nano .env   # または vim .env
 | `ADMIN_USER_IDS`               | `misskey_user_id_1,misskey_user_id_2` |
 | `RATE_LIMIT_REPLY_COOLDOWN_MS` | `0`（無制限 ← 推奨）          |
 | `RATE_LIMIT_GLOBAL_PER_HOUR`   | `10`                          |
+| `INCIDENT_LOG_PATH`            | `.cache/incident.log`（推奨） |
+| `ERROR_LOG_PATH`               | `.cache/error.log`（推奨）    |
 
 `ADMIN_USER_IDS` に含まれるユーザーだけが、全体デフォルト担当の変更コマンドを実行できる。
 個別担当キャラクターと全体デフォルト担当は `DB_PATH` の SQLite に永続化され、再起動後も維持される。
@@ -183,6 +185,14 @@ pm2 stop numbertales-bot
 
 # ログファイルをクリア
 pm2 flush numbertales-bot
+
+# インシデントログ（ハラスメント検知）確認
+tail -n 20 .cache/incident.log
+grep '"level":3' .cache/incident.log   # L3（暴言・脅迫）のみ
+
+# エラーログ確認
+tail -n 20 .cache/error.log
+grep '"level":"error"' .cache/error.log  # error のみ
 ```
 
 ---
@@ -228,3 +238,14 @@ grep -vE "TOKEN|KEY|SECRET" .env
 
 `ecosystem.config.cjs` の `max_memory_restart` を調整するか、VM のスペックをアップグレードする。
 e2-micro（メモリ 1GB）の場合、`256M` 程度に設定するのが安全。
+
+### インシデントログが生成されない
+
+`.env` に `INCIDENT_LOG_PATH` が設定されている場合は指定パスへの書き込み権限を確認する。
+デフォルト（`.cache/incident.log`）の場合、`.cache/` ディレクトリは起動時に自動作成される。
+
+```bash
+# 権限確認
+ls -la .cache/
+grep -vE "TOKEN|KEY|SECRET" .env | grep LOG_PATH
+```

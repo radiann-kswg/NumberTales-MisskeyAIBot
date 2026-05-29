@@ -1,6 +1,6 @@
 # 技術アーキテクチャ — NumberTales Misskey AI Bot
 
-> 最終更新: 2026-05-27
+> 最終更新: 2026-05-29
 > 実装状況を反映したライブドキュメント（仕様案は [`_ideas/bot-spec/03_tech-architecture.md`](../_ideas/bot-spec/03_tech-architecture.md) を参照）
 
 ---
@@ -22,6 +22,7 @@ Misskey インスタンス (radiann6631.net)
   │         ├─ 意図分類 (classifier/intent.ts)
   │         │    greeting / form-switch / creative-consultation / chat
   │         │    calculate / numerology / dice / trivia  (F-06)
+  │         │    harassment  (F-07: L1/L2/L3 レベル判定付き)
   │         ├─ 切り替え系コマンド (bot/character/switch.ts)
   │         │    ├─ 個別担当切り替え（LLM生成メッセージ付き）
   │         │    ├─ 個別担当解除
@@ -35,7 +36,11 @@ Misskey インスタンス (radiann6631.net)
   │         ├─ 応答生成 (F-06 以外)
   │         │    ├─ greeting   → LLM 生成（時間帯プロンプト注入）
   │         │    ├─ chat       → LLM 生成
-  │         │    └─ form-switch → LLM 生成（5シナリオ切り替えメッセージ）
+  │         │    ├─ form-switch → LLM 生成（5シナリオ切り替えメッセージ）
+  │         │    └─ harassment  → L1: 担当キャラで受け流し
+  │         │                     L2: 000(チトセ) が設計上の制約として介入
+  │         │                     L3: 10(ミツル) が毅然と制止
+  │         │                         IncidentLogger でファイルに記録
   │         ├─ 返信投稿 (misskeyClient.reply)
   │         └─ リアクション付与 (misskeyClient.react) ← F-04
   │
@@ -64,6 +69,13 @@ Misskey インスタンス (radiann6631.net)
   ├─ ActiveCharacterStore (bot/character/store.ts) ── better-sqlite3
   │    ├─ ユーザー別担当キャラクター
   │    └─ 全体デフォルト担当
+  │
+  ├─ IncidentLogger (utils/incident-logger.ts) ── NDJSON ファイル追記
+  │    └─ ハラスメント検知時に投稿情報を .cache/incident.log に記録
+  │
+  ├─ Logger (utils/logger.ts) ── コンソール + NDJSON ファイル追記
+  │    ├─ error / warn → コンソール + .cache/error.log に NDJSON で追記
+  │    └─ info / debug → コンソールのみ
   │
   └─ AIProvider (ai/) ── 抽象レイヤー
        ├─ OpenAI GPT-4o-mini (プライマリ)
@@ -97,16 +109,23 @@ export type Intent =
   | 'calculate' // F-06: 数式計算
   | 'numerology' // F-06: ライフパス・九星気学
   | 'dice' // F-06: ダイスロール・乱数
-  | 'trivia'; // F-06: 数字うんちく（LLM 委譲）
+  | 'trivia' // F-06: 数字うんちく（LLM 委譲）
+  | 'harassment'; // F-07: ハラスメント仲介
 
 export interface ClassificationResult {
   intent: Intent;
   formTarget?: 'core-folder' | 'humanoid'; // form-switch のときのみ
   numerologyType?: 'life-path' | 'kyusei'; // numerology のときのみ
+  harassmentLevel?: 1 | 2 | 3; // harassment のときのみ
 }
 ```
 
-優先順: greeting → form-switch → creative-consultation → (life-path) → (kyusei) → dice → trivia → calculate → chat
+優先順: greeting → form-switch → creative-consultation → **harassment** → (life-path) → (kyusei) → dice → trivia → calculate → chat
+
+`detectHarassmentLevel(text)` でルールベース判定（L3 → L2 → L1 の優先順で正規表現マッチ）。
+- **L1**: 軽度の不躾な要求・軽い挑発（プライベート情報要求など）
+- **L2**: 不適切な性的要求・個人情報要求・エスカレートした言動
+- **L3**: 明確な暴言・威圧・脅迫レベルの言動
 
 ### `src/bot/handlers/mention.ts`
 
@@ -120,6 +139,9 @@ export interface ClassificationResult {
 - **greeting**: LLM 生成。JST 時間帯（朝/昼/夕/深夜）をプロンプトに注入し、時間帯に合った挨拶を返す
 - **form-switch / chat / creative-consultation**: LLM 生成
 - **F-06（trivia 以外）**: LLM なしで確定応答 + 結果への前置き一言（30 文字以内）のみ LLM 生成
+- **harassment（F-07）**: `detectHarassmentLevel()` で L1/L2/L3 を判定し `generateHarassmentReply()` を呼ぶ。L3 の場合は `IncidentLogger.log()` で投稿者情報をファイルに記録する
+  - `MentionEvent` に `username?` / `userHost?` / `noteCreatedAt?` フィールドを追加して投稿者 ID・ホスト・日時をハンドラに渡す
+  - userHandle は `@username`（ローカル）または `@username@host`（リモート）形式で記録
 
 切り替え・解除時は `SessionStore.clearHistory(userId)` を呼んで、前のキャラクター文脈が会話履歴に残らないようにしている。返信後は `MENTION_REACTION_MAP` から絵文字を選んでリアクション（fire-and-forget）。
 
@@ -235,9 +257,22 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 - `active_character_state`: ユーザー別の現在担当キャラクター
 - `bot_settings`: 全体デフォルト担当などの Bot 設定
 
+### `src/utils/incident-logger.ts`
+
+ハラスメント検知時に投稿情報を NDJSON 形式でファイルに追記するクラス。
+`IncidentRecord` インターフェース: `timestamp` / `level` / `noteId` / `userId` / `userHandle` / `noteCreatedAt` / `text`。
+`logger.warn()` でも同時出力されるため PM2 ログからも確認可能。
+
+### `src/utils/logger.ts`
+
+ログ出力クラス。`enableFileOutput(filePath)` を呼ぶと `error` / `warn` レベルのログを
+NDJSON 形式でファイルに追記するようになる（`info` / `debug` はコンソールのみ）。
+`index.ts` の起動時に一度だけ呼び出す。
+
 ### `src/config/env.ts` / `src/config/constants.ts`
 
 環境変数の読み込みと定数定義。`.env` ファイルから `dotenv` 経由で読み込む。
+`constants.ts` の `BOT_CONSTANTS` に `CHITOSE_NUM: '000'` と `MITSURU_NUM: '10'`（F-07 L3 担当）を定義。
 
 ---
 
@@ -256,9 +291,14 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 | `ADMIN_USER_IDS`               | —    | 管理者ユーザー ID のカンマ区切り一覧  | 空                  |
 | `RATE_LIMIT_REPLY_COOLDOWN_MS` | —    | 同一ユーザーへの返信クールダウン (ms) | `0`（無制限）       |
 | `RATE_LIMIT_GLOBAL_PER_HOUR`   | —    | 全体の 1 時間あたり最大投稿数         | `10`                |
-| `DB_PATH`                      | —    | SQLite ファイルパス                   | `.cache/session.db` |
+| `DB_PATH`                      | —    | SQLite ファイルパス                   | `.cache/session.db`      |
+| `INCIDENT_LOG_PATH`            | —    | ハラスメント検知ログ出力先            | `.cache/incident.log`    |
+| `ERROR_LOG_PATH`               | —    | エラー・警告ログ出力先                | `.cache/error.log`       |
 
 `DB_PATH` は会話履歴だけでなく、ユーザー別担当キャラクターと全体デフォルト担当の永続化にも使われる。
+
+`INCIDENT_LOG_PATH` / `ERROR_LOG_PATH` はいずれも `.gitignore` 対象の `.cache/` 配下がデフォルト。
+VM 上で直接確認するには `tail` / `grep` を使用すること（後述）。
 
 > ⚠️ `RATE_LIMIT_REPLY_COOLDOWN_MS` を明示的に設定する場合は `0`（無制限）が推奨。
 > 過去に `1800000`（30 分）を設定したまま放置してリプライが届かなくなった事例あり。
@@ -274,3 +314,57 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 | TL リアクション（ユーザー別） | 1 時間 1 回                         | `timeline.ts` 内 `Map<userId, number>` |
 | TL リアクション（全体）       | 20 回/時                            | `timeline.ts` 内配列                   |
 | 自発投稿クールダウン          | 1〜2 時間（ランダム）               | `scheduler/index.ts`                   |
+
+---
+
+## ログファイル管理
+
+Bot は PM2 のコンソールログに加え、2 種類のファイルログを `.cache/` 配下に出力する。
+
+### インシデントログ（`.cache/incident.log`）
+
+ハラスメント検知（F-07）時に投稿者情報を記録する NDJSON ファイル。
+1 行 1 レコード形式:
+
+```json
+{"timestamp":"2026-05-29T10:00:00.000Z","level":3,"noteId":"abc123","userId":"xyz","userHandle":"@baduser@misskey.example","noteCreatedAt":"2026-05-29T09:59:59.000Z","text":"..."}
+```
+
+| フィールド      | 内容                                           |
+| --------------- | ---------------------------------------------- |
+| `timestamp`     | ログ記録日時（ISO 8601）                       |
+| `level`         | ハラスメントレベル（1 / 2 / 3）                |
+| `noteId`        | Misskey ノート ID                              |
+| `userId`        | 投稿者の Misskey ユーザー ID                   |
+| `userHandle`    | `@username` / `@username@host`（リモートの場合）|
+| `noteCreatedAt` | 元ノートの投稿日時                             |
+| `text`          | 投稿テキスト（メンション除去済み）             |
+
+### エラーログ（`.cache/error.log`）
+
+`logger.error()` / `logger.warn()` レベルのログを記録する NDJSON ファイル。
+PM2 ログと同内容だが、ファイルとして永続化・フィルタリングできる。
+
+```json
+{"timestamp":"2026-05-29T10:00:00.000Z","level":"error","message":"WebSocket接続エラー","detail":"ECONNREFUSED"}
+```
+
+### VM 上でのログ確認コマンド
+
+```bash
+# インシデントログ（直近20件）
+tail -n 20 .cache/incident.log
+
+# L3（暴言・脅迫）だけ抽出
+grep '"level":3' .cache/incident.log
+
+# エラーログ（直近20件）
+tail -n 20 .cache/error.log
+
+# エラーのみ抽出
+grep '"level":"error"' .cache/error.log
+
+# リアルタイム監視
+tail -f .cache/incident.log
+tail -f .cache/error.log
+```

@@ -119,6 +119,7 @@ src/
         emoji-map.ts           # EMOJI_POOL 定義
     scheduler/
       index.ts                 # PostScheduler（時間帯別自発投稿）
+      weekly-poll.ts           # WeeklyPollScheduler（週次 Poll 担当選出）
   features/
     f06/
       calculator.ts            # mathjs ラッパー（safeEvaluate）
@@ -132,8 +133,10 @@ src/
     client.ts                  # MisskeyClient WebSocket ラッパー
   storage/
     session.ts                 # SessionStore（better-sqlite3）
+    bot-state.ts               # BotStateStore（bot_state テーブル）
   utils/
-    logger.ts                  # ロガー
+    logger.ts                  # ロガー（enableFileOutput でファイル出力有効化）
+    incident-logger.ts         # IncidentLogger（ハラスメント検知ファイルログ）
 ```
 
 ### 重要な型定義
@@ -148,17 +151,19 @@ export type Intent =
   | 'calculate'
   | 'numerology'
   | 'dice'
-  | 'trivia'; // F-06
+  | 'trivia' // F-06
+  | 'harassment'; // F-07
 
 export interface ClassificationResult {
   intent: Intent;
   formTarget?: 'core-folder' | 'humanoid'; // form-switch のときのみ
   numerologyType?: 'life-path' | 'kyusei'; // numerology のときのみ
+  harassmentLevel?: 1 | 2 | 3; // harassment のときのみ
 }
 
 // classifyIntent の返り値は ClassificationResult（文字列ではない）
 // 呼び出し側でデストラクチャリングすること
-const { intent, formTarget, numerologyType } = classifyIntent(text);
+const { intent, formTarget, numerologyType, harassmentLevel } = classifyIntent(text);
 ```
 
 ### 新しい絵文字を追加する際
@@ -213,6 +218,36 @@ console.log(shouldSkipReaction(note));   // false
 console.log(classifyNoteEmotion(note));  // 'achievement'
 EOF
 ```
+
+### ハラスメント検知のテスト（F-07）
+
+```bash
+node --input-type=module << 'EOF'
+import { detectHarassmentLevel } from './dist/bot/classifier/intent.js';
+console.log(detectHarassmentLevel('死ね'));         // 3
+console.log(detectHarassmentLevel('裸になれ'));     // 2
+console.log(detectHarassmentLevel('黙れ'));         // 1
+console.log(detectHarassmentLevel('おはよう'));     // null
+EOF
+```
+
+---
+
+## ログファイルの確認
+
+Bit起動後は `.cache/` 配下に 2 種類のログファイルが生成される。
+
+```bash
+# インシデントログ（ハラスメント検知）
+tail -n 20 .cache/incident.log
+grep '"level":3' .cache/incident.log      # L3 のみ
+
+# エラーログ
+tail -n 20 .cache/error.log
+grep '"level":"error"' .cache/error.log   # error のみ
+```
+
+ログファイルの出力先は環境変数で変更できる（`INCIDENT_LOG_PATH` / `ERROR_LOG_PATH`）。
 
 ---
 

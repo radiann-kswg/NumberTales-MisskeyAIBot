@@ -61,6 +61,9 @@ GitHub Copilot や各種 AI ツールが本リポジトリのコンテキスト�
 | —         | マルチキャラクター切り替え                                                | ✅ 実装済み |
 | —         | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング） | ✅ 実装済み |
 | —         | フォローバック（followed イベント受信時に自動フォロー）                   | ✅ 実装済み |
+| F-07      | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）        | ✅ 実装済み |
+| —         | インシデントロガー（ハラスメント検知時に NDJSON ファイル出力）            | ✅ 実装済み |
+| —         | エラーロガー（error/warn レベルを NDJSON ファイルに永続化）               | ✅ 実装済み |
 
 ## ディレクトリ構成
 
@@ -190,11 +193,27 @@ npm run typecheck
 export interface ClassificationResult {
   intent: Intent;
   formTarget?: 'core-folder' | 'humanoid';
+  numerologyType?: 'life-path' | 'kyusei';
+  harassmentLevel?: 1 | 2 | 3; // F-07: harassment インテント時のみ
 }
 
 // ✅ 正しい呼び出し方（デストラクチャリング）
-const { intent, formTarget } = classifyIntent(text);
+const { intent, formTarget, harassmentLevel } = classifyIntent(text);
 
 // ❌ 間違い（文字列として扱おうとするとコンパイルエラー）
 const intent = classifyIntent(text);
 ```
+
+### `logger.enableFileOutput()` の注意
+
+```typescript
+// ✅ 正しい（起動時に一度だけ呼ぶ）
+logger.enableFileOutput(config.storage.errorLogPath); // index.ts の main() 先頭付近
+
+// ❌ 間違い（複数回呼ぶとログが重複して書き込まれる）
+logger.enableFileOutput(path1);
+logger.enableFileOutput(path2);
+```
+
+`error` / `warn` レベルのログが `ERROR_LOG_PATH`（デフォルト `.cache/error.log`）に NDJSON で追記される。
+ファイル出力を有効にしても PM2 ログへの出力は変わらず継続される。
