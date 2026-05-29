@@ -11,6 +11,7 @@ import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createFollowBackHandler } from './bot/handlers/follow.js';
 import { PostScheduler } from './bot/scheduler/index.js';
 import { logger } from './utils/logger.js';
+import { IncidentLogger } from './utils/incident-logger.js';
 
 async function main(): Promise<void> {
   logger.info('NumberTales Misskey AI Bot — starting...');
@@ -51,6 +52,10 @@ async function main(): Promise<void> {
     config.bot.defaultCharacterNum,
   );
 
+  // インシデントロガー初期化
+  const incidentLogger = new IncidentLogger(config.storage.incidentLogPath);
+  logger.info(`Incident log: ${config.storage.incidentLogPath}`);
+
   // メンション受信ループ開始
   misskeyClient.onMention(async (note) => {
     // @username メンション部分を除去してテキストを抽出
@@ -62,9 +67,12 @@ async function main(): Promise<void> {
       userId: note.userId,
       text,
       replyId: note.replyId ?? undefined,
+      username: note.user.username,
+      userHost: note.user.host ?? null,
+      noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger });
   });
 
   logger.info('Bot is listening for mentions...');

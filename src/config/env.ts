@@ -34,6 +34,8 @@ export const config = {
       'CREATIONS_DB_PATH',
       './_creations-db/data/Works_NumberTales/DataBases/db_Primary.json',
     ),
+    /** ハラスメント・インシデントログの出力先ファイルパス */
+    incidentLogPath: optionalEnv('INCIDENT_LOG_PATH', '.cache/incident.log'),
   },
   bot: {
     nodeEnv: optionalEnv('NODE_ENV', 'development') as 'development' | 'production',

@@ -27,6 +27,7 @@ import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
 import { config } from '../../config/env.js';
+import { IncidentLogger } from '../../utils/incident-logger.js';
 
 export interface MentionEvent {
   /** メンションが付いたノートの ID */
@@ -37,6 +38,12 @@ export interface MentionEvent {
   text: string;
   /** 返信先ノート ID（リプライの場合） */
   replyId?: string;
+  /** 送信者の username（インシデントログ用） */
+  username?: string;
+  /** 送信者のインスタンスホスト。ローカルユーザーは null（インシデントログ用） */
+  userHost?: string | null;
+  /** ノートの投稿日時 ISO 8601（インシデントログ用） */
+  noteCreatedAt?: string;
 }
 
 export interface MentionHandlerDeps {
@@ -46,6 +53,7 @@ export interface MentionHandlerDeps {
   rateLimiter: RateLimiter;
   sessionStore: SessionStore;
   activeCharacterStore: ActiveCharacterStore;
+  incidentLogger: IncidentLogger;
 }
 
 /**
@@ -232,7 +240,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -425,13 +433,28 @@ export async function handleMention(
 
   // 4b. ハラスメント検知 → 仲介ロジック（F-07）
   if (effectiveIntent === 'harassment') {
-    const replyText = await generateHarassmentReply(ai, activeCharacter, activeFormTarget, event.text, harassmentLevel ?? 1);
+    // インシデントログ記録
+    const level = harassmentLevel ?? 1;
+    const userHandle = event.userHost
+      ? `@${event.username ?? event.userId}@${event.userHost}`
+      : `@${event.username ?? event.userId}`;
+    incidentLogger.log({
+      timestamp: new Date().toISOString(),
+      level,
+      noteId: event.noteId,
+      userId: event.userId,
+      userHandle,
+      noteCreatedAt: event.noteCreatedAt ?? new Date().toISOString(),
+      text: event.text,
+    });
+
+    const replyText = await generateHarassmentReply(ai, activeCharacter, activeFormTarget, event.text, level);
     const speechText = formatSpeech(activeCharacterNum, replyText);
     const { text, cw } = formatForNote(speechText, activeCharacterNum);
     try {
       await misskeyClient.reply(text, event.noteId, { cw });
       rateLimiter.recordReply(event.userId);
-      logger.info(`Replied (harassment L${harassmentLevel ?? 1}) to ${event.userId}`);
+      logger.info(`Replied (harassment L${level}) to ${event.userId}`);
     } catch (err) {
       logger.error('Failed to post harassment reply:', err);
     }
