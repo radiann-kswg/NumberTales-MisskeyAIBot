@@ -98,7 +98,7 @@ $dirs = @(
   "docs"
 )
 foreach ($d in $dirs) {
-  $path = "{LOCAL_REPOSITORY_PATH}\$d"
+  $path = "{LOCAL_REPOSITORY}\$d"
   New-Item -ItemType Directory -Force -Path $path | Out-Null
   New-Item -ItemType File -Force -Path "$path\.gitkeep" | Out-Null
 }
@@ -169,7 +169,7 @@ Ran terminal command: npm.cmd --version
 
 Node.js v24.11.0、npm 11.6.1 確認。LTS の v22 より新しいけど問題なし。では `npm install` を実行する。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npm.cmd install
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npm.cmd install
 
 `better-sqlite3` はネイティブビルドが必要で、Visual Studio の C++ ワークロードがないためエラーになってる。でも Node.js v24 には **`node:sqlite`** という組み込みの SQLite モジュールが安定版として入ってるから、外部パッケージなしで済む。package.json を修正して再インストールするよ。
 
@@ -179,7 +179,7 @@ Replacing 4 lines with 2 lines in [](./package.json)
 
 ```
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npm.cmd install
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npm.cmd install
 
 インストール成功。1件の high 脆弱性があるから確認する。
 
@@ -344,7 +344,7 @@ Replacing 12 lines with 29 lines in [](./src/index.ts)
 
 全ファイル揃ったので型チェックを走らせる。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npm.cmd run typecheck
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npm.cmd run typecheck
 
 エラーゼロ。最後にマイルストーンを更新する。
 
@@ -442,32 +442,32 @@ Gemini 1.5 Flash は無料枠が広め（1分あたり15リクエスト）なの
 
 了解。まず `misskey-js` の実際のAPI形式を確認してからスクリプトを作る。
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\package.json" | Select-String '"version"|"main"|"exports"' | Select-Object -First 5
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\package.json" | Select-String '"version"|"main"|"exports"' | Select-Object -First 5
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\index.d.ts" | Select-Object -First 30
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\index.d.ts" | Select-Object -First 30
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\api.d.ts" | Select-Object -First 30
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\api.d.ts" | Select-Object -First 30
 
 APIの形式が確認できた。.cache ディレクトリを作成して疎通確認スクリプトを作る。
 
-Ran terminal command: New-Item -ItemType Directory -Force -Path "{LOCAL_REPOSITORY_PATH}\.cache" | Out-Null; Write-Host "Done"
+Ran terminal command: New-Item -ItemType Directory -Force -Path "{LOCAL_REPOSITORY}\.cache" | Out-Null; Write-Host "Done"
 
 Created [](./.cache/check-connection.mjs)
 
 .env ファイルがあることを確認してから実行する。
 
-Ran terminal command: Test-Path "{LOCAL_REPOSITORY_PATH}\.env"
+Ran terminal command: Test-Path "{LOCAL_REPOSITORY}\.env"
 
 .env あり。実行するよ。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; node .cache/check-connection.mjs
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; node .cache/check-connection.mjs
 
 Misskey と OpenAI は通過。Gemini だけモデル名のエラーが出てる。利用可能なモデル名を確認してから修正するよ。
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\@google\generative-ai\package.json" | Select-String '"version"' | Select-Object -First 1
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\node_modules\@google\generative-ai\package.json" | Select-String '"version"' | Select-Object -First 1
 
 Ran terminal command:
-$key = (Get-Content "{LOCAL_REPOSITORY_PATH}\.env" | Select-String 'GEMINI_API_KEY=(.+)' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+$key = (Get-Content "{LOCAL_REPOSITORY}\.env" | Select-String 'GEMINI_API_KEY=(.+)' | ForEach-Object { $_.Matches[0].Groups[1].Value })
 if ($key) {
 node -e "
 import('@google/generative-ai').then(({GoogleGenerativeAI}) => {
@@ -485,7 +485,7 @@ m2.generateContent('test').then(r2 => console.log('latest OK:', r2.response.text
 `gemini-1.5-flash` 自体が廃止されている可能性がある。利用可能なモデルを実際に問い合わせて確認するよ。
 
 Ran terminal command:
-$key = (Get-Content "{LOCAL_REPOSITORY_PATH}\.env" | Select-String 'GEMINI_API_KEY=(.+)' | ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() })
+$key = (Get-Content "{LOCAL_REPOSITORY}\.env" | Select-String 'GEMINI_API_KEY=(.+)' | ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() })
 if ($key) {
 $response = Invoke-RestMethod -Uri "https://generativelanguage.googleapis.com/v1beta/models?key=$key" -Method GET
 $response.models | Where-Object { $\_.supportedGenerationMethods -contains 'generateContent' } | Select-Object name | Format-Table -AutoSize
@@ -503,7 +503,7 @@ Replacing 3 lines with 3 lines in [](./.cache/check-connection.mjs), [](./src/ai
 
 ```
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; node .cache/check-connection.mjs
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; node .cache/check-connection.mjs
 
 モデル名は正しく認識された（404 → 429 に変わってる）。ただし `gemini-2.0-flash` は無料枠なし（課金必須）。無料枠がある `gemini-2.5-flash` を試すよ。
 
@@ -517,7 +517,7 @@ Replacing 3 lines with 3 lines in [](./.cache/check-connection.mjs), [](./src/ai
 
 ```
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; node .cache/check-connection.mjs
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; node .cache/check-connection.mjs
 
 Compacted conversation3/3 通過。全 API の疎通確認完了。
 
@@ -588,17 +588,17 @@ misskey-js のストリーミング API 形式を確認する。
 
 開始中: _misskey-js ストリーミング API 確認_ (1/6)
 
-Ran terminal command: Get-ChildItem "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built" -Name | Select-Object -First 20
+Ran terminal command: Get-ChildItem "{LOCAL_REPOSITORY}\node_modules\misskey-js\built" -Name | Select-Object -First 20
 
-Ran terminal command: Get-ChildItem "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built" -Name | Select-Object -Last 30
+Ran terminal command: Get-ChildItem "{LOCAL_REPOSITORY}\node_modules\misskey-js\built" -Name | Select-Object -Last 30
 
 Read [](./node_modules/misskey-js/built/streaming.d.ts)
 
 Searched for regex `main.*events|mention|MentionedInAnotherNote` (`**/node_modules/misskey-js/built/streaming.types.d.ts`), no results
 
-Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\streaming.types.d.ts" -Pattern "mention|main|events" -CaseSensitive:$false | Select-Object -First 40
+Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\streaming.types.d.ts" -Pattern "mention|main|events" -CaseSensitive:$false | Select-Object -First 40
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\streaming.types.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\streaming.types.d.ts"
 
 # main チャンネル周辺を表示（行9から40行）
 
@@ -606,29 +606,29 @@ $content[5..50] -join "`n"
 
 ストリーミング API の形式を確認した。`Note` 型を確認する。
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\entities.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\entities.d.ts"
 
 # Note型の定義を探す
 
 $noteStart = ($content | Select-String -Pattern "^export type Note = " | Select-Object -First 1).LineNumber
 if ($noteStart) { $content[($noteStart-2)..($noteStart+40)] -join "`n" }
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\entities.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\entities.d.ts"
 $noteStart = ($content | Select-String -Pattern "Note = \{" | Select-Object -First 1).LineNumber
 $content[($noteStart-1)..($noteStart+35)] -join "`n"
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\autogen\models.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\autogen\models.d.ts"
 $noteStart = ($content | Select-String -Pattern "^export type Note = " | Select-Object -First 1).LineNumber
 if ($noteStart) { $content[($noteStart-1)..($noteStart+40)] -join "`n" } else { Write-Host "Not found, total lines: $($content.Length)" }
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\autogen\models.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\autogen\models.d.ts"
 
 # components['schemas']['Note'] の定義を探す
 
 $noteSchemaStart = ($content | Select-String -Pattern "Note._:" | Where-Object { $\_ -match "^\s+Note\s_:" } | Select-Object -First 1).LineNumber
 $content[($noteSchemaStart-1)..($noteSchemaStart+50)] -join "`n"
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\autogen\types.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\autogen\types.d.ts"
 
 # Note スキーマの定義を探す
 
@@ -637,11 +637,11 @@ $content[($noteStart-1)..($noteStart+45)] -join "`n"
 
 Note 型を確認した。次に `notes/create` の API パラメータを確認する。
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\api.types.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\api.types.d.ts"
 $createStart = ($content | Select-String -Pattern '"notes/create"' | Select-Object -First 1).LineNumber
 $content[($createStart-1)..($createStart+30)] -join "`n"
 
-Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\autogen\endpoint.d.ts"
+Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\autogen\endpoint.d.ts"
 $createStart = ($content | Select-String -Pattern '"notes/create"' | Select-Object -First 1).LineNumber
 $content[($createStart-1)..($createStart+25)] -join "`n"
 
@@ -649,7 +649,7 @@ Read [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a
 
 必要な型は把握できた。実装に入る前に misskey-js のエクスポート構成を確認する。
 
-Ran terminal command: $idx = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\built\index.d.ts"
+Ran terminal command: $idx = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\built\index.d.ts"
 $idx -join "`n"
 
 API 構造を完全に把握した。bot の既存構造と roleplay-prompt を確認して実装に入る。
@@ -700,11 +700,11 @@ Replacing 28 lines with 64 lines in [](./src/index.ts)
 
 開始中: _型チェック確認 tsc --noEmit_ (6/6)
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc --noEmit 2>&1
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc --noEmit 2>&1
 
 package.json の `type` フィールドを確認する。
 
-Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY_PATH}\package.json" -Pattern '"type"'
+Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY}\package.json" -Pattern '"type"'
 
 package.json に `"type": "module"` が抜けているのが原因。確認してから追加する。
 
@@ -720,11 +720,11 @@ Replacing 4 lines with 5 lines in [](./package.json), [](./src/misskey/client.ts
 
 ```
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc --noEmit 2>&1
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc --noEmit 2>&1
 
 `misskey-js` のエクスポート形式を確認する。
 
-Ran terminal command: $pkg = Get-Content "{LOCAL_REPOSITORY_PATH}\node_modules\misskey-js\package.json" | ConvertFrom-Json
+Ran terminal command: $pkg = Get-Content "{LOCAL_REPOSITORY}\node_modules\misskey-js\package.json" | ConvertFrom-Json
 $pkg.exports | ConvertTo-Json -Depth 3 | Select-Object -First 40
 
 `Note` は `entities.Note` 経由でしかアクセスできない。修正する。
@@ -735,13 +735,13 @@ Replacing 5 lines with 6 lines in [](./src/misskey/client.ts)
 
 ```
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc --noEmit 2>&1
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc --noEmit 2>&1
 
 型エラー 0 件。実際に起動してみる。
 
 完了済み: _型チェック確認 tsc --noEmit_ (6/6)
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc; node dist/index.js
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc; node dist/index.js
 
 Bot が正常起動してる。ログを見ると：
 
@@ -952,7 +952,7 @@ Read [](./src/utils/logger.ts#1-1), lines 1 to 40
 
 `debug` は実装済み。型チェックしてから再ビルド・再起動する。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc --noEmit 2>&1
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc --noEmit 2>&1
 
 型エラーなし。既存の Bot プロセスを止めて再起動する。
 
@@ -962,7 +962,7 @@ Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc --noEm
 
 ターミナルが強制終了されました
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; npx.cmd tsc; node dist/index.js
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; npx.cmd tsc; node dist/index.js
 
 正常起動。Bot 再起動完了。「ナンバーテールズって何？」系のメンションを再度送ってみてくれ。今度はシステムプロンプトに以下が追加されたので改善されるはず：
 
@@ -1091,7 +1091,7 @@ Replacing 6 lines with 6 lines in [](./docs/deployment.md)
 
 現在の状態を確認する。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git log --oneline -5; git status --short
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git log --oneline -5; git status --short
 
 Ran terminal command: git show --stat HEAD; git log --oneline origin/master..HEAD
 
@@ -1122,7 +1122,7 @@ master   ─── cc1713e  ← GitHub Actions はここを見てる
 
 # GitHub Copilot:
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git log --oneline -5; git branch -a
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git log --oneline -5; git branch -a
 
 まだ `develop` → `master` のマージが行われていないので、GitHub Actions はまだ1回も動いていない。`gh` コマンドが使えるか確認してからマージを進める。
 
@@ -1152,7 +1152,7 @@ Ran terminal command: gh --version 2>&1; gh auth status 2>&1
 
 では `develop` → `master` にマージして push する。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git checkout master; git merge develop --no-edit; git push origin master
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git checkout master; git merge develop --no-edit; git push origin master
 
 `Already up to date` になった。ブランチの関係がおかしいので確認する。
 
@@ -1569,7 +1569,7 @@ Replacing 5 lines with 6 lines in [](./.github/workflows/deploy.yml)
 
 これを push して GitHub Actions を発火させる。
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git add .github/workflows/deploy.yml; git commit -m "Add SSH debug logging to diagnose auth failure"; git push origin master
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git add .github/workflows/deploy.yml; git commit -m "Add SSH debug logging to diagnose auth failure"; git push origin master
 
 push した。少し待ってから GitHub Actions のログを確認する。
 
@@ -1783,7 +1783,7 @@ Ran terminal command: Write-Host "=== 公開鍵（GCP メタデータに登録�
 
 空コミットで push して Actions を発火させる:
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git commit --allow-empty -m "ci: test SSH key rotation"; git push origin master
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git commit --allow-empty -m "ci: test SSH key rotation"; git push origin master
 
 GitHub 側の一時的なサーバーエラー（500）。少し待って再試行する:
 
@@ -2109,7 +2109,7 @@ SSHテストが通った！これでいけるかな…!?
 
 ついに通った！すぐに Actions を発火させる:
 
-Ran terminal command: Set-Location "{LOCAL_REPOSITORY_PATH}"; git commit --allow-empty -m "ci: verify SSH key fix"; git push origin master
+Ran terminal command: Set-Location "{LOCAL_REPOSITORY}"; git commit --allow-empty -m "ci: verify SSH key fix"; git push origin master
 
 push 成功。少し待ってから結果を確認する:
 
@@ -2183,7 +2183,7 @@ Ran terminal command: ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サー�
 
 3つとも `{ユーザID} :{ユーザID} ` に変わった。空コミットで再発火させよう：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit --allow-empty -m "ci: fix .git ownership" ; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit --allow-empty -m "ci: fix .git ownership" ; git push origin master
 
 push できた。Run #8 が完了するまで少し待ってから確認しよう：
 
@@ -2235,7 +2235,7 @@ Replacing 6 lines with 9 lines in [](./.github/workflows/deploy.yml)
 
 これを push して Run #9 を発火させよう：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add .github/workflows/deploy.yml ; git commit -m "ci: auto-fix .git ownership before deploy" ; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add .github/workflows/deploy.yml ; git commit -m "ci: auto-fix .git ownership before deploy" ; git push origin master
 
 push できた。Run #9 の結果を待とう（`npm install` や `npm run build` が入るので2〜3分かかる）：
 
@@ -2504,7 +2504,7 @@ Read [](./ecosystem.config.cjs)
 
 VM は ID 0 が1つだけ。問題は別のところにある。ターミナルに "node" という名前のセッションがある — **ローカルで Bot が起動しているかもしれない**。ローカルの .env を確認しよう：
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\.env" | Where-Object { $\_ -notmatch "KEY|TOKEN|SECRET" }
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\.env" | Where-Object { $\_ -notmatch "KEY|TOKEN|SECRET" }
 
 ローカルの `MISSKEY_HOST` は未設定のようだが、client.ts の `onMention()` を確認しよう — 複数回呼ばれると listener が重複して二重応答になる：
 
@@ -2518,7 +2518,7 @@ Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザ
 
 VM は1プロセスのみ。ローカルの `Terminal: node` セッションが怪しい。ローカルの .env に `MISSKEY_HOST` が実際にあるか確認：
 
-Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY_PATH}\.env" -Pattern "MISSKEY_HOST" | Select-Object -ExpandProperty Line
+Ran terminal command: Select-String -Path "{LOCAL_REPOSITORY}\.env" -Pattern "MISSKEY_HOST" | Select-Object -ExpandProperty Line
 
 原因が判明した。**ローカルの .env にも `MISSKEY_HOST=https://radiann6631.net` が設定されている**。`Terminal: node` セッションでローカルの Bot も起動していたため、VM と合わせて2つから応答が届いていた。
 
@@ -2722,7 +2722,7 @@ Searched for files matching `**/src/bot/responder/templates`, no matches
 
 Searched for files matching `**/src/bot/responder`, no matches
 
-Ran terminal command: Get-ChildItem -Path "{LOCAL_REPOSITORY_PATH}\src" -Recurse -Name
+Ran terminal command: Get-ChildItem -Path "{LOCAL_REPOSITORY}\src" -Recurse -Name
 
 ファイル構成が確認できた。3ファイルを実装する：
 
@@ -2746,7 +2746,7 @@ Replacing 21 lines with 30 lines in [](./src/bot/handlers/mention.ts)
 
 型チェックで確認：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; npm run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; npm run typecheck 2>&1
 
 Checked [](./src/bot/handlers/mention.ts), [](./src/bot/responder/emoji.ts), [](./src/bot/responder/templates/emoji-map.ts), no problems found
 
@@ -2829,9 +2829,9 @@ Checked [](./src/bot/handlers/mention.ts), [](./src/bot/responder/emoji.ts), [](
 
 # GitHub Copilot:
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/bot/responder/templates/emoji-map.ts src/bot/responder/emoji.ts src/bot/handlers/mention.ts src/config/constants.ts; git status
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/bot/responder/templates/emoji-map.ts src/bot/responder/emoji.ts src/bot/handlers/mention.ts src/config/constants.ts; git status
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git commit -m "feat: Phase 2-A カスタム絵文字付与・発言書式の実装
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git commit -m "feat: Phase 2-A カスタム絵文字付与・発言書式の実装
 
 - src/bot/responder/templates/emoji-map.ts: 意図別絵文字プール辞書を追加
 - src/bot/responder/emoji.ts: pickEmoji / appendEmoji / formatSpeech を追加
@@ -2910,9 +2910,9 @@ Searched for text `DatabaseSync` (`**/node_modules/@types/node/**/*.d.ts`), no r
 
 To Do 項目が 4 件作成されました
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; npm install better-sqlite3 ; npm install --save-dev @types/better-sqlite3
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; npm install better-sqlite3 ; npm install --save-dev @types/better-sqlite3
 
-Ran terminal command: Push-Location "{LOCAL_REPOSITORY_PATH}"; node -e "require('child_process').execSync('npm install better-sqlite3 && npm install --save-dev @types/better-sqlite3', {stdio:'inherit', cwd: process.cwd()})"
+Ran terminal command: Push-Location "{LOCAL_REPOSITORY}"; node -e "require('child_process').execSync('npm install better-sqlite3 && npm install --save-dev @types/better-sqlite3', {stdio:'inherit', cwd: process.cwd()})"
 
 開始中: _SessionStore 実装_ (2/4)
 
@@ -2948,7 +2948,7 @@ Checked [](./src/storage/session.ts), [](./src/index.ts), [](./src/bot/handlers/
 
 完了済み: _mention.ts に履歴注入を追加_ (4/4)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add package.json package-lock.json src/storage/session.ts src/index.ts src/bot/handlers/mention.ts; git commit -m "feat: Phase 2-B セッションコンテキスト保持の実装
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add package.json package-lock.json src/storage/session.ts src/index.ts src/bot/handlers/mention.ts; git commit -m "feat: Phase 2-B セッションコンテキスト保持の実装
 
 - src/storage/session.ts: SessionStore クラスを追加
   - SQLite (better-sqlite3) で会話履歴を TTL 30分付きで保持
@@ -3031,7 +3031,7 @@ Replacing 4 lines with 4 lines in [](./src/config/env.ts)
 
 ```
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/config/env.ts; git commit -m "fix: per-user 返信クールダウンを 30分 → 1分 に短縮
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/config/env.ts; git commit -m "fix: per-user 返信クールダウンを 30分 → 1分 に短縮
 
 Phase 2-B のセッション会話が機能するよう、同一ユーザーへの
 クールダウンを 1800000ms(30分) から 60000ms(1分) に変更。
@@ -3123,7 +3123,7 @@ Replacing 4 lines with 5 lines in [](./.github/workflows/deploy.yml)
 
 ```
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add .github/workflows/deploy.yml; git commit -m "fix: git pull → git fetch + reset --hard でローカル変更コンフリクトを回避
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add .github/workflows/deploy.yml; git commit -m "fix: git pull → git fetch + reset --hard でローカル変更コンフリクトを回避
 
 npm install が package-lock.json を書き換えるため、git pull が
 マージ拒否する問題を修正。デプロイ時はリモートに強制的に合わせる。"; git push origin master
@@ -3195,7 +3195,7 @@ Checked [](./src/bot/ratelimit/index.ts), [](./src/config/env.ts), no problems f
 
 エラーなし。コミット＆プッシュ：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/config/env.ts src/bot/ratelimit/index.ts; git commit -m "fix: per-user 返信クールダウンを無効化（0ms）
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/config/env.ts src/bot/ratelimit/index.ts; git commit -m "fix: per-user 返信クールダウンを無効化（0ms）
 
 会話リプライが75秒以内に届くケースでも Rate limited になっていたため、
 per-user クールダウンをデフォルト 0（無効）に変更。
@@ -3248,7 +3248,7 @@ Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザ
 
 Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザID} @{サーバーIP} 'grep -r "replyCooldown\|1800000\|"0"\|cooldownMs" ~/NumberTales-MisskeyAIBot/dist/config/ 2>/dev/null'
 
-Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザID} @{サーバーIP} 'find ~/NumberTales-MisskeyAIBot/dist/config -type f | xargs grep -l "{LOCAL_REPOSITORY_PATH}" ; cat ~/NumberTales-MisskeyAIBot/dist/config/env.js 2>/dev/null | grep -i "rate\|cool\|limit" || echo "not found"'
+Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザID} @{サーバーIP} 'find ~/NumberTales-MisskeyAIBot/dist/config -type f | xargs grep -l "{LOCAL_REPOSITORY}" ; cat ~/NumberTales-MisskeyAIBot/dist/config/env.js 2>/dev/null | grep -i "rate\|cool\|limit" || echo "not found"'
 
 Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザID} @{サーバーIP} 'cat ~/NumberTales-MisskeyAIBot/dist/config/env.js'
 
@@ -3426,7 +3426,7 @@ Replacing 14 lines with 14 lines in [](./src/bot/handlers/mention.ts)
 
 あとは push してデプロイするだけ。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/bot/handlers/mention.ts; git commit -m "fix: CW見出しを固定ラベル「000の返信」に変更"; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/bot/handlers/mention.ts; git commit -m "fix: CW見出しを固定ラベル「000の返信」に変更"; git push origin master
 
 push 完了。GitHub Actions が走ってデプロイされる。次回 CW が付く長文返信は `000の返信` という固定ラベルになる。
 
@@ -3557,7 +3557,7 @@ Checked [](./src), 1 problem found
 
 エラーは私の変更前から存在する既存の lint 警告（`console.error` 禁止ルール）で、追加したコードには問題なし。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/config/constants.ts src/misskey/client.ts src/bot/scheduler/index.ts src/index.ts; git commit -m "feat(F-02): 時間帯別自発投稿スケジューラー実装
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/config/constants.ts src/misskey/client.ts src/bot/scheduler/index.ts src/index.ts; git commit -m "feat(F-02): 時間帯別自発投稿スケジューラー実装
 
 - PostScheduler クラスを新規作成 (src/bot/scheduler/index.ts)
 - 4スロット定義: 朝(6-8)/昼(12-13)/夕方(17-19)/深夜(23-翌5)
@@ -3669,7 +3669,7 @@ Checked [](./src/bot/handlers/mention.ts), [](./src/bot/classifier/intent.ts), n
 
 開始中: _ビルドエラー確認・push_ (3/3)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/bot/classifier/intent.ts src/bot/handlers/mention.ts; git commit -m "feat(F-02/F-03): 意図分類拡張・壁打ちモード・コアフォルダ形態演出
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/bot/classifier/intent.ts src/bot/handlers/mention.ts; git commit -m "feat(F-02/F-03): 意図分類拡張・壁打ちモード・コアフォルダ形態演出
 
 - intent.ts: creative-consultation / form-switch intent 追加
   コアフォルダ/ヒューマノイド形態トリガー・創作相談パターンを定義
@@ -3946,7 +3946,7 @@ Checked [](./src/bot/reactor/classify.ts), [](./src/bot/reactor/emoji-reaction-m
 
 全ファイルエラーなし。push する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}"; git add src/bot/reactor/emoji-reaction-map.ts src/bot/reactor/classify.ts src/bot/handlers/timeline.ts src/bot/handlers/mention.ts src/misskey/client.ts src/index.ts; git commit -m "feat(F-04): リアクション・エモパシー実装
+Ran terminal command: cd "{LOCAL_REPOSITORY}"; git add src/bot/reactor/emoji-reaction-map.ts src/bot/reactor/classify.ts src/bot/handlers/timeline.ts src/bot/handlers/mention.ts src/misskey/client.ts src/index.ts; git commit -m "feat(F-04): リアクション・エモパシー実装
 
 - reactor/emoji-reaction-map.ts: カテゴリ10絵文字マップ定義
   TLリアクション9カテゴリ（achievement/tired/agree/interesting/
@@ -4115,13 +4115,13 @@ Replacing 6 lines with 52 lines in [](./AGENTS.md)
 
 開始中: _git push_ (8/8)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status
 
 変更内容が揃っています。コミットして push する前に確認してもらいたいので、内容を提示します。
 
 回答を分析しています...
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add README.md docs/architecture.md docs/development.md docs/deployment.md .github/copilot-instructions.md AGENTS.md "\_ideas/bot-spec/03_tech-architecture.md" ; git commit -m "docs: リポジトリドキュメント整備
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add README.md docs/architecture.md docs/development.md docs/deployment.md .github/copilot-instructions.md AGENTS.md "\_ideas/bot-spec/03_tech-architecture.md" ; git commit -m "docs: リポジトリドキュメント整備
 
 - README.md 新規作成（GitHubパブリックページ: 機能一覧・セットアップ等）
 - docs/architecture.md 新規作成（技術アーキテクチャ詳細・レートリミット設計）
@@ -4131,7 +4131,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add README.md docs/arch
 - AGENTS.md 更新（src/ ディレクトリ構成追加・実装済み機能一覧・VM操作注意追加）
 - 03_tech-architecture.md: Phase 2 チェックリスト更新・購読チャンネル修正"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; $env:GIT_SSH_COMMAND = "ssh -i `"$HOME\.ssh\deploy_key_gha`" -o StrictHostKeyChecking=no" ; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; $env:GIT_SSH_COMMAND = "ssh -i `"$HOME\.ssh\deploy_key_gha`" -o StrictHostKeyChecking=no" ; git push origin master
 
 完了済み: _git push_ (8/8)
 
@@ -4372,9 +4372,9 @@ Replacing 4 lines with 17 lines in [](./_ideas/bot-spec/03_tech-architecture.md)
 
 配置完了したよ。ファイル一覧を確認して push しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add "\_ideas/milestone/F-06_stage-a-spec.md" "\_ideas/future-plan/" "\_ideas/bot-spec/03_tech-architecture.md" ; git commit -m "docs(ideas): F-06 要件定義とマルチキャラクター将来計画を整理
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add "\_ideas/milestone/F-06_stage-a-spec.md" "\_ideas/future-plan/" "\_ideas/bot-spec/03_tech-architecture.md" ; git commit -m "docs(ideas): F-06 要件定義とマルチキャラクター将来計画を整理
 
 - \_ideas/milestone/F-06_stage-a-spec.md: Stage A 実装仕様
   (mathjs確定・ライフパス/九星/タロット/数式計算・両入力方式・응答テンプレート)
@@ -4461,9 +4461,9 @@ Read [](./_creations-db/data/Works_NumberTales/DataBases/db_Primary.json#10145-1
 
 仕様書の修正内容を確認して push しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff "\_ideas/milestone/F-06_stage-a-spec.md"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff "\_ideas/milestone/F-06_stage-a-spec.md"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add "\_ideas/milestone/F-06_stage-a-spec.md" ; git commit -m "docs(milestone): F-06仕様書のユーザーID修正 @000chitose -> @APHR_NTs" ; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add "\_ideas/milestone/F-06_stage-a-spec.md" ; git commit -m "docs(milestone): F-06仕様書のユーザーID修正 @000chitose -> @APHR_NTs" ; git push origin master
 
 push 完了。7 箇所すべて `@APHR_NTs` に直した。
 
@@ -4592,17 +4592,17 @@ Replacing 6 lines with 8 lines in [](./src/bot/reactor/emoji-reaction-map.ts)
 
 開始中: _typecheck → build 確認_ (7/8)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm run typecheck 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run typecheck 2>&1
 
 型エラーゼロ。ビルドに進もう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build 2>&1
 
 ビルドも通った。簡単に動作確認してから push しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module << 'EOF'
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module << 'EOF'
 import { safeEvaluate } from './dist/features/f06/calculator.js';
 console.log('sqrt(144) =', safeEvaluate('sqrt(144)'));
 console.log('sin(pi/6) =', safeEvaluate('sin(pi/6)'));
@@ -4611,7 +4611,7 @@ EOF
 
 PowerShell では here-doc が使えない。スクリプトファイルで代替する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; $test = @"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; $test = @"
 import { safeEvaluate } from './dist/features/f06/calculator.js';
 import { lifePathNumber, honmeisei } from './dist/features/f06/numerology.js';
 console.log('sqrt(144) =', safeEvaluate('sqrt(144)'));
@@ -4631,9 +4631,9 @@ console.log('honmeisei(1990) =', honmeisei(1990));
 
 では push しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/features/f06/ src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/bot/reactor/emoji-reaction-map.ts ; git status
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/features/f06/ src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/bot/reactor/emoji-reaction-map.ts ; git status
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "feat(F-06): Stage A 実装 — 数式計算・ライフパスナンバー・九星気学
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit -m "feat(F-06): Stage A 実装 — 数式計算・ライフパスナンバー・九星気学
 
 - src/features/f06/calculator.ts: mathjs safeEvaluate ラッパー（禁止キーワード検査付き）
 - src/features/f06/numerology.ts: lifePathNumber / honmeisei / TAROT_MAP
@@ -4712,9 +4712,9 @@ Replacing 14 lines with 17 lines in [](./src/features/f06/index.ts)
 
 ビルド → スモークテストまで一気に確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; $test = @"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; $test = @"
 import { handleCalculate } from './dist/features/f06/index.js';
 // 今回失敗したケース
 console.log(JSON.stringify(handleCalculate('√10を計算してみて')));
@@ -4726,7 +4726,7 @@ console.log(JSON.stringify(handleCalculate('sin(30) + cos(60) は？')));
 
 まだ何か問題がある。デバッグして原因を正確に把握しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; $dbg = @"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; $dbg = @"
 const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrt]{3,})/i;
 
 function normalize(text) {
@@ -4759,13 +4759,13 @@ console.log('---');
 
 PowerShell の here-string が `√` を壊している。source ファイルの dist を直接確認しよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; Select-String -Path "dist\features\f06\index.js" -Pattern "sqrt" | Select-Object -First 10
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; Select-String -Path "dist\features\f06\index.js" -Pattern "sqrt" | Select-Object -First 10
 
 デバッグスクリプトをファイルに書いて実行する。
 
 Created [](./.cache/debug-f06.mjs)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/debug-f06.mjs
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/debug-f06.mjs
 
 Replacing 1 lines with 1 lines in [](./.cache/debug-f06.mjs)
 
@@ -4773,7 +4773,7 @@ Replacing 1 lines with 1 lines in [](./.cache/debug-f06.mjs)
 
 ```
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/debug-f06.mjs
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/debug-f06.mjs
 
 全部正しく動いている！さっきのテスト出力がおかしかったのは、PowerShell の here-string が `√` を壊していたから（ソースコードの fix 自体は正しかった）。
 
@@ -4785,7 +4785,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/debug-f06.mjs
 
 昨日の本番失敗は旧コード（fix 前）が使われていたから。fix 済みコードを push してデプロイしよう。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/features/f06/index.ts ; git commit -m "fix(F-06): √N の正規化を sqrt(N) に修正 — 括弧なし sqrtN は評価エラーになるため" ; git push origin master
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/features/f06/index.ts ; git commit -m "fix(F-06): √N の正規化を sqrt(N) に修正 — 括弧なし sqrtN は評価エラーになるため" ; git push origin master
 
 push 完了。GitHub Actions がデプロイしたら再テストしてみてね。
 
@@ -4901,21 +4901,21 @@ Replacing 3 lines with 5 lines in [](./src/bot/reactor/emoji-reaction-map.ts)
 
 型チェックしてみよう：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm run typecheck 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node_modules\.bin\tsc --noEmit 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node_modules\.bin\tsc --noEmit 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node node_modules/typescript/bin/tsc --noEmit 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node node_modules/typescript/bin/tsc --noEmit 2>&1
 
 型エラーなし。次はビルド：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node node_modules/typescript/bin/tsc 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node node_modules/typescript/bin/tsc 2>&1
 
 ビルドも問題なし。git commit & push：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/ ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/ ; git status --short 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add dist/ ; git commit -m "feat(F-06): add dice roll and number trivia handlers
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add dist/ ; git commit -m "feat(F-06): add dice roll and number trivia handlers
 
 - Add 'dice' and 'trivia' to Intent type
 - DICE_PATTERNS: nDm notation + range random (1から100 etc.)
@@ -4925,7 +4925,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add dist/ ; git commit 
 - trivia branch in mention.ts calls LLM (maxTokens 120, temp 0.9)
 - MENTION_REACTION_MAP: dice -> yattaze/okay, trivia -> omoshiroi/tiken" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _typecheck → build → push_ (5/5)
 
@@ -5042,9 +5042,9 @@ Created [](./_session-archives/2026-05-26_F06-stage-a-implementation.md)
 
 変更をコミット：
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add docs/ \_ideas/milestone/ \_session-archives/ ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add docs/ \_ideas/milestone/ \_session-archives/ ; git status --short 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "docs: update architecture/development docs and session archive for F-06 Stage A
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit -m "docs: update architecture/development docs and session archive for F-06 Stage A
 
 - docs/architecture.md: add F-06 early-return flow to diagram, update Intent type
   (8 values), add features/f06/ module descriptions, update mention.ts section
@@ -5054,7 +5054,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "docs: update
 - \_ideas/milestone/README.md: Phase 0 -> 完了, add F-06 Stage A entry
 - \_session-archives/2026-05-26_F06-stage-a-implementation.md: new session archive" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _セッションアーカイブを作成_ (4/4)
 
@@ -5148,11 +5148,11 @@ Read [](./src/bot/handlers/mention.ts#1-1), lines 1 to 80
 
 Searched for files matching `**/_creations-db/data/Works_NumberTales/DataBases/db_Primary.json`, 1 match
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" | Select-String -Pattern '"Progress"' | Select-Object -First 5
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" | Select-String -Pattern '"Progress"' | Select-Object -First 5
 
 Read [](./src/bot/handlers/mention.ts#80-80), lines 80 to 200
 
-Ran terminal command: $json = Get-Content "{LOCAL_REPOSITORY_PATH}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" -Raw | ConvertFrom-Json
+Ran terminal command: $json = Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" -Raw | ConvertFrom-Json
 $released = $json | Where-Object { $_.Progress -eq "released" }
 Write-Host "released 件数: $($released.Count)"
 $released | Select-Object -First 2 | ForEach-Object { Write-Host "---"; Write-Host "Num: $($_.Num)"; Write-Host "Name: $($_.Name)"; Write-Host "HasConversationPattern: $($null -ne $_.ConversationPattern)"; Write-Host "HasAbilityStats: $($null -ne $_.AbilityStats)"; Write-Host "ConversationPattern keys: $(if($_.ConversationPattern){ ($_.ConversationPattern | Get-Member -MemberType NoteProperty).Name -join ', ' })"; }
@@ -5286,11 +5286,11 @@ Generating patch (409 lines) in [](./src/bot/handlers/mention.ts), [](./src/bot/
 
 基盤の差し替えは入った。まずは型で崩れていないかを狭く確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm run typecheck 2>&1
 
 PowerShellの実行ポリシーで `npm` が止まっただけだから、同じチェックを `npm.cmd` でやり直す。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 今回の環境依存だけ一つ残しておく。Windows 側では `npm.cmd` を使うのが再現性高い。
 
@@ -5344,7 +5344,7 @@ Generating patch (82 lines) in [](./src/bot/handlers/mention.ts), [](./src/index
 
 基盤追加の直後なので、まずは狭く型チェックだけ通して崩れがないか確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 状態保持は通ったので、ここから実際に切り替えできる最小機能まで進める。番号指定と名前指定を拾って、ユーザーごとの相手変更と履歴リセットまで入れるよ。
 
@@ -5378,21 +5378,21 @@ Generating patch (176 lines) in [](./src/bot/character/loader.ts), [](./src/stor
 
 切り替え機能を入れた直後なので、同じくまず型だけで破綻していないか確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型は通った。最後に、実際に番号指定と名前指定が解決できるかだけ狭く動作確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist-placeholder.js'" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist-placeholder.js'" 2>&1
 
 実装ではなく確認コマンドの指定が雑だったので、同じ狭い確認をビルド経由でやり直す。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist/bot/character/switch.js'; const cases=['1番機と話したい','#3にお願い','ハジメちゃんと話したい','チトセに切り替え']; for (const text of cases) { const result = resolveCharacterSwitchTarget(text); console.log(text, '=>', result ? `${result.Num}:${result.Name}` : 'null'); }" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist/bot/character/switch.js'; const cases=['1番機と話したい','#3にお願い','ハジメちゃんと話したい','チトセに切り替え']; for (const text of cases) { const result = resolveCharacterSwitchTarget(text); console.log(text, '=>', result ? `${result.Num}:${result.Name}` : 'null'); }" 2>&1
 
 文字列の渡し方がPowerShell側で崩れた。確認内容自体はそのままで、Unicodeエスケープにして再実行する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist/bot/character/switch.js'; const cases=['1\u756a\u6a5f\u3068\u8a71\u3057\u305f\u3044','#3\u306b\u304a\u9858\u3044','\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3068\u8a71\u3057\u305f\u3044','\u30c1\u30c8\u30bb\u306b\u5207\u308a\u66ff\u3048']; for (const text of cases) { const result = resolveCharacterSwitchTarget(text); console.log(text + ' => ' + (result ? String(result.Num) + ':' + String(result.Name) : 'null')); }" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget } from './dist/bot/character/switch.js'; const cases=['1\u756a\u6a5f\u3068\u8a71\u3057\u305f\u3044','#3\u306b\u304a\u9858\u3044','\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3068\u8a71\u3057\u305f\u3044','\u30c1\u30c8\u30bb\u306b\u5207\u308a\u66ff\u3048']; for (const text of cases) { const result = resolveCharacterSwitchTarget(text); console.log(text + ' => ' + (result ? String(result.Num) + ':' + String(result.Name) : 'null')); }" 2>&1
 
 ユーザーごとの相手切り替えまで進めたよ。今は各ユーザーごとにアクティブキャラクターを持てて、メンション本文から番号指定か名前指定を拾えたら、そのユーザーの応答相手だけ切り替わる。
 
@@ -5460,31 +5460,31 @@ Generating patch (316 lines) in [](./src/config/env.ts), [](./src/bot/character/
 
 編集は入った。まず型で崩れていないか確認して、必要ならその場で詰める。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型は通った。次は切り替え解決と管理者デフォルト変更の狭い挙動だけ確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget, resolveDefaultCharacterTarget, buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const cases=['ハジメちゃん呼んで','3番機に来て','ナオで頼む','ハジメちゃんをコアフォルダにして']; for (const text of cases) { const target = resolveCharacterSwitchTarget(text); console.log(text + ' => ' + (target ? String(target.Num) + ':' + String(target.Name) : 'null')); } const defaultCase='全体のデフォルトを3番機にして'; const defaultTarget = resolveDefaultCharacterTarget(defaultCase); console.log(defaultCase + ' => ' + (defaultTarget ? String(defaultTarget.Num) + ':' + String(defaultTarget.Name) : 'null')); const formCase='ハジメちゃんをコアフォルダにして'; const form = detectFormTarget(formCase); const target = getReleasedCharacterByNum('1'); console.log('form => ' + form); console.log('form text => ' + (target ; form ? buildFormSwitchText(target, form) : 'null'));" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget, resolveDefaultCharacterTarget, buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const cases=['ハジメちゃん呼んで','3番機に来て','ナオで頼む','ハジメちゃんをコアフォルダにして']; for (const text of cases) { const target = resolveCharacterSwitchTarget(text); console.log(text + ' => ' + (target ? String(target.Num) + ':' + String(target.Name) : 'null')); } const defaultCase='全体のデフォルトを3番機にして'; const defaultTarget = resolveDefaultCharacterTarget(defaultCase); console.log(defaultCase + ' => ' + (defaultTarget ? String(defaultTarget.Num) + ':' + String(defaultTarget.Name) : 'null')); const formCase='ハジメちゃんをコアフォルダにして'; const form = detectFormTarget(formCase); const target = getReleasedCharacterByNum('1'); console.log('form => ' + form); console.log('form text => ' + (target ; form ? buildFormSwitchText(target, form) : 'null'));" 2>&1
 
 確認スクリプトのワンライナーがPowerShell側で崩れたので、同じ内容をもっと単純な形で再実行する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget, resolveDefaultCharacterTarget } from './dist/bot/character/switch.js'; const a=resolveCharacterSwitchTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u547c\u3093\u3067'); const b=resolveCharacterSwitchTarget('3\u756a\u6a5f\u306b\u6765\u3066'); const c=resolveDefaultCharacterTarget('\u5168\u4f53\u306e\u30c7\u30d5\u30a9\u30eb\u30c8\u30923\u756a\u6a5f\u306b\u3057\u3066'); console.log('A=' + (a ? String(a.Num)+':' + String(a.Name) : 'null')); console.log('B=' + (b ? String(b.Num)+':' + String(b.Name) : 'null')); console.log('C=' + (c ? String(c.Num)+':' + String(c.Name) : 'null'));" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { resolveCharacterSwitchTarget, resolveDefaultCharacterTarget } from './dist/bot/character/switch.js'; const a=resolveCharacterSwitchTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u547c\u3093\u3067'); const b=resolveCharacterSwitchTarget('3\u756a\u6a5f\u306b\u6765\u3066'); const c=resolveDefaultCharacterTarget('\u5168\u4f53\u306e\u30c7\u30d5\u30a9\u30eb\u30c8\u30923\u756a\u6a5f\u306b\u3057\u3066'); console.log('A=' + (a ? String(a.Num)+':' + String(a.Name) : 'null')); console.log('B=' + (b ? String(b.Num)+':' + String(b.Name) : 'null')); console.log('C=' + (c ? String(c.Num)+':' + String(c.Name) : 'null'));" 2>&1
 
 切り替え解決は確認できた。最後に、キャラ切り替えとフォーム切り替えの同時処理だけ狭く見て終える。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const form=detectFormTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3092\u30b3\u30a2\u30d5\u30a9\u30eb\u30c0\u306b\u3057\u3066'); const target=getReleasedCharacterByNum('1'); console.log('form=' + form); console.log('text=' + (target ; form ? buildFormSwitchText(target, form) : 'null'));" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const form=detectFormTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3092\u30b3\u30a2\u30d5\u30a9\u30eb\u30c0\u306b\u3057\u3066'); const target=getReleasedCharacterByNum('1'); console.log('form=' + form); console.log('text=' + (target ; form ? buildFormSwitchText(target, form) : 'null'));" 2>&1
 
 この確認だけ still PowerShell 変換で壊れるので、三項演算子を避けて一度だけ再実行する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node --input-type=module -e "import { buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const form=detectFormTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3092\u30b3\u30a2\u30d5\u30a9\u30eb\u30c0\u306b\u3057\u3066'); const target=getReleasedCharacterByNum('1'); console.log('form=' + form); if (target ; form) { console.log('text=' + buildFormSwitchText(target, form)); } else { console.log('text=null'); }" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node --input-type=module -e "import { buildFormSwitchText } from './dist/bot/character/switch.js'; import { detectFormTarget } from './dist/bot/classifier/intent.js'; import { getReleasedCharacterByNum } from './dist/bot/character/loader.js'; const form=detectFormTarget('\u30cf\u30b8\u30e1\u3061\u3083\u3093\u3092\u30b3\u30a2\u30d5\u30a9\u30eb\u30c0\u306b\u3057\u3066'); const target=getReleasedCharacterByNum('1'); console.log('form=' + form); if (target ; form) { console.log('text=' + buildFormSwitchText(target, form)); } else { console.log('text=null'); }" 2>&1
 
 シェル側の変換癖を避けるため、この確認だけ一時スクリプトで実行して終える。
 
 Created [](./.cache/form-switch-check.mjs)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/form-switch-check.mjs 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/form-switch-check.mjs 2>&1
 
 確認は取れたので、一時ファイルだけ消して作業跡を残さないようにする。
 
@@ -5545,17 +5545,17 @@ Generating patch (240 lines) in [](./src/bot/character/store.ts), [](./src/bot/c
 
 ヘルプ分岐と永続化差し替えは入った。まず型で崩れていないかを確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型は通った。次は実際に「ヘルプ文が返せるか」と「再生成したストアで状態が復元されるか」を狭く確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 確認は一時スクリプトでまとめてやる。ヘルプ文と永続化の両方を見て、終わったら痕跡は消す。
 
 Created [](./.cache/character-help-persistence-check.mjs)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/character-help-persistence-check.mjs 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/character-help-persistence-check.mjs 2>&1
 
 確認は取れたので、一時ファイルだけ消して片付ける。
 
@@ -5620,17 +5620,17 @@ Generating patch (157 lines) in [](./src/bot/character/switch.ts), [](./src/bot/
 
 編集は入った。まず型チェックで新しい分岐が壊れていないか確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型は通った。次は、解除判定と返答文だけを狭く確認して締める。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 確認は一時スクリプトで最短に済ませる。解除判定と返答文、それにヘルプへの追記だけを見る。
 
 Created [](./.cache/character-reset-check.mjs)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/character-reset-check.mjs 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/character-reset-check.mjs 2>&1
 
 確認は取れたので、一時ファイルだけ削除して片付ける。
 
@@ -5657,7 +5657,7 @@ Generating patch (3 lines) in [](./.cache/character-reset-check.mjs)
 
 まず差分と関連ドキュメントを確認して、更新範囲を固める。そのあとローカル検証、コミット、必要なら本番確認まで順に進めるよ。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 Read [](./_ideas/bot-spec/02_interaction-design.md)
 
@@ -5665,7 +5665,7 @@ Read [](./docs/architecture.md)
 
 ドキュメント更新範囲と本番確認の手順を固めるために、デプロイ前提の情報だけ追加で見る。結果が揃ったらそのまま編集して push、最後に本番確認へ進む。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff -- src/bot/character src/bot/handlers/mention.ts src/bot/classifier/intent.ts src/config/env.ts src/index.ts src/storage/session.ts .env.example docs/development.md 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff -- src/bot/character src/bot/handlers/mention.ts src/bot/classifier/intent.ts src/config/env.ts src/index.ts src/storage/session.ts .env.example docs/development.md 2>&1
 
 Read [](./docs/deployment.md)
 
@@ -5719,24 +5719,24 @@ Generating patch (23 lines) in [](./_session-archives/2026-05-26_F06-stage-a-imp
 
 ドキュメントの実装反映は入った。次は最後のローカル確認をしてから、コミットして本番確認に進む。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 型は通っている。これからビルドで最終確認して、関連ファイルだけをコミット・push する。 settings.json は今回の作業と無関係だから含めない。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 これから関連ファイルだけをコミットして push する。push 後は SSH で本番のプロセス状態とログを確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add .env.example \_ideas/bot-spec/02_interaction-design.md \_session-archives/2026-05-26_F06-stage-a-implementation.md docs/architecture.md docs/deployment.md docs/development.md src/bot/character src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/bot/reactor/emoji-reaction-map.ts src/config/env.ts src/index.ts src/storage/session.ts ; git commit -m "feat: add multi-character switching and persistence
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add .env.example \_ideas/bot-spec/02_interaction-design.md \_session-archives/2026-05-26_F06-stage-a-implementation.md docs/architecture.md docs/deployment.md docs/development.md src/bot/character src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/bot/reactor/emoji-reaction-map.ts src/config/env.ts src/index.ts src/storage/session.ts ; git commit -m "feat: add multi-character switching and persistence
 
 - load released NumberTales profiles and build prompts dynamically
 - add per-user character switching, reset, help, and admin default switching
 - persist active character state in sqlite across restarts
 - document env vars, deployment notes, and interaction design updates" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 push は通った。ここから SSH で本番を最新化して、プロセス状態・ログ・設定の最低限を確認する。
 
@@ -5774,7 +5774,7 @@ Ran terminal command: ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サー�
 
 # GitHub Copilot:
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 Read [](./_ideas/milestone/F-06_stage-a-spec.md#1-1), lines 1 to 220
 
@@ -5808,7 +5808,7 @@ Generating patch (123 lines) in [](./_ideas/milestone/README.md), [](./_ideas/mi
 
 milestone 更新は入った。ドキュメント作業なので、差分を確認して表記崩れがないかを最後に詰める。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff -- \_ideas/milestone/README.md \_ideas/milestone/2026-05-26_milestone_phase2-multicharacter.md 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff -- \_ideas/milestone/README.md \_ideas/milestone/2026-05-26_milestone_phase2-multicharacter.md 2>&1
 
 README の差分は問題ない。新規 milestone ファイルの中身も一度だけ確認して、必要なら軽く整える。
 
@@ -5870,15 +5870,15 @@ Generating patch (175 lines) in [](./src/bot/character/store.ts), [](./src/bot/c
 
 最初の修正は入った。次は広げずに、型で破綻していないかだけ確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型は通った。挙動を見て、同じフォームへの再指定が「切り替わった」にならないことと、フォーム状態が保存されることを狭く確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 Created [](./.cache/form-state-check.mjs)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node .cache/form-state-check.mjs 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node .cache/form-state-check.mjs 2>&1
 
 挙動確認は取れたので、一時スクリプトだけ消して作業跡を残さないようにする。
 
@@ -5916,7 +5916,7 @@ Generating patch (149 lines) in [](./src/bot/character/switch.ts), [](./src/bot/
 
 分岐の意図は入った。すぐ型だけ確認して、落ちていなければこれで閉じられる。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 その方向に直したよ。`alreadyInTargetForm === true` のときは、同じ形態にあることを説明する返答をやめて、そのまま通常会話へ落ちるようにした。
 
@@ -5934,44 +5934,44 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
 
 これから今回のフォーム挙動修正だけをコミットして、本番へ反映する。まず作業ツリーを見て、関連ファイルだけを安全にまとめるよ。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff -- src/bot/handlers/mention.ts src/bot/character/store.ts src/bot/character/prompt-builder.ts src/bot/character/switch.ts 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff -- src/bot/handlers/mention.ts src/bot/character/store.ts src/bot/character/prompt-builder.ts src/bot/character/switch.ts 2>&1
 
 関連差分は `src/bot/character/*` と mention.ts に閉じている。milestone と settings.json は今回の本番反映には混ぜず、コードだけを検証して反映する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 検証は通った。これから今回のフォーム状態修正を含む関連コードだけをコミットして push する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/bot/character/prompt-builder.ts src/bot/character/store.ts src/bot/character/switch.ts src/bot/handlers/mention.ts ; git commit -m "fix: keep form-switch chat natural in same form
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/bot/character/prompt-builder.ts src/bot/character/store.ts src/bot/character/switch.ts src/bot/handlers/mention.ts ; git commit -m "fix: keep form-switch chat natural in same form
 
 - persist per-user form state alongside active character state
 - reflect current form in dynamic character prompts
 - skip redundant form-switch replies when already in target form
 - continue normal conversation instead of restating current form" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 Compacted conversationpush は通った。次に VM で最新 `master` を取り込み、ビルドと PM2 reload まで一気に流して本番反映を確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "cd ~/NumberTales-MisskeyAIBot && git fetch origin master && git reset --hard origin/master && npm install && npm run build && npm prune --omit=dev && pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "cd ~/NumberTales-MisskeyAIBot && git fetch origin master && git reset --hard origin/master && npm install && npm run build && npm prune --omit=dev && pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production" 2>&1
 
 いまのデプロイは `npm install` が `ENOTEMPTY` で落ちたのに、シェルの `||` で PM2 だけ再起動されていた。ここは危ないので、依存をクリーンに入れ直してからビルド成功まで通し、最後にだけ reload し直す。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "set -e ; cd ~/NumberTales-MisskeyAIBot && git fetch origin master && git reset --hard origin/master && rm -rf node_modules && npm install && npm run build && npm prune --omit=dev && (pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production) && git rev-parse --short HEAD && pm2 status numbertales-bot" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "set -e ; cd ~/NumberTales-MisskeyAIBot && git fetch origin master && git reset --hard origin/master && rm -rf node_modules && npm install && npm run build && npm prune --omit=dev && (pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production) && git rev-parse --short HEAD && pm2 status numbertales-bot" 2>&1
 
 クリーン再配置までは進んだ。最後に本番側の HEAD と PM2 状態を別コマンドで取り直して、実際に新コミットで動いていることだけ詰める。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "cd ~/NumberTales-MisskeyAIBot && git rev-parse --short HEAD && pm2 status numbertales-bot" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "cd ~/NumberTales-MisskeyAIBot && git rev-parse --short HEAD && pm2 status numbertales-bot" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "pm2 logs numbertales-bot --lines 20 --nostream" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; ssh -i "$HOME\.ssh\deploy_key_gha" {ユーザID} @{サーバーIP} "pm2 logs numbertales-bot --lines 20 --nostream" 2>&1
 
 本番は新コミットで起動しているのを確認できた。最後にローカルに残っている未コミットの別件差分だけ確認して、今回反映した範囲を切り分けて伝える。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 反映は完了したよ。コミットは `54de817` で、`master` に push したあと本番 VM へ再デプロイしてある。
 
@@ -6050,9 +6050,9 @@ Generating patch (54 lines) in [](./_ideas/bot-spec/02_interaction-design.md), [
 
 更新は入った。コード変更ではないので、崩れがないか差分だけ確認して締める。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff -- \_ideas/bot-spec/02_interaction-design.md .github/copilot-instructions.md AGENTS.md 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff -- \_ideas/bot-spec/02_interaction-design.md .github/copilot-instructions.md AGENTS.md 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status --short 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 ついでに、この repo で再発しやすいデプロイ上の癖もメモしておく。前回の `ENOTEMPTY` は同じ罠になりやすい。
 
@@ -6173,7 +6173,7 @@ Read [](./src/bot/classifier/intent.ts#75-75), lines 75 to 100
 
 アーカイブは `_ideas/archived/` フォルダを作って移動する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; New-Item -ItemType Directory -Force \_ideas\archived | Out-Null ; Move-Item \_ideas\future-plan\multi-character-switching.md \_ideas\archived\multi-character-switching.md ; Get-ChildItem \_ideas -Recurse -Name 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; New-Item -ItemType Directory -Force \_ideas\archived | Out-Null ; Move-Item \_ideas\future-plan\multi-character-switching.md \_ideas\archived\multi-character-switching.md ; Get-ChildItem \_ideas -Recurse -Name 2>&1
 
 アーカイブ完了。それで実装前に決めておく必要があることを整理したい。
 
@@ -6254,11 +6254,11 @@ Replacing 6 lines with 8 lines in [](./src/bot/handlers/mention.ts)
 
 開始中: _typecheck & commit_ (6/6)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型エラーなし。ビルドして動作確認用スクリプトを走らせる。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 ビルドも通った。月命星の算出ロジックを簡易スクリプトで確認する。
 
@@ -6266,7 +6266,7 @@ Created [](./.cache/check_tsukimei.mjs)
 
 Compacted conversation
 
-Ran terminal command: node "{LOCAL_REPOSITORY_PATH}\.cache\check_tsukimei.mjs"
+Ran terminal command: node "{LOCAL_REPOSITORY}\.cache\check_tsukimei.mjs"
 
 算出結果を確認すると、年命星の計算式が正しくない。現在のコードでは `year - 1984` を使っているが、正しい基準年は 1990（二黒土星）を参照しなければならない。1984 年を基準にすると JS の正剰余で `二黒土星` になってしまうが、実際は `八白土星`。まずこの年命星のバグを修正してから月命星の検証スクリプトを書き直す。
 
@@ -6280,27 +6280,27 @@ Replacing 6 lines with 7 lines in [](./src/features/f06/numerology.ts)
 
 Created [](./.cache/check_tsukimei2.mjs)
 
-Ran terminal command: node "{LOCAL_REPOSITORY_PATH}\.cache\check_tsukimei2.mjs"
+Ran terminal command: node "{LOCAL_REPOSITORY}\.cache\check_tsukimei2.mjs"
 
 全ケースで正しい結果が確認できた。改めて typecheck & build してコミットする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck ; npm.cmd run build 2>&1
 
 エラーなし。コミットしていい状態か git status で確認してからコミットする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git status 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status 2>&1
 
 前セッションで触ったドキュメントの差分が git status に出ていない。archived の中身も確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; Get-ChildItem \_ideas/archived/ 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; Get-ChildItem \_ideas/archived/ 2>&1
 
 アーカイブ済みファイルも含めて B-3 の実装をまとめてコミットする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/features/f06/index.ts src/features/f06/numerology.ts src/features/f06/responder.ts \_ideas/archived/ "\_ideas/future-plan/multi-character-switching.md" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/bot/classifier/intent.ts src/bot/handlers/mention.ts src/features/f06/index.ts src/features/f06/numerology.ts src/features/f06/responder.ts \_ideas/archived/ "\_ideas/future-plan/multi-character-switching.md" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git diff --staged --stat 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git diff --staged --stat 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "feat(f06): add Stage B-3 moon-star (tsukimeisei) calculation
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit -m "feat(f06): add Stage B-3 moon-star (tsukimeisei) calculation
 
 - Add kyuseiPair(), adjustedKyuseiYear(), toKyuseiMonth() to numerology.ts
   with Risshun (Feb.4 approx.) correction using NODE_DAYS lookup
@@ -6313,7 +6313,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "feat(f06): a
 - Wire moon-star dispatch in mention.ts
 - Move multi-character-switching.md to \_ideas/archived/" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _typecheck & commit_ (6/6)
 
@@ -6456,9 +6456,9 @@ Read [](./src/bot/handlers/mention.ts#260-260), lines 260 to 371
 
 Compacted conversation創作DBの実際の値を確認してから回答するね。
 
-Ran terminal command: Get-Content "{LOCAL_REPOSITORY_PATH}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" | ConvertFrom-Json | Select-Object -ExpandProperty Characters | Select-Object Num, Name, FirstPersonCalling | Format-Table -AutoSize
+Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" | ConvertFrom-Json | Select-Object -ExpandProperty Characters | Select-Object Num, Name, FirstPersonCalling | Format-Table -AutoSize
 
-Ran terminal command: $json = Get-Content "{LOCAL_REPOSITORY_PATH}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" -Raw | ConvertFrom-Json; $json.Characters | Select-Object Num, Name, FirstPersonCalling | Format-List
+Ran terminal command: $json = Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" -Raw | ConvertFrom-Json; $json.Characters | Select-Object Num, Name, FirstPersonCalling | Format-List
 
 Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); d.Characters.forEach(c=>console.log(c.Num, JSON.stringify(c.FirstPersonCalling)));
 
@@ -6560,9 +6560,9 @@ Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync
 
 Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('Num:',c42.Num,'Name:',c42.Name); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); console.log('SecondPersonCalling:',JSON.stringify(c42.SecondPersonCalling));
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git submodule status \_creations-db
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git submodule status \_creations-db
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git submodule update --remote \_creations-db 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git submodule update --remote \_creations-db 2>&1
 
 Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); const c72=Object.values(d).find(c=>c.Num=='72'); console.log('72 FirstPersonCalling:',JSON.stringify(c72.FirstPersonCalling)); const c96=Object.values(d).find(c=>c.Num=='96'); console.log('96 FirstPersonCalling:',JSON.stringify(c96.FirstPersonCalling));
 
@@ -6658,15 +6658,15 @@ Replacing 82 lines with 117 lines in [](./src/bot/handlers/mention.ts)
 
 開始中: _typecheck & build & commit_ (4/4)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型エラーなし。ビルドする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/bot/character/prompt-builder.ts src/bot/character/switch.ts src/bot/handlers/mention.ts ; git diff --staged --stat
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/bot/character/prompt-builder.ts src/bot/character/switch.ts src/bot/handlers/mention.ts ; git diff --staged --stat
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "feat(character): add DB-driven persona parsing and AI-generated switch messages
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit -m "feat(character): add DB-driven persona parsing and AI-generated switch messages
 
 - Add parseCallingField() to parse FirstPersonCalling/SecondPersonCalling
   from creations-db format (newline=TPO groups, comma/slash=variants,
@@ -6716,13 +6716,13 @@ Compacted conversation
 
 # GitHub Copilot:
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd test 2>&1 | head -60
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd test 2>&1 | head -60
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd test 2>&1 | Select-Object -First 80
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd test 2>&1 | Select-Object -First 80
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run lint 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run lint 2>&1
 
 lint エラーは変更前から存在している f06 の既存問題で、今回の変更ファイルには問題なし。次に「定型文のまま返答する箇所」を全コードベースで調べる。
 
@@ -6736,7 +6736,7 @@ Read [](./src/bot/handlers/timeline.ts)
 
 全ファイルを把握した。git push する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 push 成功。次に定型文残存箇所を一覧にまとめるため、F-06 ハンドラーと挨拶テンプレートも確認する。
 
@@ -6818,9 +6818,9 @@ Replacing 39 lines with 120 lines in [](./src/bot/handlers/mention.ts)
 
 開始中: _typecheck & build & commit_ (4/4)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1 ; git add src/bot/handlers/mention.ts ; git commit -m "feat(mention): LLM-ify greeting/F06-framing, fix help to 000(Chitose)
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1 ; git add src/bot/handlers/mention.ts ; git commit -m "feat(mention): LLM-ify greeting/F06-framing, fix help to 000(Chitose)
 
 - Help replies now always attributed to 000(Chitose) regardless of active
   character (BOT_CONSTANTS.CHITOSE_NUM), fitting her developer-agent role
@@ -6830,7 +6830,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1 ; gi
   prepended before the immutable calculation result; skipped on failure
   so the accurate result is always shown unchanged" 2>&1
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _typecheck & build & commit_ (4/4)
 
@@ -6868,13 +6868,13 @@ Read [](./src/misskey/client.ts#100-100), lines 100 to 115
 
 Read [](./src/index.ts)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node -e "const m = require('./node_modules/misskey-js/built/index.js'); console.log(Object.keys(m).join(', '))"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node -e "const m = require('./node_modules/misskey-js/built/index.js'); console.log(Object.keys(m).join(', '))"
 
 `ChannelConnection` はエクスポートされている。`Channels` も確認する。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node -e "const s = require('./node_modules/misskey-js/built/streaming.js'); console.log(Object.keys(s).join(', '))" ; node -e "const p = require('./node_modules/misskey-js/built/index.js').Stream.prototype; console.log(Object.getOwnPropertyNames(p).join(', '))"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node -e "const s = require('./node_modules/misskey-js/built/streaming.js'); console.log(Object.keys(s).join(', '))" ; node -e "const p = require('./node_modules/misskey-js/built/index.js').Stream.prototype; console.log(Object.getOwnPropertyNames(p).join(', '))"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; node -e "
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; node -e "
 const { ChannelConnection } = require('./node_modules/misskey-js/built/index.js');
 console.log(typeof ChannelConnection);
 // Check if 'followed' is in main channel events in d.ts
@@ -6925,7 +6925,7 @@ Replacing 4 lines with 9 lines in [](./src/index.ts)
 
 開始中: _typecheck & build & commit & push_ (4/4)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 `UserDetailed` と `UserLite` 両方に `username` が存在するため `'username' in user` が常に `true` と判断され `never` になっている。単純に `user.username ?? user.id` に修正する。
 
@@ -6935,17 +6935,17 @@ Replacing 2 lines with 2 lines in [](./src/bot/handlers/follow.ts)
 
 ```
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run typecheck 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 型エラーなし。ビルドする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; npm.cmd run build 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run build 2>&1
 
 ビルドも成功。コミット & プッシュする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add src/misskey/client.ts src/bot/handlers/follow.ts src/index.ts ; git commit -m "feat(follow): add auto follow-back on followed event"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add src/misskey/client.ts src/bot/handlers/follow.ts src/index.ts ; git commit -m "feat(follow): add auto follow-back on followed event"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _typecheck & build & commit & push_ (4/4)
 
@@ -7008,13 +7008,13 @@ Read [](./_ideas/bot-spec/02_interaction-design.md#1-1), lines 1 to 80
 
 開始中: _session-archivesファイルを各フォルダに移動_ (2/6)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git mv "\_session-archives/2026-05-25_MisskeyBot仕様策定.md" "\_session-archives/\_agent-chats/2026-05-25_MisskeyBot仕様策定.md" 2>&1 ; git mv "\_session-archives/2026-05-26_F06-stage-a-implementation.md" "\_session-archives/diary/2026-05-26_F06-stage-a-implementation.md" 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git mv "\_session-archives/2026-05-25_MisskeyBot仕様策定.md" "\_session-archives/\_agent-chats/2026-05-25_MisskeyBot仕様策定.md" 2>&1 ; git mv "\_session-archives/2026-05-26_F06-stage-a-implementation.md" "\_session-archives/diary/2026-05-26_F06-stage-a-implementation.md" 2>&1
 
 Read [](./_session-archives)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; New-Item -ItemType Directory -Force -Path "\_session-archives_agent-chats" | Out-Null ; New-Item -ItemType Directory -Force -Path "\_session-archives\diary" | Out-Null ; git mv "./\_session-archives/2026-05-25_MisskeyBot仕様策定.md" "./\_session-archives/\_agent-chats/2026-05-25_MisskeyBot仕様策定.md"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; New-Item -ItemType Directory -Force -Path "\_session-archives_agent-chats" | Out-Null ; New-Item -ItemType Directory -Force -Path "\_session-archives\diary" | Out-Null ; git mv "./\_session-archives/2026-05-25_MisskeyBot仕様策定.md" "./\_session-archives/\_agent-chats/2026-05-25_MisskeyBot仕様策定.md"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git mv "./\_session-archives/2026-05-26_F06-stage-a-implementation.md" "./\_session-archives/diary/2026-05-26_F06-stage-a-implementation.md"
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git mv "./\_session-archives/2026-05-26_F06-stage-a-implementation.md" "./\_session-archives/diary/2026-05-26_F06-stage-a-implementation.md"
 
 移動完了。次にドキュメントを更新する。architecture.md の `main` チャンネルブロックとファイル詳細にフォローバックを追記する。
 
@@ -7070,13 +7070,13 @@ Replacing 10 lines with 12 lines in [](./.github/copilot-instructions.md)
 
 Created [](./_session-archives/diary/2026-05-27_followback-and-docs.md)
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git add -A ; git status --short
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git add -A ; git status --short
 
 settings.json と \_creations-db（サブモジュール）は今回の作業外なのでアンステージする。
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git restore --staged .vscode/settings.json ; git restore --staged \_creations-db
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git restore --staged .vscode/settings.json ; git restore --staged \_creations-db
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "docs: update architecture, milestone, Copilot settings; organize session-archives
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git commit -m "docs: update architecture, milestone, Copilot settings; organize session-archives
 
 - docs/architecture.md: add onFollowed/follow(), follow.ts section, LLM response details
 - AGENTS.md / copilot-instructions.md: add 'followback' and 'LLM responses' to feature table
@@ -7084,7 +7084,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git commit -m "docs: update
 - \_session-archives: move files to \_agent-chats/ and diary/ subfolders
 - \_session-archives/diary: add 2026-05-27 session diary"
 
-Ran terminal command: cd "{LOCAL_REPOSITORY_PATH}" ; git push origin master 2>&1
+Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git push origin master 2>&1
 
 完了済み: _commit & push_ (6/6)
 
