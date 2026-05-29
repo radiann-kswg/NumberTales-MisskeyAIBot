@@ -92,7 +92,10 @@ export class MisskeyClient {
   }
 
   /**
-   * 自発投稿する（返信なし、ホーム公開）
+   * 自発投稿する（返信なし、パブリック公開）
+   *
+   * フォロワー外のユーザーにも届くよう visibility=public を使用する。
+   * 週次担当の就任挨拶や集計結果通知、時間帯スケジューラーからの自発投稿で利用される。
    * @param text 投稿本文
    * @param options.cw CW（ContentWarning）テキスト
    */
@@ -100,7 +103,7 @@ export class MisskeyClient {
     await this.apiClient.request('notes/create', {
       text,
       cw: options?.cw ?? undefined,
-      visibility: 'home',
+      visibility: 'public',
     });
   }
 
@@ -197,13 +200,16 @@ export class MisskeyClient {
   }
 
   /**
-   * 指定ノートをリノート（セルフリノート用）する
+   * 指定ノートをリノート（セルフリノート用）する。
+   *
+   * 投票ノートのリマインドなど、パブリック公開のノートを再拡散する用途を想定し
+   * visibility=public で投稿する。
    * @param noteId リノート対象のノート ID
    */
   async renote(noteId: string): Promise<void> {
     await (this.apiClient.request as (endpoint: string, params: unknown) => Promise<unknown>)(
       'notes/create',
-      { renoteId: noteId },
+      { renoteId: noteId, visibility: 'public' },
     );
   }
 

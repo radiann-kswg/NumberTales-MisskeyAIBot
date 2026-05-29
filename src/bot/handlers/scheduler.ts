@@ -46,7 +46,7 @@ export function getPostIntervalMs(slot: TimeSlot): number {
  * Phase 2 実装予定:
  *   1. 時間帯スロットに応じたインターバルで定期実行
  *   2. アクティブキャラクターのプロンプトで投稿文生成
- *   3. 公開範囲: visibility=home（仕様 F-02）
+ *   3. 公開範囲: visibility=public（フォロワー外への露出を意図、仕様 F-02）
  *   4. 投稿後に次のスロットを再判定してインターバルを更新
  */
 export function startScheduler(): void {

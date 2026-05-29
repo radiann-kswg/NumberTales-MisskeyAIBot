@@ -267,13 +267,13 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 | `onFollowed(cb)`              | `main` チャンネルのフォローイベントを購読                                              |
 | `onHomeTL(cb)`                | `homeTimeline` チャンネルを購読                                                        |
 | `reply(text, replyId, opts)`  | ノートに返信（visibility: home）                                                       |
-| `post(text, opts)`            | 自発投稿（visibility: home）                                                           |
+| `post(text, opts)`            | 自発投稿（visibility: public）                                                         |
 | `follow(userId)`              | 指定ユーザーをフォロー（`following/create`）                                           |
 | `react(noteId, emojiName)`    | カスタム絵文字リアクション送信                                                         |
 | `postPoll(text, choices, ms)` | 投票（Poll）付きノートを投稿し、作成された noteId を返す                               |
 | `getPollChoices(noteId)`      | Poll の選択肢と票数を取得（`{ text, votes }[]`）                                       |
 | `fetchEmojis()`               | サーバーのカスタム絵文字一覧を取得（`EmojiInfo[]`。name/aliases/category/tags を保持） |
-| `renote(noteId)`              | 指定ノートをリノート（週次 Poll のセルフリノート用）                                   |
+| `renote(noteId)`              | 指定ノートをリノート（週次 Poll のセルフリノート用、visibility: public）             |
 | `getMyUserId()`               | 自分のユーザー ID を取得                                                               |
 | `close()`                     | WebSocket 接続を閉じる                                                                 |
 
