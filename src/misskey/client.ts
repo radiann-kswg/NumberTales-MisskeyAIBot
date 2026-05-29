@@ -105,7 +105,7 @@ export class MisskeyClient {
   }
 
   /**
-   * 投票（Poll）付きノートを投稿する（ホーム公開）
+   * 投票（Poll）付きノートを投稿する（パブリックに公開）
    * @param text 投稿本文
    * @param choices 選択肢テキストの配列（2〜10件）
    * @param expiredAfterMs 締め切りまでのミリ秒（省略時は無期限）
@@ -123,7 +123,7 @@ export class MisskeyClient {
       'notes/create',
       {
         text,
-        visibility: 'home',
+        visibility: 'public',
         poll: {
           choices,
           expiredAfter: expiredAfterMs,
