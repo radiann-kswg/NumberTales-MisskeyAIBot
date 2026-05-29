@@ -36,6 +36,8 @@ export const config = {
     ),
     /** ハラスメント・インシデントログの出力先ファイルパス */
     incidentLogPath: optionalEnv('INCIDENT_LOG_PATH', '.cache/incident.log'),
+    /** エラー・警告ログの出力先ファイルパス（error / warn レベル） */
+    errorLogPath: optionalEnv('ERROR_LOG_PATH', '.cache/error.log'),
   },
   bot: {
     nodeEnv: optionalEnv('NODE_ENV', 'development') as 'development' | 'production',

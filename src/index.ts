@@ -56,6 +56,10 @@ async function main(): Promise<void> {
   const incidentLogger = new IncidentLogger(config.storage.incidentLogPath);
   logger.info(`Incident log: ${config.storage.incidentLogPath}`);
 
+  // エラーログのファイル出力を有効化
+  logger.enableFileOutput(config.storage.errorLogPath);
+  logger.info(`Error log: ${config.storage.errorLogPath}`);
+
   // メンション受信ループ開始
   misskeyClient.onMention(async (note) => {
     // @username メンション部分を除去してテキストを抽出
