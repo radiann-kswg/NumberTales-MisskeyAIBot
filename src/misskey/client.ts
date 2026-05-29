@@ -6,6 +6,14 @@ type Note = entities.Note;
 
 export type MentionCallback = (note: Note) => void | Promise<void>;
 
+/** サーバーに登録されているカスタム絵文字1件の情報 */
+export interface EmojiInfo {
+  name: string;
+  aliases: string[];
+  category: string | null;
+  tags: string[];
+}
+
 /**
  * Misskey WebSocket クライアントラッパー
  * - WebSocket ストリーミング接続（自動再接続付き）
@@ -167,6 +175,36 @@ export class MisskeyClient {
       noteId,
       reaction: `:${emojiName}@.:`,
     });
+  }
+
+  /**
+   * サーバーに登録されているカスタム絵文字の詳細一覧を取得する（認証不要）。
+   * name・aliases・category・tags を保持した配列を返す。
+   * @returns EmojiInfo の配列
+   */
+  async fetchEmojis(): Promise<EmojiInfo[]> {
+    const res = await (this.apiClient.request as (endpoint: string, params: unknown) => Promise<unknown>)(
+      'emojis',
+      {},
+    );
+    const raw = (res as { emojis: Array<{ name: string; aliases?: string[]; category?: string | null; tags?: string[] }> }).emojis ?? [];
+    return raw.map((e) => ({
+      name: e.name,
+      aliases: e.aliases ?? [],
+      category: e.category ?? null,
+      tags: e.tags ?? [],
+    }));
+  }
+
+  /**
+   * 指定ノートをリノート（セルフリノート用）する
+   * @param noteId リノート対象のノート ID
+   */
+  async renote(noteId: string): Promise<void> {
+    await (this.apiClient.request as (endpoint: string, params: unknown) => Promise<unknown>)(
+      'notes/create',
+      { renoteId: noteId },
+    );
   }
 
   /** WebSocket 接続を閉じる */

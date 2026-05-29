@@ -22,6 +22,12 @@ export interface CharacterRelationItem {
   RelationLabel?: string[];
 }
 
+export interface CharacterRelation {
+  Related?: CharacterRelationItem[];
+  /** キャラクターについてのコメント（口調補完に利用可） */
+  Commented?: unknown;
+}
+
 /** DB フィールドの非公開値ラッパー */
 export interface HideTextWrapper {
   hideText: string;
@@ -36,9 +42,7 @@ export interface CharacterRecord {
   ForMasterCalling?: string;
   Character?: string;
   Summary?: string;
-  Relation?: {
-    Related?: CharacterRelationItem[];
-  };
+  Relation?: CharacterRelation;
   ConversationPattern?: CharacterConversationPattern;
   /** 趣味・得意テーマ（非公開の場合は HideTextWrapper） */
   Hobby?: string | HideTextWrapper;

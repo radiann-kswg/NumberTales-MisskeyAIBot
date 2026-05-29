@@ -18,6 +18,8 @@ export const STATE_KEY_SCHEDULER_CHAR = 'current_scheduler_char';
 export const STATE_KEY_POLL_NOTE_ID = 'current_poll_note_id';
 /** 週次担当の候補キャラクター番号（JSON 配列文字列）を格納するキー */
 export const STATE_KEY_POLL_CANDIDATES = 'current_poll_candidates';
+/** 前週の Poll 候補キャラクター番号（JSON 配列文字列）を格納するキー（連続選出防止用） */
+export const STATE_KEY_PREV_POLL_CANDIDATES = 'prev_poll_candidates';
 
 // ----------------------------------------------------------------
 // BotStateStore クラス

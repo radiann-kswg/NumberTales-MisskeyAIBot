@@ -56,8 +56,14 @@ Misskey インスタンス (radiann6631.net)
   │         ├─ 感情分類 (reactor/classify.ts)
   │         └─ リアクション送信 (misskeyClient.react)
   │
-  ├─ PostScheduler (bot/scheduler/) ── setInterval 10分
+  ├─ PostScheduler (bot/scheduler/index.ts) ── setInterval 10分
   │    └─ 時間帯判定 (JST) → LLM 生成 → misskeyClient.post
+  │
+  ├─ WeeklyPollScheduler (bot/scheduler/weekly-poll.ts) ── setInterval 1分
+  │    ├─ 土曜 0:00 → Tier 重み付き 3 名候補選出 → Poll 投稿（48 時間投票期間）
+  │    ├─ 土日 7〜23 時 毎時 → 投票ノートのセルフリノート（リマインド）
+  │    ├─ 日曜 23:55 → 票数集計 → 最多票キャラクターを翌週担当に確定
+  │    └─ 月曜 7:00 → 就任挨拶（LLM 生成）を投稿
   │
   ├─ RateLimiter (bot/ratelimit/) ── メモリ内 Map
   │    ├─ 返信クールダウン (ユーザー別)
@@ -123,6 +129,7 @@ export interface ClassificationResult {
 優先順: greeting → form-switch → creative-consultation → **harassment** → (life-path) → (kyusei) → dice → trivia → calculate → chat
 
 `detectHarassmentLevel(text)` でルールベース判定（L3 → L2 → L1 の優先順で正規表現マッチ）。
+
 - **L1**: 軽度の不躾な要求・軽い挑発（プライベート情報要求など）
 - **L2**: 不適切な性的要求・個人情報要求・エスカレートした言動
 - **L3**: 明確な暴言・威圧・脅迫レベルの言動
@@ -205,6 +212,30 @@ TL ノートのフィルタリングと感情分類。
 時間帯別自発投稿スケジューラー。`PostScheduler` クラス。
 `setInterval` 10 分ごとに JST 時刻を判定し、対象スロット内かつクールダウン経過済みなら投稿。
 
+### `src/bot/scheduler/weekly-poll.ts`
+
+週次担当選出スケジューラー。`WeeklyPollScheduler` クラス。起動時に `fetchEmojis()` で絵文字キャッシュを取得し、`setInterval` 1 分ごとに以下を実行する。
+
+| タイミング               | 処理                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| 土曜 0:00                | 候補 3 名を Tier 重み付き抽選（前週候補・固定除外を除く）→ Poll ノートを投稿（48 時間投票） |
+| 土曜・日曜 7〜23 時 毎時 | `STATE_KEY_POLL_NOTE_ID` が存在する場合、投票ノートをセルフリノートしてリマインド           |
+| 日曜 23:55               | 票数を集計し最多票キャラクターを `STATE_KEY_SCHEDULER_CHAR` に書き込み                      |
+| 月曜 7:00                | 就任挨拶（LLM 生成・50 文字以内）を投稿し `STATE_KEY_POLL_NOTE_ID` をクリア                 |
+
+**Tier 重み（候補選出）:**
+
+| Tier | 条件                                             | 重み |
+| ---- | ------------------------------------------------ | ---- |
+| 1    | `ConversationPattern` が創作 DB に収録されている | 15   |
+| 2    | `Character` / `Summary` / `Relation.Commented`   | 3    |
+| 3    | 上記以外                                         | 1    |
+
+- 固定除外: `000` / `0` / `00` / `1` / `10`、ハイフン含む特殊番号
+- コアフォルダー絵文字（`:aphrnts{Num}_corefolder:`）が未登録の場合は 4 段階フォールバックで代替絵文字を解決し、解決不能なら候補から除外
+- `STATE_KEY_PREV_POLL_CANDIDATES` に前週候補番号を保存し、翌週の選出から除外（連続選出防止）
+- 二重発火防止のため `processedKeys: Set<string>` でタイムスタンプキーを管理
+
 ### `src/features/f06/`
 
 F-06 コマンド処理モジュール群。`mention.ts` の F-06 早期 return ブロックから呼ばれる。
@@ -230,17 +261,21 @@ export interface F06Result {
 
 Misskey WebSocket クライアントのラッパー。公開メソッド:
 
-| メソッド                     | 説明                                         |
-| ---------------------------- | -------------------------------------------- |
-| `onMention(cb)`              | `main` チャンネルのメンションを購読          |
-| `onFollowed(cb)`             | `main` チャンネルのフォローイベントを購読    |
-| `onHomeTL(cb)`               | `homeTimeline` チャンネルを購読              |
-| `reply(text, replyId, opts)` | ノートに返信（visibility: home）             |
-| `post(text, opts)`           | 自発投稿（visibility: home）                 |
-| `follow(userId)`             | 指定ユーザーをフォロー（`following/create`） |
-| `react(noteId, emojiName)`   | カスタム絵文字リアクション送信               |
-| `getMyUserId()`              | 自分のユーザー ID を取得                     |
-| `close()`                    | WebSocket 接続を閉じる                       |
+| メソッド                      | 説明                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `onMention(cb)`               | `main` チャンネルのメンションを購読                                                    |
+| `onFollowed(cb)`              | `main` チャンネルのフォローイベントを購読                                              |
+| `onHomeTL(cb)`                | `homeTimeline` チャンネルを購読                                                        |
+| `reply(text, replyId, opts)`  | ノートに返信（visibility: home）                                                       |
+| `post(text, opts)`            | 自発投稿（visibility: home）                                                           |
+| `follow(userId)`              | 指定ユーザーをフォロー（`following/create`）                                           |
+| `react(noteId, emojiName)`    | カスタム絵文字リアクション送信                                                         |
+| `postPoll(text, choices, ms)` | 投票（Poll）付きノートを投稿し、作成された noteId を返す                               |
+| `getPollChoices(noteId)`      | Poll の選択肢と票数を取得（`{ text, votes }[]`）                                       |
+| `fetchEmojis()`               | サーバーのカスタム絵文字一覧を取得（`EmojiInfo[]`。name/aliases/category/tags を保持） |
+| `renote(noteId)`              | 指定ノートをリノート（週次 Poll のセルフリノート用）                                   |
+| `getMyUserId()`               | 自分のユーザー ID を取得                                                               |
+| `close()`                     | WebSocket 接続を閉じる                                                                 |
 
 `react()` の絵文字名フォーマット: `:emojiName@.:` （ローカルインスタンス指定）
 
@@ -248,6 +283,17 @@ Misskey WebSocket クライアントのラッパー。公開メソッド:
 
 `better-sqlite3` を使ったセッション会話履歴ストア。
 保存パス: `.cache/session.db`（`.gitignore` 対象）。TTL 30 分・最大 3 往復。
+
+### `src/storage/bot-state.ts`
+
+`BotStateStore` クラス（`better-sqlite3`）。キーバリュー形式で Bot の永続状態を `.cache/session.db` に保持する。
+
+| 定数                             | キー文字列             | 用途                                          |
+| -------------------------------- | ---------------------- | --------------------------------------------- |
+| `STATE_KEY_SCHEDULER_CHAR`       | `scheduler_character`  | 週次担当に選ばれたキャラクター番号            |
+| `STATE_KEY_POLL_NOTE_ID`         | `poll_note_id`         | 投票中の Poll ノート ID（リノート・集計用）   |
+| `STATE_KEY_POLL_CANDIDATES`      | `poll_candidates`      | 現在の Poll 候補キャラクター番号（JSON 配列） |
+| `STATE_KEY_PREV_POLL_CANDIDATES` | `prev_poll_candidates` | 前週の Poll 候補番号（連続選出防止用）        |
 
 ### `src/bot/character/store.ts`
 
@@ -278,22 +324,22 @@ NDJSON 形式でファイルに追記するようになる（`info` / `debug` �
 
 ## 環境変数一覧
 
-| 変数名                         | 必須 | 説明                                  | デフォルト          |
-| ------------------------------ | ---- | ------------------------------------- | ------------------- |
-| `MISSKEY_HOST`                 | ✅   | Misskey インスタンス URL              | —                   |
-| `MISSKEY_TOKEN`                | ✅   | Bot アカウント API トークン           | —                   |
-| `AI_PROVIDER`                  | —    | `openai` or `gemini`                  | `openai`            |
-| `OPENAI_API_KEY`               | ✅   | OpenAI API キー                       | —                   |
-| `GEMINI_API_KEY`               | —    | Gemini API キー                       | —                   |
-| `NODE_ENV`                     | —    | `development` / `production`          | `development`       |
-| `LOG_LEVEL`                    | —    | `debug` / `info` / `warn` / `error`   | `info`              |
-| `DEFAULT_CHARACTER_NUM`        | —    | 個別指定がない場合の標準担当番号      | `000`               |
-| `ADMIN_USER_IDS`               | —    | 管理者ユーザー ID のカンマ区切り一覧  | 空                  |
-| `RATE_LIMIT_REPLY_COOLDOWN_MS` | —    | 同一ユーザーへの返信クールダウン (ms) | `0`（無制限）       |
-| `RATE_LIMIT_GLOBAL_PER_HOUR`   | —    | 全体の 1 時間あたり最大投稿数         | `10`                |
-| `DB_PATH`                      | —    | SQLite ファイルパス                   | `.cache/session.db`      |
-| `INCIDENT_LOG_PATH`            | —    | ハラスメント検知ログ出力先            | `.cache/incident.log`    |
-| `ERROR_LOG_PATH`               | —    | エラー・警告ログ出力先                | `.cache/error.log`       |
+| 変数名                         | 必須 | 説明                                  | デフォルト            |
+| ------------------------------ | ---- | ------------------------------------- | --------------------- |
+| `MISSKEY_HOST`                 | ✅   | Misskey インスタンス URL              | —                     |
+| `MISSKEY_TOKEN`                | ✅   | Bot アカウント API トークン           | —                     |
+| `AI_PROVIDER`                  | —    | `openai` or `gemini`                  | `openai`              |
+| `OPENAI_API_KEY`               | ✅   | OpenAI API キー                       | —                     |
+| `GEMINI_API_KEY`               | —    | Gemini API キー                       | —                     |
+| `NODE_ENV`                     | —    | `development` / `production`          | `development`         |
+| `LOG_LEVEL`                    | —    | `debug` / `info` / `warn` / `error`   | `info`                |
+| `DEFAULT_CHARACTER_NUM`        | —    | 個別指定がない場合の標準担当番号      | `000`                 |
+| `ADMIN_USER_IDS`               | —    | 管理者ユーザー ID のカンマ区切り一覧  | 空                    |
+| `RATE_LIMIT_REPLY_COOLDOWN_MS` | —    | 同一ユーザーへの返信クールダウン (ms) | `0`（無制限）         |
+| `RATE_LIMIT_GLOBAL_PER_HOUR`   | —    | 全体の 1 時間あたり最大投稿数         | `10`                  |
+| `DB_PATH`                      | —    | SQLite ファイルパス                   | `.cache/session.db`   |
+| `INCIDENT_LOG_PATH`            | —    | ハラスメント検知ログ出力先            | `.cache/incident.log` |
+| `ERROR_LOG_PATH`               | —    | エラー・警告ログ出力先                | `.cache/error.log`    |
 
 `DB_PATH` は会話履歴だけでなく、ユーザー別担当キャラクターと全体デフォルト担当の永続化にも使われる。
 
@@ -327,18 +373,26 @@ Bot は PM2 のコンソールログに加え、2 種類のファイルログを
 1 行 1 レコード形式:
 
 ```json
-{"timestamp":"2026-05-29T10:00:00.000Z","level":3,"noteId":"abc123","userId":"xyz","userHandle":"@baduser@misskey.example","noteCreatedAt":"2026-05-29T09:59:59.000Z","text":"..."}
+{
+  "timestamp": "2026-05-29T10:00:00.000Z",
+  "level": 3,
+  "noteId": "abc123",
+  "userId": "xyz",
+  "userHandle": "@baduser@misskey.example",
+  "noteCreatedAt": "2026-05-29T09:59:59.000Z",
+  "text": "..."
+}
 ```
 
-| フィールド      | 内容                                           |
-| --------------- | ---------------------------------------------- |
-| `timestamp`     | ログ記録日時（ISO 8601）                       |
-| `level`         | ハラスメントレベル（1 / 2 / 3）                |
-| `noteId`        | Misskey ノート ID                              |
-| `userId`        | 投稿者の Misskey ユーザー ID                   |
-| `userHandle`    | `@username` / `@username@host`（リモートの場合）|
-| `noteCreatedAt` | 元ノートの投稿日時                             |
-| `text`          | 投稿テキスト（メンション除去済み）             |
+| フィールド      | 内容                                             |
+| --------------- | ------------------------------------------------ |
+| `timestamp`     | ログ記録日時（ISO 8601）                         |
+| `level`         | ハラスメントレベル（1 / 2 / 3）                  |
+| `noteId`        | Misskey ノート ID                                |
+| `userId`        | 投稿者の Misskey ユーザー ID                     |
+| `userHandle`    | `@username` / `@username@host`（リモートの場合） |
+| `noteCreatedAt` | 元ノートの投稿日時                               |
+| `text`          | 投稿テキスト（メンション除去済み）               |
 
 ### エラーログ（`.cache/error.log`）
 
@@ -346,7 +400,12 @@ Bot は PM2 のコンソールログに加え、2 種類のファイルログを
 PM2 ログと同内容だが、ファイルとして永続化・フィルタリングできる。
 
 ```json
-{"timestamp":"2026-05-29T10:00:00.000Z","level":"error","message":"WebSocket接続エラー","detail":"ECONNREFUSED"}
+{
+  "timestamp": "2026-05-29T10:00:00.000Z",
+  "level": "error",
+  "message": "WebSocket接続エラー",
+  "detail": "ECONNREFUSED"
+}
 ```
 
 ### VM 上でのログ確認コマンド
