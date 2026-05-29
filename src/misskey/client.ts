@@ -97,6 +97,47 @@ export class MisskeyClient {
   }
 
   /**
+   * 投票（Poll）付きノートを投稿する（ホーム公開）
+   * @param text 投稿本文
+   * @param choices 選択肢テキストの配列（2〜10件）
+   * @param expiredAfterMs 締め切りまでのミリ秒（省略時は無期限）
+   * @returns 作成されたノートの ID
+   */
+  async postPoll(
+    text: string,
+    choices: string[],
+    expiredAfterMs?: number,
+  ): Promise<string> {
+    // misskey-js の notes/create は poll フィールドの型定義を公開していないため、
+    // 実行時に正しく動作する形で型アサーションを使用する。
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await (this.apiClient.request as (endpoint: string, params: unknown) => Promise<unknown>)(
+      'notes/create',
+      {
+        text,
+        visibility: 'home',
+        poll: {
+          choices,
+          expiredAfter: expiredAfterMs,
+          multiple: false,
+        },
+      },
+    );
+    return (res as { createdNote: { id: string } }).createdNote.id;
+  }
+
+  /**
+   * ノートの Poll 選択肢と票数を取得する
+   * @param noteId 対象ノート ID
+   * @returns 選択肢ごとの { text, votes } 配列。Poll がなければ空配列
+   */
+  async getPollChoices(noteId: string): Promise<Array<{ text: string; votes: number }>> {
+    const note = await this.apiClient.request('notes/show', { noteId });
+    const poll = (note as { poll?: { choices: Array<{ text: string; votes: number }> } }).poll;
+    return poll?.choices ?? [];
+  }
+
+  /**
    * 自分のユーザー ID を取得（自己メンション除外用）
    */
   async getMyUserId(): Promise<string> {

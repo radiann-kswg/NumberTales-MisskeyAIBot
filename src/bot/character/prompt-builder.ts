@@ -3,6 +3,7 @@ import type {
   CharacterDialogueExample,
   CharacterRecord,
   CharacterRelationItem,
+  HideTextWrapper,
 } from './loader.js';
 import type { FormTarget } from '../classifier/intent.js';
 
@@ -11,6 +12,16 @@ export type PromptMode = 'chat' | 'creative-consultation';
 function normalizeText(value?: string): string | null {
   const text = value?.replace(/\s+/g, ' ').trim();
   return text ? text : null;
+}
+
+/**
+ * DB フィールドの値を解決して表示用テキストを返す。
+ * HideTextWrapper（非公開）の場合は null を返す。
+ */
+function resolveTextField(value: string | HideTextWrapper | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'object' && 'hideText' in value) return null;
+  return normalizeText(value);
 }
 
 function stringifyDialogueExample(example: string | CharacterDialogueExample): string | null {
@@ -249,12 +260,27 @@ export function buildCharacterSystemPrompt(
     lines.push('', '【応答方針】', '- 返答は簡潔に、できれば 80 文字以内に収める。');
   }
 
+  // 専門性セクション
+  const hobby = resolveTextField(profile.Hobby);
+  const specialSkill = resolveTextField(profile.SpecialSkill);
+  const favor = resolveTextField(profile.Favor);
+  const numerospecAbout = resolveTextField(profile.NumerospecAbout);
+
+  if (hobby || specialSkill || favor || numerospecAbout) {
+    lines.push('', '【このキャラクターの得意なこと・専門性】');
+    if (hobby) lines.push(`- 趣味: ${hobby}`);
+    if (specialSkill) lines.push(`- 特技: ${specialSkill}`);
+    if (favor) lines.push(`- 好きなもの: ${favor}`);
+    if (numerospecAbout) lines.push(`- ヌメロジー上の特性: ${numerospecAbout}`);
+  }
+
   lines.push(
     '',
     '【制約】',
     '- 反社会的・著しく性的な表現は絶対に行わない。',
     '- 未公開のキャラクター設定・台詞・ストーリーを自動生成しない。',
     '- ガイドライン（CC BY-NC 4.0）を遵守する。',
+    '- プライベート情報・不適切な要求を受けた場合は、このキャラクターのパーソナリティを保ちながら自然に断り、本来の会話・話題へ誘導すること。感情的に反応したり場を壊すような返答は避けること。',
   );
 
   return lines.join('\n');

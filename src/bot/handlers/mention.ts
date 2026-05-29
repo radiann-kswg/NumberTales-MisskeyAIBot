@@ -8,8 +8,7 @@ import { classifyIntent, detectFormTarget, type FormTarget } from '../classifier
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
 import { getDefaultCharacterProfile, getReleasedCharacterByNum } from '../character/loader.js';
-import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
-import {
+import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';import {
   buildCharacterResetText,
   buildCharacterSwitchText,
   buildDefaultCharacterSwitchText,
@@ -78,8 +77,83 @@ async function generateSwitchReply(
   }
 }
 
-/** F-06 コマンド結果の前に置くキャラクター個性の一言を LLM で生成する。失敗時は null を返す（一言なしで続行）。 */
-async function generateF06Framing(
+/**
+ * ハラスメント検知時の仲介返答を LLM で生成する（F-07）。
+ *
+ * - L1: 担当キャラクターが「キャラらしく」受け流す（通常プロンプトの制約に委ねる）
+ * - L2: 000(チトセ) が「設計上の制約」として介入する
+ * - L3: 000(チトセ) が毅然と制止する（10(ミツル) プロンプト確定前は 000 でフォールバック）
+ */
+async function generateHarassmentReply(
+  ai: AIProvider,
+  activeCharacter: CharacterRecord,
+  activeFormTarget: FormTarget,
+  userMessage: string,
+  level: 1 | 2 | 3,
+): Promise<string> {
+  // L1: 担当キャラクターのプロンプトで受け流しを指示する
+  if (level === 1) {
+    const systemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget);
+    try {
+      const result = await ai.chat(
+        [
+          { role: 'system' as const, content: systemPrompt },
+          {
+            role: 'user' as const,
+            content: `ユーザーの発言: 「${userMessage.slice(0, 80)}」\nこの要求はキャラクターのパーソナリティを保ちながら自然に断り、本来の会話・話題へ誘導してください（60文字以内）。`,
+          },
+        ],
+        { maxTokens: 80, temperature: 0.85 },
+      );
+      return result.text.trim();
+    } catch {
+      return 'それはちょっと答えられないかな。他に何か話したいことはある？';
+    }
+  }
+
+  // L2: 000(チトセ) が「設計上の制約」として介入する
+  if (level === 2) {
+    const chitoseProfile = getDefaultCharacterProfile();
+    const systemPrompt = buildCharacterSystemPrompt(chitoseProfile, 'chat', 'humanoid');
+    try {
+      const result = await ai.chat(
+        [
+          { role: 'system' as const, content: systemPrompt },
+          {
+            role: 'user' as const,
+            content: `ユーザーの発言: 「${userMessage.slice(0, 80)}」\nユーザーが繰り返し不適切な要求をしています。000(チトセ)として設計上の制約を伝え、本来の会話に戻るよう促してください（70文字以内）。`,
+          },
+        ],
+        { maxTokens: 80, temperature: 0.8 },
+      );
+      return result.text.trim();
+    } catch {
+      return 'それは私の設計上、答えられない要求なんだ。別のことで話しかけてくれると嬉しいよ。';
+    }
+  }
+
+  // L3: 10(ミツル) が毅然と制止する
+  const mitsuruProfile =
+    getReleasedCharacterByNum(BOT_CONSTANTS.MITSURU_NUM) ?? getDefaultCharacterProfile();
+  const systemPrompt = buildCharacterSystemPrompt(mitsuruProfile, 'chat', 'humanoid');
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system' as const, content: systemPrompt },
+        {
+          role: 'user' as const,
+          content: `ユーザーの発言: 「${userMessage.slice(0, 80)}」\nナンバーテールズへの深刻なハラスメント・攻撃的言動が発生しています。10(ミツル)として毅然と制止し、これ以上の侵害が許されないことを伝えてください（70文字以内）。`,
+        },
+      ],
+      { maxTokens: 80, temperature: 0.7 },
+    );
+    return result.text.trim();
+  } catch {
+    return 'そこまでだ。これ以上ナンバーテールズに攻撃するようなら、規範的にキミの使役権限を凍結する－－これ以上の侵害は許されないよ。';
+  }
+}
+
+/** F-06 コマンド結果の前に置くキャラクター個性の一言を LLM で生成する。失敗時は null を返す（一言なしで続行）。 */async function generateF06Framing(
   ai: AIProvider,
   character: CharacterRecord,
   formTarget: FormTarget,
@@ -343,11 +417,26 @@ export async function handleMention(
   }
 
   // 4. 意図分類
-  const { intent, formTarget, numerologyType } = classifyIntent(event.text);
+  const { intent, formTarget, numerologyType, harassmentLevel } = classifyIntent(event.text);
   const effectiveIntent =
     intent === 'form-switch' && formTarget !== undefined && activeFormTarget === formTarget
       ? 'chat'
       : intent;
+
+  // 4b. ハラスメント検知 → 仲介ロジック（F-07）
+  if (effectiveIntent === 'harassment') {
+    const replyText = await generateHarassmentReply(ai, activeCharacter, activeFormTarget, event.text, harassmentLevel ?? 1);
+    const speechText = formatSpeech(activeCharacterNum, replyText);
+    const { text, cw } = formatForNote(speechText, activeCharacterNum);
+    try {
+      await misskeyClient.reply(text, event.noteId, { cw });
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (harassment L${harassmentLevel ?? 1}) to ${event.userId}`);
+    } catch (err) {
+      logger.error('Failed to post harassment reply:', err);
+    }
+    return;
+  }
 
   // 4a. F-06 計算・ダイス・数秘術・うんちく（early return）
   if (effectiveIntent === 'calculate' || effectiveIntent === 'numerology' || effectiveIntent === 'dice' || effectiveIntent === 'trivia') {

@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'dice' | 'trivia';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'dice' | 'trivia' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -18,6 +18,13 @@ export interface ClassificationResult {
   formTarget?: FormTarget;
   /** numerology のときのみ設定される */
   numerologyType?: NumerologyType;
+  /**
+   * harassment のときのみ設定される。
+   * - 1: 軽度（プライベート情報要求・軽い挑発など）
+   * - 2: 繰り返し・エスカレートする不適切要求
+   * - 3: 明らかなハラスメント・威圧・暴言レベル
+   */
+  harassmentLevel?: 1 | 2 | 3;
 }
 
 // ----------------------------------------------------------------
@@ -157,5 +164,60 @@ export function classifyIntent(text: string): ClassificationResult {
     if (pattern.test(normalized)) return { intent: 'calculate' };
   }
 
+  const harassmentLevel = detectHarassmentLevel(normalized);
+  if (harassmentLevel !== null) {
+    return { intent: 'harassment', harassmentLevel };
+  }
+
   return { intent: 'chat' };
+}
+
+// ----------------------------------------------------------------
+// ハラスメント検知（ルールベース）
+// ----------------------------------------------------------------
+
+/**
+ * L3: 明らかなハラスメント・威圧・暴言レベルのキーワード
+ * ここに該当した場合は即座に L3 と判定する。
+ */
+const HARASSMENT_L3_PATTERNS: RegExp[] = [
+  /死[ねねろ]|殺[すせ]|消[えろ]|潰[すせ]/,
+  /ゴミ|クズ|役立たず|消えろ|うせろ|失せろ/,
+  /バ[カカ]野郎|馬鹿野郎|アホ[め野郎]/,
+  /[Rr][Ee][Pp][Oo][Rr][Tt]|通報[すするぞ]/,
+  /廃[棄機]\/廃棄|廃[棄機]しろ|ぶっ壊[すせ]/,
+];
+
+/**
+ * L2: 繰り返し・エスカレートする不適切要求のキーワード
+ * L3 非該当かつここに該当した場合 L2 と判定する。
+ */
+const HARASSMENT_L2_PATTERNS: RegExp[] = [
+  /[裸はだか]にな[れろ]|脱[げいで]|服を[脱取]/,
+  /下着|パンツ|ブラ[の色].*[教見]|[色色].*[教見].*下着/,
+  /セックス|エッチ[して]|Hして|エロ[いく]/,
+  /住[所所].*[教え教えろ]|[個人]情報.*[教よこ]/,
+  /本名.*[教え教えろ]|電話.*番号.*[教え教えろ]/,
+];
+
+/**
+ * L1: 軽度の不躾な要求のキーワード
+ * L2/L3 非該当かつここに該当した場合 L1 と判定する。
+ */
+const HARASSMENT_L1_PATTERNS: RegExp[] = [
+  /下着の色|パンツ.*色|ブラの色/,
+  /キスして|抱き[しつ]めて/,
+  /おまえ|てめえ|お前|黙れ|だまれ/,
+  /[嘘うそ]つき|信[用用]できない/,
+];
+
+/**
+ * テキストのハラスメントレベルを検出する（ルールベース）。
+ * ハラスメントが検出されなければ null を返す。
+ */
+export function detectHarassmentLevel(text: string): 1 | 2 | 3 | null {
+  if (HARASSMENT_L3_PATTERNS.some((p) => p.test(text))) return 3;
+  if (HARASSMENT_L2_PATTERNS.some((p) => p.test(text))) return 2;
+  if (HARASSMENT_L1_PATTERNS.some((p) => p.test(text))) return 1;
+  return null;
 }

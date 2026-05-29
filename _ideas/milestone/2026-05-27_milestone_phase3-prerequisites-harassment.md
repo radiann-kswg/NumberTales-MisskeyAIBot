@@ -1,7 +1,7 @@
 # Phase 3 前提機能 + ハラスメント仲介 実装計画
 
 > 作成日: 2026-05-27
-> ステータス: **未着手** 🔲
+> ステータス: **完了** ✅
 
 ---
 
@@ -38,14 +38,14 @@
 
 ### タスク詳細
 
-#### A-1: `CharacterRecord` 型の拡張
+#### A-1: `CharacterRecord` 型の拡張 ✅
 
 - `src/bot/character/loader.ts` の `CharacterRecord` インターフェースに
   `Hobby`・`SpecialSkill`・`Favor`・`NumerospecAbout` フィールドを追加
 - `NumerospecAbout` は `string | { hideText: string }` の Union 型として定義
 - `Hobby` / `SpecialSkill` / `Favor` も同様に hideText パターンに対応する
 
-#### A-2: `buildCharacterSystemPrompt()` への専門性セクション追加
+#### A-2: `buildCharacterSystemPrompt()` への専門性セクション追加 ✅
 
 - `src/bot/character/prompt-builder.ts` を更新
 - 既存のキャラクター性格・口調セクションの後に「得意なこと・専門性」段落を追記
@@ -59,7 +59,7 @@
   ヌメロジー上の特性: 経験・報酬を反省から生む
   ```
 
-#### A-3: 型チェック・動作確認
+#### A-3: 型チェック・動作確認 ✅
 
 - `npm run typecheck` でエラーゼロを確認
 - fallback キャラクター（000(チトセ)）でも問題なく動作することを確認
@@ -87,7 +87,7 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 
 ### タスク詳細
 
-#### B-1: `bot_state` テーブルの追加
+#### B-1: `bot_state` テーブルの追加 ✅
 
 - `src/storage/session.ts`（または新規 `src/storage/bot-state.ts`）に
   `bot_state` テーブルを追加
@@ -101,7 +101,7 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 - `getState(key)` / `setState(key, value)` のユーティリティを実装
 - `current_scheduler_char` キーに担当キャラクターの番号（文字列）を保存する
 
-#### B-2: Poll ノートの投稿処理
+#### B-2: Poll ノートの投稿処理 ✅
 
 - `src/bot/scheduler/` 配下に `weekly-poll.ts` を新規作成
 - 日曜22時に発火するスロットを `scheduler/index.ts` に追加
@@ -109,14 +109,14 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 - `misskeyClient.createPollNote()` で投票ノートを投稿（misskey-js の Poll API を使用）
 - 投稿した Poll のノート ID を `bot_state` に保存（集計時に使用）
 
-#### B-3: 集計・担当確定処理
+#### B-3: 集計・担当確定処理 ✅
 
 - 日曜23:59 に発火する集計スロットを追加
 - B-2 で保存した Poll ノート ID を取得し、`notes/show` API で票数を確認
 - 最多票または抽選で担当キャラクターを確定し、`bot_state` に保存
 - 月曜7時の自発投稿スロットで就任メッセージ（LLM 生成）を投稿
 
-#### B-4: F-02 スケジューラーへの担当キャラクター連携
+#### B-4: F-02 スケジューラーへの担当キャラクター連携 ✅
 
 - `scheduler/index.ts` の自発投稿処理で `bot_state` から現在の担当キャラクターを取得
 - 取得したキャラクター番号のシステムプロンプトを使って投稿文を LLM 生成
@@ -151,7 +151,7 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 
 ### タスク詳細
 
-#### C-1: ハラスメント検知ロジックの追加
+#### C-1: ハラスメント検知ロジックの追加 ✅
 
 - `src/bot/classifier/intent.ts` に `harassment` インテントを追加
   - L1/L2/L3 の分類は `harassmentLevel: 1 | 2 | 3` として `ClassificationResult` に追加
@@ -159,12 +159,12 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 - 判定が難しいケースは LLM による補助判定（`classifyHarassmentLevel()` ヘルパー）を設ける
 - LLM 判定は誤検知リスクがあるため、ルールベース後段の補助として位置づける
 
-#### C-2: `ClassificationResult` 型の拡張
+#### C-2: `ClassificationResult` 型の拡張 ✅
 
 - `intent.ts` の `ClassificationResult` に `harassmentLevel?: 1 | 2 | 3` を追加
 - 既存の呼び出し側（`mention.ts`）が型エラーになっていないか `npm run typecheck` で確認
 
-#### C-3: `mention.ts` への仲介ロジック追加
+#### C-3: `mention.ts` への仲介ロジック追加 ✅
 
 - `handleMention()` 内で `intent === 'harassment'` の分岐を追加
 - L1: 担当キャラクターのシステムプロンプトで「受け流し」指示を追加した上で LLM 生成
@@ -172,7 +172,7 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
 - L3: 10(ミツル) のキャラクタープロンプトを使って制止メッセージを LLM 生成
   （プロンプト確定前は 000(チトせ) でフォールバック）
 
-#### C-4: L1 受け流し用プロンプト指示の追加
+#### C-4: L1 受け流し用プロンプト指示の追加 ✅
 
 - `buildCharacterSystemPrompt()` の出力末尾に以下の共通指示を追記:
   ```
@@ -182,7 +182,7 @@ Misskey の Poll（投票）ノートを用いて週次でローテーション�
   感情的に反応したり、場を壊すような返答は避けること。
   ```
 
-#### C-5: 動作確認
+#### C-5: 動作確認 ✅
 
 - L1・L2・L3 それぞれのシナリオで期待通りの仲介が動作するかテスト
 - 誤検知（通常の発言がハラスメントと判定される）がないか確認

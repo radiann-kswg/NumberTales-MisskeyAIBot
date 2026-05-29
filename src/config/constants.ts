@@ -5,6 +5,9 @@ export const BOT_CONSTANTS = {
   /** 000(チトセ) のキャラクター番号 */
   CHITOSE_NUM: '000',
 
+  /** 10(ミツル) のキャラクター番号（ハラスメント L3 仲介担当） */
+  MITSURU_NUM: '10',
+
   /** 自発投稿のデフォルト公開範囲（ホーム投稿: フォロワーのみTLに流れる） */
   DEFAULT_VISIBILITY: 'home' as const,
 

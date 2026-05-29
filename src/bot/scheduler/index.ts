@@ -2,6 +2,10 @@
 
 import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
+import { getReleasedCharacterByNum, getDefaultCharacterProfile } from '../character/loader.js';
+import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
+import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import { WeeklyPollScheduler } from './weekly-poll.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
@@ -56,18 +60,24 @@ const TIME_SLOTS: readonly TimeSlot[] = [
 // AI プロンプト
 // ----------------------------------------------------------------
 
-const BASE_SYSTEM_PROMPT = `あなたはナンバーテールズ0番機「000(チトセ)」として、自発的に短いつぶやきを投稿します。
-以下の設定に従って自然に投稿してください。
+/**
+ * 担当キャラクターのシステムプロンプトを構築する。
+ * botState から担当番号を取得し、DB のプロフィールを使って動的生成する。
+ * 担当が未設定の場合は 000(チトセ) のデフォルトプロンプトにフォールバックする。
+ */
+function buildSchedulerSystemPrompt(botState: BotStateStore): string {
+  const charNum = botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
+  const profile = getReleasedCharacterByNum(charNum) ?? getDefaultCharacterProfile();
+  const base = buildCharacterSystemPrompt(profile, 'chat');
 
-【あなた（000 / チトセ）について】
-- 中性的でフレンドリー、姉御肌で職人気質な若手エンジニアのような話し方
-- 一人称は「私」、二人称は「君」または「クライアント君」
+  return `${base}
 
-【制約】
+【自発投稿の制約】
 - 台詞部分のみ出力すること（書式は呼び出し元が付与するため、台詞テキストだけ返す）
 - 50文字以内
 - 反社会的・著しく性的な表現は絶対に行わない
 - 未公開のナンバーテールズ設定・台詞・ストーリーを自動生成しない`;
+}
 
 // ----------------------------------------------------------------
 // ユーティリティ
@@ -107,6 +117,7 @@ function getActiveSlot(hour: number): TimeSlot | null {
 export interface SchedulerDeps {
   ai: AIProvider;
   misskeyClient: MisskeyClient;
+  botState: BotStateStore;
 }
 
 /**
@@ -116,14 +127,21 @@ export interface SchedulerDeps {
  * - SCHEDULER_CHECK_INTERVAL_MS（10分）ごとに JST 時刻を確認
  * - 定義済みスロット（朝/昼/夕方/深夜）に該当し、クールダウンが切れていれば投稿
  * - クールダウンはスロット横断で共有（1〜2時間ランダム）
+ * - 週次 Poll スケジューラー（WeeklyPollScheduler）も内包して同時管理
  */
 export class PostScheduler {
   private lastPostedAt: number | null = null;
   private nextCooldownMs: number;
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
+  private readonly weeklyPoll: WeeklyPollScheduler;
 
   constructor(private readonly deps: SchedulerDeps) {
     this.nextCooldownMs = randomCooldownMs();
+    this.weeklyPoll = new WeeklyPollScheduler({
+      ai: deps.ai,
+      misskeyClient: deps.misskeyClient,
+      botState: deps.botState,
+    });
   }
 
   start(): void {
@@ -131,6 +149,7 @@ export class PostScheduler {
       () => void this.tick(),
       BOT_CONSTANTS.SCHEDULER_CHECK_INTERVAL_MS,
     );
+    this.weeklyPoll.start();
     logger.info('Post scheduler started');
   }
 
@@ -139,6 +158,7 @@ export class PostScheduler {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
     }
+    this.weeklyPoll.stop();
   }
 
   private isOnCooldown(): boolean {
@@ -151,18 +171,27 @@ export class PostScheduler {
     if (slot === null) return;
     if (this.isOnCooldown()) return;
 
+    // 月曜7時: 就任挨拶（B-4）
+    const hour = getJSTHour();
+    const dayOfWeek = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCDay();
+    if (dayOfWeek === 1 && hour === 7) {
+      await this.weeklyPoll.postInaugurationGreeting();
+    }
+
     try {
+      const systemPrompt = buildSchedulerSystemPrompt(this.deps.botState);
+      const charNum = this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
       const result = await this.deps.ai.chat(
         [
           {
             role: 'system',
-            content: `${BASE_SYSTEM_PROMPT}\n\n【現在の時間帯】\n${slot.promptAddendum}`,
+            content: `${systemPrompt}\n\n【現在の時間帯】\n${slot.promptAddendum}`,
           },
           { role: 'user', content: 'つぶやきをひとつ投稿してください。' },
         ],
         { maxTokens: 80, temperature: 0.9 },
       );
-      const speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, result.text.trim());
+      const speechText = formatSpeech(charNum, result.text.trim());
       await this.deps.misskeyClient.post(speechText);
       this.lastPostedAt = Date.now();
       this.nextCooldownMs = randomCooldownMs();

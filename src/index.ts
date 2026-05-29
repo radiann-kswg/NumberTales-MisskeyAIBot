@@ -5,6 +5,7 @@ import { MisskeyClient } from './misskey/client.js';
 import { RateLimiter } from './bot/ratelimit/index.js';
 import { ActiveCharacterStore } from './bot/character/store.js';
 import { SessionStore } from './storage/session.js';
+import { BotStateStore } from './storage/bot-state.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createFollowBackHandler } from './bot/handlers/follow.js';
@@ -40,6 +41,10 @@ async function main(): Promise<void> {
   sessionStore.pruneExpired(); // 起動時に期限切れをクリーン
   logger.info(`Session store ready: ${config.storage.dbPath}`);
 
+  // Bot 状態ストア初期化（週次担当キャラクター等の永続状態）
+  const botState = new BotStateStore(config.storage.dbPath);
+  logger.info('Bot state store ready');
+
   // ユーザーごとのアクティブキャラクター状態（Phase A 基盤）
   const activeCharacterStore = new ActiveCharacterStore(
     config.storage.dbPath,
@@ -73,7 +78,7 @@ async function main(): Promise<void> {
   misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
-  const scheduler = new PostScheduler({ ai, misskeyClient });
+  const scheduler = new PostScheduler({ ai, misskeyClient, botState });
   scheduler.start();
 
   // プロセス終了時のクリーンアップ
@@ -83,6 +88,7 @@ async function main(): Promise<void> {
     misskeyClient.close();
     activeCharacterStore.close();
     sessionStore.close();
+    botState.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);

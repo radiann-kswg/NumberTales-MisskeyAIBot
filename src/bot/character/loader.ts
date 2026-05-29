@@ -22,6 +22,11 @@ export interface CharacterRelationItem {
   RelationLabel?: string[];
 }
 
+/** DB フィールドの非公開値ラッパー */
+export interface HideTextWrapper {
+  hideText: string;
+}
+
 export interface CharacterRecord {
   Num: string | number;
   Name?: string;
@@ -35,6 +40,14 @@ export interface CharacterRecord {
     Related?: CharacterRelationItem[];
   };
   ConversationPattern?: CharacterConversationPattern;
+  /** 趣味・得意テーマ（非公開の場合は HideTextWrapper） */
+  Hobby?: string | HideTextWrapper;
+  /** 特技 */
+  SpecialSkill?: string;
+  /** 好きなもの */
+  Favor?: string;
+  /** ヌメロジー上の役割・特性 */
+  NumerospecAbout?: string;
 }
 
 const CHARACTER_DB_PATH = fileURLToPath(
