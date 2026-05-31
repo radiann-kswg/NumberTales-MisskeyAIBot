@@ -100,6 +100,37 @@ export function isCharacterSwitchResetRequest(text: string): boolean {
   return RESET_SWITCH_PATTERN.test(text);
 }
 
+/** 管理者コマンド: 週次自発投稿担当（スケジューラーキャラクター）の切り替え検出 */
+const SCHEDULER_CHAR_SWITCH_PATTERN =
+  /週.*担当|自発投稿.*担当|投稿担当|スケジューラー.*担当|来週.*担当|今週.*担当.*変更|今週.*担当.*切り替え/;
+
+/**
+ * 管理者コマンドとして自発投稿担当（STATE_KEY_SCHEDULER_CHAR）を切り替えるキャラクターを解決する。
+ * キーワードが一致し、かつ対象キャラクターを特定できた場合のみ非 null を返す。
+ *
+ * 通常の `resolveCharacterSwitchTarget` に加えて、
+ * 「29にして」「36にして」のような単純番号指定もスケジューラーコマンドとして受け付ける。
+ *
+ * @param text メンション本文
+ * @returns 切り替え先 CharacterRecord、対象不明 or パターン不一致なら null
+ */
+export function resolveSchedulerCharTarget(text: string): CharacterRecord | null {
+  if (!SCHEDULER_CHAR_SWITCH_PATTERN.test(text)) return null;
+
+  // 通常の切り替え解決（#29 / 29番機 / 名前指定）
+  const bySwitch = resolveCharacterSwitchTarget(text);
+  if (bySwitch) return bySwitch;
+
+  // スケジューラーコマンド専用: 単純番号指定（例: 「29にして」「を36に」）
+  const numMatch = text.match(/[をにへ「」]?\s*(0*\d{1,3})\s*(?:番機|にして|へ変更|に変更|に切り替え|を担当)/);
+  if (numMatch?.[1]) {
+    return getReleasedCharacterByNum(numMatch[1]);
+  }
+
+  // 名前のみ指定（「来週担当をニトクに」のような形）
+  return findByName(text);
+}
+
 export function buildCharacterSwitchText(target: CharacterRecord, alreadyActive: boolean): string {
   const name = target.Name ?? `${String(target.Num)}番機`;
   const firstPerson = normalizeCalling(target.FirstPersonCalling, 'この子');
@@ -164,6 +195,7 @@ export function buildCharacterSwitchHelpText(options: {
 
   if (options.isAdmin) {
     lines.push('管理者なら「全体のデフォルトを3番機にして」で標準担当も変更できる。');
+    lines.push('管理者なら「週の投稿担当を29にして」「来週担当を変更して(名前)」で自発投稿担当も変更できる。');
   }
 
   return lines.join('\n');

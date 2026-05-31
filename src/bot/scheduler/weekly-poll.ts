@@ -2,8 +2,8 @@
  * 週次担当キャラクター選出 — Poll 投稿・集計・就任処理（前提機能 B）
  *
  * スケジュール:
- *   日曜22:00 JST → 候補3名の Poll ノートを投稿（B-2）
- *   日曜23:59 JST → 投票集計・担当キャラクター確定（B-3）
+ *   土曜0:00 JST → 候補3名の Poll ノートを投稿（B-2）
+ *   月曜0:00 JST → 投票集計・担当キャラクター確定（B-3）
  *   月曜07:00 JST → 就任挨拶投稿（B-4 連携）
  *
  * 担当キャラクターは BotStateStore の STATE_KEY_SCHEDULER_CHAR に保存する。
@@ -20,6 +20,7 @@ import {
   STATE_KEY_POLL_CANDIDATES,
   STATE_KEY_PREV_POLL_CANDIDATES,
 } from '../../storage/bot-state.js';
+import { formatSpeech, resolveCoreFolderEmoji } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 
 // ----------------------------------------------------------------
@@ -47,51 +48,7 @@ function isEligibleProgress(progress?: string): boolean {
   return progress === 'released' || progress === 'released(beta)';
 }
 
-/**
- * キャラクター番号に対応するコアフォルダ絵文字を解決する。
- *
- * 解決優先度:
- *   1. `aphrnts{Num}_corefolder` という標準エイリアスが name / aliases に存在する
- *   2. `aphrnts{Num}` プレフィックスを持ち category または tags に `corefolder` を含む絵文字
- *   3. `aphrnts{Num}` プレフィックスを持つ絵文字の先頭一件
- *   4. 解決不能なら null（候補除外のトリガー）
- *
- * @param num キャラクター番号文字列（例: '30'）
- * @param emojis Bot 起動時にキャッシュした EmojiInfo 配列
- * @returns 使用する絵文字名、または null
- */
-function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[]): string | null {
-  if (emojis.length === 0) {
-    // キャッシュ未取得時は標準名でフォールバック
-    return `aphrnts${num}_corefolder`;
-  }
-
-  const standardName = `aphrnts${num}_corefolder`;
-
-  // 1. 標準エイリアスの完全一致
-  for (const e of emojis) {
-    if (e.name === standardName || e.aliases.includes(standardName)) return e.name;
-  }
-
-  const prefix = `aphrnts${num}`;
-
-  // 2. 同プレフィックス + category または tags に 'corefolder' を含む
-  for (const e of emojis) {
-    if (!e.name.startsWith(prefix) && !e.aliases.some((a) => a.startsWith(prefix))) continue;
-    const inCategory = e.category?.toLowerCase().includes('corefolder') ?? false;
-    const inTags = e.tags.some((t) => t.toLowerCase().includes('corefolder'));
-    if (inCategory || inTags) return e.name;
-  }
-
-  // 3. 同プレフィックスの先頭一件
-  const fallback = emojis.find(
-    (e) => e.name.startsWith(prefix) || e.aliases.some((a) => a.startsWith(prefix)),
-  );
-  if (fallback) return fallback.name;
-
-  // 4. 解決不能
-  return null;
-}
+// resolveCoreFolderEmoji は emoji.ts に一元化済み
 
 /**
  * キャラクターのコアフォルダ絵文字がサーバーに登録されているかを確認する。
@@ -276,8 +233,8 @@ export class WeeklyPollScheduler {
       return;
     }
 
-    // 日曜23:55〜23:59 → 集計・担当確定
-    if (dayOfWeek === 0 && hour === 23 && minute >= 55) {
+    // 月曜0:00〜0:09 → 集計・担当確定（Poll 期間 48h 終了直後）
+    if (dayOfWeek === 1 && hour === 0 && minute < 10) {
       const key = this.makeActionKey('poll_tally');
       if (!this.processedKeys.has(key)) {
         this.processedKeys.add(key);
@@ -399,13 +356,16 @@ export class WeeklyPollScheduler {
     }
   }
 
-  /** 集計結果の通知投稿 */
+  /** 集計結果の通知投稿（000(チトセ) として投稿） */
   private async postTallyResult(winnerNum: string): Promise<void> {
     try {
       const characters = getReleasedCharacters();
       const winner = characters.find((c) => String(c.Num) === winnerNum);
       const winnerName = winner?.Name ?? `${winnerNum}番機`;
-      const text = `今週のつぶやき担当は **${winnerName}** に決まったよ！よろしくね :chitose_wave:`;
+      const text = formatSpeech(
+        '000',
+        `今週のつぶやき担当は${winnerName}に決まったよ！よろしくね`,
+      );
       await this.deps.misskeyClient.post(text);
     } catch (err) {
       logger.error('[WeeklyPoll] 集計結果投稿エラー:', err);
@@ -468,7 +428,8 @@ export class WeeklyPollScheduler {
         { maxTokens: 80, temperature: 0.9 },
       );
 
-      const greetingText = `【今週の担当: ${winnerName}】\n${result.text.trim()}`;
+      const speechLine = formatSpeech(winnerNum, result.text.trim());
+      const greetingText = `【今週の担当: ${winnerName}】\n${speechLine}`;
       await this.deps.misskeyClient.post(greetingText);
       logger.info(`[WeeklyPoll] 就任挨拶投稿: ${winnerName}`);
     } catch (err) {

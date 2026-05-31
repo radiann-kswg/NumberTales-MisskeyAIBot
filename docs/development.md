@@ -47,7 +47,8 @@ ADMIN_USER_IDS=your_admin_user_id
 
 - `DEFAULT_CHARACTER_NUM`: 個別指定のない相手に返答する標準担当キャラクター番号
 - `ADMIN_USER_IDS`: 管理者コマンドを許可する Misskey ユーザー ID のカンマ区切り一覧
-  - 例: `全体のデフォルトを3番機にして`
+  - 全体デフォルト変更: `全体のデフォルトを3番機にして`
+  - 自発投稿担当変更: `週の投稿担当も29にして`、`来週担当を変更して（名前）`、`自発投稿担当を2番機に切り替えて`
   - 一般ユーザーは自分専用の担当切り替えのみ可能
 
 ---
@@ -182,6 +183,29 @@ Invoke-RestMethod -Uri "https://radiann6631.net/api/emojis" -Method Post `
 ---
 
 ## 動作確認のポイント
+
+### スケジューラー担当切り替えコマンドのテスト
+
+```bash
+node --input-type=module --eval "
+import { resolveSchedulerCharTarget } from './dist/bot/character/switch.js';
+console.log(resolveSchedulerCharTarget('週の投稿担当も29にして'));  // 29(ニトク)
+console.log(resolveSchedulerCharTarget('自発投稿担当を2番機に切り替えて'));  // 2(ツグ)
+console.log(resolveSchedulerCharTarget('1番機と話したい'));  // null
+"
+```
+
+### 絵文字補完のテスト
+
+```bash
+node --input-type=module --eval "
+import { resolveCoreFolderEmoji, setEmojiCache } from './dist/bot/responder/emoji.js';
+// キャッシュなし（フォールバック動作確認）
+console.log(resolveCoreFolderEmoji('2'));  // aphrnts2_corefolder
+// エイリアス補完のモック
+console.log('エイリアス補完テストは .cache/smoke-test.mjs を参照');
+"
+```
 
 ### マルチキャラクター切り替えのテスト
 

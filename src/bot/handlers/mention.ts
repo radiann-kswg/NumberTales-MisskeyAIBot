@@ -4,6 +4,7 @@ import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
+import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
 import { classifyIntent, detectFormTarget, type FormTarget } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
@@ -18,6 +19,7 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';impo
   isCharacterSwitchResetRequest,
   resolveCharacterSwitchTarget,
   resolveDefaultCharacterTarget,
+  resolveSchedulerCharTarget,
 } from '../character/switch.js';
 import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
@@ -54,6 +56,7 @@ export interface MentionHandlerDeps {
   sessionStore: SessionStore;
   activeCharacterStore: ActiveCharacterStore;
   incidentLogger: IncidentLogger;
+  botState: BotStateStore;
 }
 
 /**
@@ -240,7 +243,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger, botState } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -360,6 +363,49 @@ export async function handleMention(
       });
     } catch (err) {
       logger.error('Failed to post default character switch reply:', err);
+    }
+    return;
+  }
+
+  // 管理者コマンド: 自発投稿担当（スケジューラーキャラクター）の切り替え
+  const schedulerSwitchTarget = resolveSchedulerCharTarget(event.text);
+  if (schedulerSwitchTarget && isAdminUser) {
+    const schedulerTargetNum = String(schedulerSwitchTarget.Num);
+    const prevNum = botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? '000';
+    const alreadyScheduler = prevNum === schedulerTargetNum;
+
+    botState.setState(STATE_KEY_SCHEDULER_CHAR, schedulerTargetNum);
+    const schedulerTargetName = schedulerSwitchTarget.Name ?? `${schedulerTargetNum}番機`;
+
+    const replyContent = alreadyScheduler
+      ? `自発投稿担当はすでに${schedulerTargetName}だよ。そのまま継続するね。`
+      : `自発投稿担当を${schedulerTargetName}に切り替えたよ。次の投稿から適用されるよ。`;
+    const speechText = formatSpeech(BOT_CONSTANTS.CHITOSE_NUM, replyContent);
+    const { text, cw } = formatForNote(speechText, BOT_CONSTANTS.CHITOSE_NUM);
+
+    try {
+      await misskeyClient.reply(text, event.noteId, { cw });
+      rateLimiter.recordReply(event.userId);
+      logger.info(`[Admin] Scheduler character updated: ${prevNum} → ${schedulerTargetNum} by ${event.userId}`);
+
+      const reactionPool = MENTION_REACTION_MAP['character-switch'] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+        logger.warn('Failed to add reaction to scheduler switch mention:', err);
+      });
+
+      // 実際に切り替えが行われた場合のみ、投票結果告知と同様の公開投稿を行う
+      if (!alreadyScheduler) {
+        const announceText = formatSpeech(
+          BOT_CONSTANTS.CHITOSE_NUM,
+          `今週のつぶやき担当は${schedulerTargetName}に決まったよ！よろしくね`,
+        );
+        misskeyClient.post(announceText).catch((err: unknown) => {
+          logger.error('[Admin] Scheduler switch announcement post failed:', err);
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to post scheduler character switch reply:', err);
     }
     return;
   }

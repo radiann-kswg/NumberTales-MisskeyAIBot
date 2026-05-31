@@ -10,6 +10,7 @@ import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createFollowBackHandler } from './bot/handlers/follow.js';
 import { PostScheduler } from './bot/scheduler/index.js';
+import { setEmojiCache } from './bot/responder/emoji.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
 
@@ -31,6 +32,13 @@ async function main(): Promise<void> {
   const myUserId = await misskeyClient.getMyUserId();
   logger.info(`Logged in as userId: ${myUserId}`);
 
+  // カスタム絵文字キャッシュを起動時に一度取得（失敗時はスキップ）
+  await misskeyClient.fetchEmojis().then((emojis) => {
+    setEmojiCache(emojis);
+    logger.info(`Emoji cache loaded: ${emojis.length} emojis`);
+  }).catch((err: unknown) => {
+    logger.warn('Failed to load emoji cache. Emoji resolution will use fallback names.', err);
+  });
   // レートリミッター初期化
   const rateLimiter = new RateLimiter(
     config.rateLimit.replyCooldownMs,
@@ -76,7 +84,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger, botState });
   });
 
   logger.info('Bot is listening for mentions...');

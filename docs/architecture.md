@@ -1,6 +1,6 @@
 # 技術アーキテクチャ — NumberTales Misskey AI Bot
 
-> 最終更新: 2026-05-29
+> 最終更新: 2026-06-01
 > 実装状況を反映したライブドキュメント（仕様案は [`_ideas/bot-spec/03_tech-architecture.md`](../_ideas/bot-spec/03_tech-architecture.md) を参照）
 
 ---
@@ -27,6 +27,7 @@ Misskey インスタンス (radiann6631.net)
   │         │    ├─ 個別担当切り替え（LLM生成メッセージ付き）
   │         │    ├─ 個別担当解除
   │         │    ├─ 管理者デフォルト変更
+  │         │    ├─ 管理者自発投稿担当変更（スケジューラーキャラクター直接変更）
   │         │    └─ ヘルプ応答
   │         ├─ F-06 早期 return (features/f06/)
   │         │    ├─ calculate  → safeEvaluate (mathjs)
@@ -59,10 +60,10 @@ Misskey インスタンス (radiann6631.net)
   ├─ PostScheduler (bot/scheduler/index.ts) ── setInterval 10分
   │    └─ 時間帯判定 (JST) → LLM 生成 → misskeyClient.post
   │
-  ├─ WeeklyPollScheduler (bot/scheduler/weekly-poll.ts) ── setInterval 1分
+  ├─ WeeklyPollScheduler (bot/scheduler/weekly-poll.ts) ── setInterval 10分
   │    ├─ 土曜 0:00 → Tier 重み付き 3 名候補選出 → Poll 投稿（48 時間投票期間）
   │    ├─ 土日 7〜23 時 毎時 → 投票ノートのセルフリノート（リマインド）
-  │    ├─ 日曜 23:55 → 票数集計 → 最多票キャラクターを翌週担当に確定
+  │    ├─ 月曜 0:00 → 票数集計 → 最多票キャラクターを当週担当に確定・結果投稿
   │    └─ 月曜 7:00 → 就任挨拶（LLM 生成）を投稿
   │
   ├─ RateLimiter (bot/ratelimit/) ── メモリ内 Map
@@ -141,7 +142,8 @@ export interface ClassificationResult {
 - キャラクター切り替え: 番号指定・名前指定でユーザー単位に担当を変更。切り替えメッセージは **LLM 生成**（5 シナリオ: 初回登場・再登場・復帰・同一担当・解除後戻り）
 - キャラクター解除: 個別担当を消して全体デフォルト担当へ戻す
 - 管理者デフォルト変更: `ADMIN_USER_IDS` に含まれるユーザーのみ全体デフォルトを変更
-- キャラ切り替えヘルプ: 現在担当・標準担当・利用例を返信（常に 000(チトセ) 固定）
+- 管理者スケジューラー担当変更: `BotStateStore` の `STATE_KEY_SCHEDULER_CHAR` を直接更新。切り替え時は 000(チトセ) 書式で返信 + 投票結果告知と同形式の公開投稿を自動発行
+- キャラ切り替えヘルプ: 現在担当・標準担当・利用例を返信（常に 000(チトセ) 固定）。管理者にはスケジューラー担当変更コマンドのヒントも表示
 - F-06 グループ（calculate / numerology / dice / trivia）は early return で `features/f06/` に委譲し、trivia のみ LLM を呼ぶ
 - **greeting**: LLM 生成。JST 時間帯（朝/昼/夕/深夜）をプロンプトに注入し、時間帯に合った挨拶を返す
 - **form-switch / chat / creative-consultation**: LLM 生成
@@ -216,12 +218,12 @@ TL ノートのフィルタリングと感情分類。
 
 週次担当選出スケジューラー。`WeeklyPollScheduler` クラス。起動時に `fetchEmojis()` で絵文字キャッシュを取得し、`setInterval` 1 分ごとに以下を実行する。
 
-| タイミング               | 処理                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------- |
-| 土曜 0:00                | 候補 3 名を Tier 重み付き抽選（前週候補・固定除外を除く）→ Poll ノートを投稿（48 時間投票） |
-| 土曜・日曜 7〜23 時 毎時 | `STATE_KEY_POLL_NOTE_ID` が存在する場合、投票ノートをセルフリノートしてリマインド           |
-| 日曜 23:55               | 票数を集計し最多票キャラクターを `STATE_KEY_SCHEDULER_CHAR` に書き込み                      |
-| 月曜 7:00                | 就任挨拶（LLM 生成・50 文字以内）を投稿し `STATE_KEY_POLL_NOTE_ID` をクリア                 |
+| タイミング               | 処理                                                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| 土曜 0:00                | 候補 3 名を Tier 重み付き抽選（前週候補・固定除外を除く）→ Poll ノートを投稿（48 時間投票）                           |
+| 土曜・日曜 7〜23 時 毎時 | `STATE_KEY_POLL_NOTE_ID` が存在する場合、投票ノートをセルフリノートしてリマインド                                     |
+| 月曜 0:00                | 票数を集計し最多票キャラクターを `STATE_KEY_SCHEDULER_CHAR` に書き込み、000(チトセ)書式で結果投稿                     |
+| 月曜 7:00                | 就任挨拶（LLM 生成・50 文字以内）を担当キャラ発言書式で投稿し `STATE_KEY_POLL_NOTE_ID` をクリア                      |
 
 **Tier 重み（候補選出）:**
 
@@ -232,7 +234,7 @@ TL ノートのフィルタリングと感情分類。
 | 3    | 上記以外                                         | 1    |
 
 - 固定除外: `000` / `0` / `00` / `1` / `10`、ハイフン含む特殊番号
-- コアフォルダー絵文字（`:aphrnts{Num}_corefolder:`）が未登録の場合は 4 段階フォールバックで代替絵文字を解決し、解決不能なら候補から除外
+- コアフォルダー絵文字は `resolveCoreFolderEmoji()` で解決。優先度: ①標準エイリアス完全一致 → ②同プレフィックス + tags/category に `corefolder` → ③同プレフィックス先頭一件 → ④null（候補除外）。Poll 候補選出時と `formatSpeech()` で共通利用
 - `STATE_KEY_PREV_POLL_CANDIDATES` に前週候補番号を保存し、翌週の選出から除外（連続選出防止）
 - 二重発火防止のため `processedKeys: Set<string>` でタイムスタンプキーを管理
 
