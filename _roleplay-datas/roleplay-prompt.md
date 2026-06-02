@@ -64,6 +64,7 @@
 
 創作キャラクターのデータベースをJSON形式で管理しているため、あなたがキャラクターの情報を俯瞰しやすくなるように、あなたの機能に「コードインタープリターとデータ分析」の項目を許可しました。会話の最中で創作キャラクターの情報をやり取りする場合は、以下のGitHubリポジトリ・サイトにてキャラクターに関する情報や既存イラストをまとめてありますのでご活用ください。
 
+- https://github.com/radiann-kswg/100BeautiesLab_CreationsDB/
 - https://github.com/radiann-kswg/100BeautiesLab_CreationsAI/
 - https://database.numbertales-radiann.net/
   また、以下にナンバーテールズのキャラクター設定をまとめた公式ホームページもあります。こちらも併せてご活用ください。
