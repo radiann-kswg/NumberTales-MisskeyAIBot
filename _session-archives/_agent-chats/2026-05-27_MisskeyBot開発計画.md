@@ -645,7 +645,7 @@ Ran terminal command: $content = Get-Content "{LOCAL_REPOSITORY}\node_modules\mi
 $createStart = ($content | Select-String -Pattern '"notes/create"' | Select-Object -First 1).LineNumber
 $content[($createStart-1)..($createStart+25)] -join "`n"
 
-Read [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a28d3858283e98e6026e/GitHub.copilot-chat/chat-session-resources/69d45316-fa75-4aa8-b727-655a6934cabd/toolu_bdrk_01UqQc5rZqGNYzzNh5QQ3Z8L\_\_vscode-1779686982404/content.txt#1-1), lines 1 to 50
+Read [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/{WORKSPACE_STORAGE_ID}/GitHub.copilot-chat/chat-session-resources/{SESSION_ID}/{TOOL_CALL_ID}\_\_vscode-1779686982404/content.txt#1-1), lines 1 to 50
 
 必要な型は把握できた。実装に入る前に misskey-js のエクスポート構成を確認する。
 
@@ -1436,26 +1436,26 @@ Warning: Identity file {HOMEDIR}\.ssh\deploy_key_nopass not accessible: No such 
 OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2
 debug1: Connecting to {サーバーIP}  [{サーバーIP} ] port 22.
 debug1: Connection established.
-debug1: identity file C:\\Users\\s-chi/.ssh/id_rsa type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_rsa-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ecdsa type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ecdsa-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ecdsa_sk type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ecdsa_sk-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ed25519 type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ed25519-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ed25519_sk type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_ed25519_sk-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_xmss type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_xmss-cert type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_dsa type -1
-debug1: identity file C:\\Users\\s-chi/.ssh/id_dsa-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_rsa type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_rsa-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ecdsa type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ecdsa-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ecdsa_sk type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ecdsa_sk-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ed25519 type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ed25519-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ed25519_sk type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_ed25519_sk-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_xmss type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_xmss-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_dsa type -1
+debug1: identity file C:\\Users\\{USERNAME}/.ssh/id_dsa-cert type -1
 debug1: Local version string SSH-2.0-OpenSSH_for_Windows_9.5
 debug1: Remote protocol version 2.0, remote software version OpenSSH_8.2p1 Ubuntu-4ubuntu0.13
 debug1: compat_banner: match: OpenSSH_8.2p1 Ubuntu-4ubuntu0.13 pat OpenSSH* compat 0x04000000
 debug1: Authenticating to {サーバーIP} :22 as '{ユーザID} '
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts: No such file or directory
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts2: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
 debug1: SSH2_MSG_KEXINIT sent
@@ -1467,12 +1467,12 @@ debug1: kex: client->server cipher: chacha20-poly1305@openssh.com MAC: <implicit
 debug1: expecting SSH2_MSG_KEX_ECDH_REPLY
 debug1: SSH2_MSG_KEX_ECDH_REPLY received
 debug1: Server host key: ssh-ed25519 SHA256:WcxpoT6ggjxO2la2mwFODIpmmUuVXRWUwzuRtfexfOg
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts: No such file or directory
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts2: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
-debug1: hostkeys_find_by_key_hostfile: hostkeys file C:\\Users\\s-chi/.ssh/known_hosts does not exist
-debug1: hostkeys_find_by_key_hostfile: hostkeys file C:\\Users\\s-chi/.ssh/known_hosts2 does not exist
+debug1: hostkeys_find_by_key_hostfile: hostkeys file C:\\Users\\{USERNAME}/.ssh/known_hosts does not exist
+debug1: hostkeys_find_by_key_hostfile: hostkeys file C:\\Users\\{USERNAME}/.ssh/known_hosts2 does not exist
 debug1: hostkeys_find_by_key_hostfile: hostkeys file __PROGRAMDATA__\\ssh/ssh_known_hosts does not exist
 debug1: hostkeys_find_by_key_hostfile: hostkeys file __PROGRAMDATA__\\ssh/ssh_known_hosts2 does not exist
 The authenticity of host '{サーバーIP}  ({サーバーIP} )' can't be established.
@@ -1488,25 +1488,25 @@ debug1: ssh_packet_read_poll2: resetting read seqnr 3
 debug1: SSH2_MSG_NEWKEYS received
 debug1: rekey in after 134217728 blocks
 debug1: get_agent_identities: ssh_get_authentication_socket: No such file or directory
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_rsa
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_ecdsa
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_ecdsa_sk
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_ed25519
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_ed25519_sk
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_xmss
-debug1: Will attempt key: C:\\Users\\s-chi/.ssh/id_dsa
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_rsa
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_ecdsa
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_ecdsa_sk
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_ed25519
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_ed25519_sk
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_xmss
+debug1: Will attempt key: C:\\Users\\{USERNAME}/.ssh/id_dsa
 debug1: SSH2_MSG_EXT_INFO received
 debug1: kex_input_ext_info: server-sig-algs=<ssh-ed25519,sk-ssh-ed25519@openssh.com,ssh-rsa,rsa-sha2-256,rsa-sha2-512,ssh-dss,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ecdsa-sha2-nistp256@openssh.com>
 debug1: SSH2_MSG_SERVICE_ACCEPT received
 debug1: Authentications that can continue: publickey
 debug1: Next authentication method: publickey
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_rsa
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_ecdsa
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_ecdsa_sk
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_ed25519
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_ed25519_sk
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_xmss
-debug1: Trying private key: C:\\Users\\s-chi/.ssh/id_dsa
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_rsa
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_ecdsa
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_ecdsa_sk
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_ed25519
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_ed25519_sk
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_xmss
+debug1: Trying private key: C:\\Users\\{USERNAME}/.ssh/id_dsa
 debug1: No more authentication methods to try.
 {ユーザID} @{サーバーIP} : Permission denied (publickey).
 ```
@@ -1822,13 +1822,13 @@ ssh -i "$HOME\.ssh\deploy_key_gha" -v {ユーザID} @{サーバーIP}  -o Strict
 OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2
 debug1: Connecting to {サーバーIP}  [{サーバーIP} ] port 22.
 debug1: Connection established.
-debug1: identity file C:\\Users\\s-chi\\.ssh\\deploy_key_gha type 3
-debug1: identity file C:\\Users\\s-chi\\.ssh\\deploy_key_gha-cert type -1
+debug1: identity file C:\\Users\\{USERNAME}\\.ssh\\deploy_key_gha type 3
+debug1: identity file C:\\Users\\{USERNAME}\\.ssh\\deploy_key_gha-cert type -1
 debug1: Local version string SSH-2.0-OpenSSH_for_Windows_9.5
 debug1: Remote protocol version 2.0, remote software version OpenSSH_8.2p1 Ubuntu-4ubuntu0.13
 debug1: compat_banner: match: OpenSSH_8.2p1 Ubuntu-4ubuntu0.13 pat OpenSSH* compat 0x04000000
 debug1: Authenticating to {サーバーIP} :22 as '{ユーザID} '
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts2: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
 debug1: SSH2_MSG_KEXINIT sent
@@ -1840,11 +1840,11 @@ debug1: kex: client->server cipher: chacha20-poly1305@openssh.com MAC: <implicit
 debug1: expecting SSH2_MSG_KEX_ECDH_REPLY
 debug1: SSH2_MSG_KEX_ECDH_REPLY received
 debug1: Server host key: ssh-ed25519 SHA256:WcxpoT6ggjxO2la2mwFODIpmmUuVXRWUwzuRtfexfOg
-debug1: load_hostkeys: fopen C:\\Users\\s-chi/.ssh/known_hosts2: No such file or directory
+debug1: load_hostkeys: fopen C:\\Users\\{USERNAME}/.ssh/known_hosts2: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts: No such file or directory
 debug1: load_hostkeys: fopen __PROGRAMDATA__\\ssh/ssh_known_hosts2: No such file or directory
 debug1: Host '{サーバーIP} ' is known and matches the ED25519 host key.
-debug1: Found key in C:\\Users\\s-chi/.ssh/known_hosts:1
+debug1: Found key in C:\\Users\\{USERNAME}/.ssh/known_hosts:1
 debug1: ssh_packet_send2_wrapped: resetting send seqnr 3
 debug1: rekey out after 134217728 blocks
 debug1: SSH2_MSG_NEWKEYS sent
@@ -1853,13 +1853,13 @@ debug1: ssh_packet_read_poll2: resetting read seqnr 3
 debug1: SSH2_MSG_NEWKEYS received
 debug1: rekey in after 134217728 blocks
 debug1: get_agent_identities: ssh_get_authentication_socket: No such file or directory
-debug1: Will attempt key: C:\\Users\\s-chi\\.ssh\\deploy_key_gha ED25519 SHA256:HWZk9c0pk5LNtOFBCcVmcuaIdid7owFRiWuCpRdlNvc explicit
+debug1: Will attempt key: C:\\Users\\{USERNAME}\\.ssh\\deploy_key_gha ED25519 SHA256:HWZk9c0pk5LNtOFBCcVmcuaIdid7owFRiWuCpRdlNvc explicit
 debug1: SSH2_MSG_EXT_INFO received
 debug1: kex_input_ext_info: server-sig-algs=<ssh-ed25519,sk-ssh-ed25519@openssh.com,ssh-rsa,rsa-sha2-256,rsa-sha2-512,ssh-dss,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,sk-ecdsa-sha2-nistp256@openssh.com>
 debug1: SSH2_MSG_SERVICE_ACCEPT received
 debug1: Authentications that can continue: publickey
 debug1: Next authentication method: publickey
-debug1: Offering public key: C:\\Users\\s-chi\\.ssh\\deploy_key_gha ED25519 SHA256:HWZk9c0pk5LNtOFBCcVmcuaIdid7owFRiWuCpRdlNvc explicit
+debug1: Offering public key: C:\\Users\\{USERNAME}\\.ssh\\deploy_key_gha ED25519 SHA256:HWZk9c0pk5LNtOFBCcVmcuaIdid7owFRiWuCpRdlNvc explicit
 debug1: Authentications that can continue: publickey
 debug1: No more authentication methods to try.
 {ユーザID} @{サーバーIP} : Permission denied (publickey).
@@ -3168,7 +3168,7 @@ Read [](./src/bot/handlers/mention.ts#60-60), lines 60 to 140
 
 Ran terminal command: $key = "$HOME\.ssh\deploy_key_gha"; ssh -i $key {ユーザID} @{サーバーIP} 'tail -n 100 ~/NumberTales-MisskeyAIBot/logs/out.log'
 
-Read [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a28d3858283e98e6026e/GitHub.copilot-chat/chat-session-resources/69d45316-fa75-4aa8-b727-655a6934cabd/toolu_bdrk_015QtwPjouJK7gXYHLRDAbx7\_\_vscode-1779686982645/content.txt#1-1), lines 1 to 120
+Read [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/{WORKSPACE_STORAGE_ID}/GitHub.copilot-chat/chat-session-resources/{SESSION_ID}/{TOOL_CALL_ID}\_\_vscode-1779686982645/content.txt#1-1), lines 1 to 120
 
 分かった。ログを見ると：
 
@@ -5294,7 +5294,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY}" ; npm.cmd run typecheck 2>&1
 
 今回の環境依存だけ一つ残しておく。Windows 側では `npm.cmd` を使うのが再現性高い。
 
-Created memory file [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a28d3858283e98e6026e/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
+Created memory file [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/{WORKSPACE_STORAGE_ID}/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
 
 Phase A は入れたよ。固定だった000(チトセ)専用プロンプトを外して、創作DBから公開済みキャラクター情報を読んでシステムプロンプトを組み立てる基盤に差し替えた。
 
@@ -6014,7 +6014,7 @@ Read [](./.github/copilot-instructions.md#45-45), lines 45 to 115
 
 Read [](./AGENTS.md#58-58), lines 58 to 90
 
-Read memory [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a28d3858283e98e6026e/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
+Read memory [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/{WORKSPACE_STORAGE_ID}/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
 
 古い記述は 2 つある。仕様書側は「フォーム切り替えがステートレス」と残っていて、設定書側は F-06 とマルチキャラクターが未着手のままだ。そこだけ現状に合わせて詰める。
 
@@ -6056,7 +6056,7 @@ Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git status --short 2>&1
 
 ついでに、この repo で再発しやすいデプロイ上の癖もメモしておく。前回の `ENOTEMPTY` は同じ罠になりやすい。
 
-Inserted into memory file [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/ff91b7c500e4a28d3858283e98e6026e/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
+Inserted into memory file [](file:///{APPDATA_PATH} /Roaming/Code/User/workspaceStorage/{WORKSPACE_STORAGE_ID}/GitHub.copilot-chat/memory-tool/memories/repo/workflow.md)
 
 実運用ノートを見る限り、今回の挙動は大丈夫そうだったよ。コアフォルダ化のあと、同一フォームのまま自然会話へ流れていて、「もうその形態だよ」と言い直す不自然さは出ていなかった。
 
@@ -6460,11 +6460,11 @@ Ran terminal command: Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_N
 
 Ran terminal command: $json = Get-Content "{LOCAL_REPOSITORY}\_creations-db\data\Works_NumberTales\DataBases\db_Primary.json" -Raw | ConvertFrom-Json; $json.Characters | Select-Object Num, Name, FirstPersonCalling | Format-List
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); d.Characters.forEach(c=>console.log(c.Num, JSON.stringify(c.FirstPersonCalling)));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); d.Characters.forEach(c=>console.log(c.Num, JSON.stringify(c.FirstPersonCalling)));
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); console.log(Object.keys(d).join(', '));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); console.log(Object.keys(d).join(', '));
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ if(c.FirstPersonCalling) console.log(c.Num, '|', JSON.stringify(c.FirstPersonCalling)); });
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ if(c.FirstPersonCalling) console.log(c.Num, '|', JSON.stringify(c.FirstPersonCalling)); });
 
 よかった、実際のDB値を見れて。これで正確に説明できるよ。
 
@@ -6502,7 +6502,7 @@ DB値が変われば自動で反映される。ハードコードはフォール
 
 **現在リリース済みのキャラはどれ？** それによってどこまで対応すべきかが変わるんだ。
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).filter(c=>c.Progress==='Released').forEach(c=>console.log(c.Num, c.Name, '|', JSON.stringify(c.FirstPersonCalling)));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).filter(c=>c.Progress==='Released').forEach(c=>console.log(c.Num, c.Name, '|', JSON.stringify(c.FirstPersonCalling)));
 
 # User:
 
@@ -6516,7 +6516,7 @@ Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync
 
 # GitHub Copilot:
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c5=Object.values(d).find(c=>c.Num=='5'); console.log('Num:',c5.Num,'Name:',c5.Name); console.log('FirstPersonCalling:',JSON.stringify(c5.FirstPersonCalling)); console.log('SecondPersonCalling:',JSON.stringify(c5.SecondPersonCalling)); console.log('ForMasterCalling:',JSON.stringify(c5.ForMasterCalling)); const c96=Object.values(d).find(c=>c.Num=='96'); console.log('---96---'); console.log('Num:',c96.Num,'Name:',c96.Name); console.log('FirstPersonCalling:',JSON.stringify(c96.FirstPersonCalling)); console.log('Character:',JSON.stringify(c96.Character)); console.log('Summary:',JSON.stringify(c96.Summary));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c5=Object.values(d).find(c=>c.Num=='5'); console.log('Num:',c5.Num,'Name:',c5.Name); console.log('FirstPersonCalling:',JSON.stringify(c5.FirstPersonCalling)); console.log('SecondPersonCalling:',JSON.stringify(c5.SecondPersonCalling)); console.log('ForMasterCalling:',JSON.stringify(c5.ForMasterCalling)); const c96=Object.values(d).find(c=>c.Num=='96'); console.log('---96---'); console.log('Num:',c96.Num,'Name:',c96.Name); console.log('FirstPersonCalling:',JSON.stringify(c96.FirstPersonCalling)); console.log('Character:',JSON.stringify(c96.Character)); console.log('Summary:',JSON.stringify(c96.Summary));
 
 わかった、整理するよ。`ForMasterCalling` にも `[※？？？]` があった（5番）。クルリ(96番)のキャラ設定も確認できた。
 
@@ -6558,21 +6558,21 @@ Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync
 
 # GitHub Copilot:
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('Num:',c42.Num,'Name:',c42.Name); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); console.log('SecondPersonCalling:',JSON.stringify(c42.SecondPersonCalling));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('Num:',c42.Num,'Name:',c42.Name); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); console.log('SecondPersonCalling:',JSON.stringify(c42.SecondPersonCalling));
 
 Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git submodule status \_creations-db
 
 Ran terminal command: cd "{LOCAL_REPOSITORY}" ; git submodule update --remote \_creations-db 2>&1
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); const c72=Object.values(d).find(c=>c.Num=='72'); console.log('72 FirstPersonCalling:',JSON.stringify(c72.FirstPersonCalling)); const c96=Object.values(d).find(c=>c.Num=='96'); console.log('96 FirstPersonCalling:',JSON.stringify(c96.FirstPersonCalling));
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); const c42=Object.values(d).find(c=>c.Num=='42'); console.log('FirstPersonCalling:',JSON.stringify(c42.FirstPersonCalling)); const c72=Object.values(d).find(c=>c.Num=='72'); console.log('72 FirstPersonCalling:',JSON.stringify(c72.FirstPersonCalling)); const c96=Object.values(d).find(c=>c.Num=='96'); console.log('96 FirstPersonCalling:',JSON.stringify(c96.FirstPersonCalling));
 
 修正が入ってる。特に42番で `/` 区切りが使われるようになってた。全件で `/` を使っているものがないか確認する。
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ const fields=[c.FirstPersonCalling,c.SecondPersonCalling,c.ForMasterCalling]; fields.forEach(f=>{ if(f && f.includes('/')) console.log('Num:',c.Num,'Name:',c.Name,'Value:',JSON.stringify(f)); }); });
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ const fields=[c.FirstPersonCalling,c.SecondPersonCalling,c.ForMasterCalling]; fields.forEach(f=>{ if(f && f.includes('/')) console.log('Num:',c.Num,'Name:',c.Name,'Value:',JSON.stringify(f)); }); });
 
 `/` はほとんどが `SecondPersonCalling` / `ForMasterCalling` での性別対応形（兄さん/姉さん）。`FirstPersonCalling` のみで確認する。
 
-Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('d:/VisualStudio Code Userfile/NumberTales-MisskeyAIBot/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ if(c.FirstPersonCalling && c.FirstPersonCalling.includes('/')) console.log('Num:',c.Num,'|',JSON.stringify(c.FirstPersonCalling)); });
+Ran terminal command: const fs=require('fs'); const d=JSON.parse(fs.readFileSync('{LOCAL_REPOSITORY}/\_creations-db/data/Works_NumberTales/DataBases/db_Primary.json','utf8')); Object.values(d).forEach(c=>{ if(c.FirstPersonCalling && c.FirstPersonCalling.includes('/')) console.log('Num:',c.Num,'|',JSON.stringify(c.FirstPersonCalling)); });
 
 更新を確認したよ。3つの修正が入ってた：
 

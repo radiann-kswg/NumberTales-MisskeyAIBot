@@ -12,7 +12,9 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sanitize": "node tools/sanitize-chat-archive.mjs",
+    "sanitize:dry": "node tools/sanitize-chat-archive.mjs --dry-run"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

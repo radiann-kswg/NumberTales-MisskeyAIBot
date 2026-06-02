@@ -1,0 +1,14 @@
+[
+  {
+    "_comment": "追加したい固定文字列の置換ルール例（コメントキーは無視される）",
+    "pattern": "YOUR_LITERAL_STRING_HERE",
+    "replacement": "{PLACEHOLDER}",
+    "flags": "g"
+  },
+  {
+    "_comment": "正規表現パターンの例（flags: gi で大文字小文字を無視）",
+    "pattern": "\\d{3}-\\d{4}-\\d{4}",
+    "replacement": "{PHONE_NUMBER}",
+    "flags": "g"
+  }
+]
