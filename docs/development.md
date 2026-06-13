@@ -184,6 +184,22 @@ Invoke-RestMethod -Uri "https://radiann6631.net/api/emojis" -Method Post `
 
 ## 動作確認のポイント
 
+### Bot の直近投稿を確認する（デバッグツール）
+
+ビルド不要。`.env` の `MISSKEY_HOST` / `MISSKEY_TOKEN` があれば実行できる。
+
+```bash
+# 直近10件
+node tools/fetch-misskey-notes.mjs
+
+# 件数指定（直近20件）
+node tools/fetch-misskey-notes.mjs --limit 20
+```
+
+投稿日時（JST）・可視性・CW ラベル・本文・リノート先 ID が一覧表示される。
+
+---
+
 ### スケジューラー担当切り替えコマンドのテスト
 
 ```bash
@@ -234,12 +250,20 @@ EOF
 
 ### TL リアクション分類のテスト
 
+`classifyNoteEmotion` は LLM ハイブリッド方式に変更されたため async 関数。
+テスト時は AI インスタンスが必要（挨拶先行判定のみなら不要）。
+
 ```bash
 node --input-type=module << 'EOF'
-import { shouldSkipReaction, classifyNoteEmotion } from './dist/bot/reactor/classify.js';
+import { shouldSkipReaction, classifyGreeting, classifyNoteEmotion } from './dist/bot/reactor/classify.js';
+
 const note = { text: '絵が完成した！', files: [], userId: 'test' };
-console.log(shouldSkipReaction(note));   // false
-console.log(classifyNoteEmotion(note));  // 'achievement'
+console.log(shouldSkipReaction(note));         // false
+console.log(classifyGreeting(note.text));      // null (挨拶先行判定のみ・LLM 不使用)
+
+// 挨拶系の動作確認（LLM 不使用）
+console.log(classifyGreeting('おはようございます')); // 'greeting_morning'
+console.log(classifyGreeting('おやすみ'));           // 'greeting_night'
 EOF
 ```
 

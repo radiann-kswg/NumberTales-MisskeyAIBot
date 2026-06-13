@@ -1,6 +1,6 @@
 # 技術アーキテクチャ — NumberTales Misskey AI Bot
 
-> 最終更新: 2026-06-01
+> 最終更新: 2026-06-14
 > 実装状況を反映したライブドキュメント（仕様案は [`_ideas/bot-spec/03_tech-architecture.md`](../_ideas/bot-spec/03_tech-architecture.md) を参照）
 
 ---
@@ -169,7 +169,7 @@ export interface ClassificationResult {
 
 | ファイル            | 役割                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------- |
-| `loader.ts`         | `_creations-db` の `db_Primary.json` から `Progress = released` の個体を読み込み、キャッシュする     |
+| `loader.ts`         | `_creations-db` の `CreationsDBClient` 経由で `Progress = released` の個体を読み込み、キャッシュする。`DB_Hidden` フラグを自動尊重（旧: `db_Primary.json` 直接 import） |
 | `prompt-builder.ts` | `ConversationPattern` や `Character` / `Summary` / `Relation` から動的システムプロンプトを組み立てる |
 | `switch.ts`         | 番号指定・名前指定・解除・管理者デフォルト変更・ヘルプ要求を解決し、応答文面を生成する               |
 | `store.ts`          | SQLite にユーザー別担当と全体デフォルト担当を永続化し、再起動後も復元する                            |
@@ -181,7 +181,7 @@ homeTimeline ノートのリアクションハンドラ（クロージャーで�
 
 ### `src/bot/reactor/classify.ts`
 
-TL ノートのフィルタリングと感情分類。
+TL ノートのフィルタリングと感情分類。**LLM ハイブリッド方式**を採用（2026-06-13 改修）。
 
 **フィルタリング条件（`shouldSkipReaction`）:**
 
@@ -190,19 +190,31 @@ TL ノートのフィルタリングと感情分類。
 - カスタム絵文字が 3 個以上
 - クリーン後テキスト（メンション・URL・絵文字除去）が 50 文字超
 
-**感情カテゴリ（`classifyNoteEmotion`）:**
+**感情分類の処理フロー（`classifyNoteEmotion` は async）:**
 
-| カテゴリ           | 代表パターン                     |
-| ------------------ | -------------------------------- |
-| `greeting_morning` | おはよう・おはようございます     |
-| `greeting_night`   | おやすみ・就寝・そろそろ寝       |
-| `greeting_return`  | ただいま・帰宅                   |
-| `greeting_leave`   | いってきます                     |
-| `achievement`      | 完成・できた・やった！・公開した |
-| `tired`            | お疲れ様・疲れた・眠い           |
-| `cheer`            | 頑張ります・やるぞ・作業開始     |
-| `cute`             | かわいい・素敵・尊い             |
-| `interesting`      | 面白い・発見・知見・閃いた       |
+```
+cleanText() → classifyGreeting()（挨拶系を正規表現で先行判定・LLM 不使用）
+           → null の場合 → classifyEmotionByLLM()（LLM に委譲）
+                          → 'skip' または失敗 → null（リアクションなし）
+```
+
+- **挨拶先行判定の背景**: 否定的な文脈（「知見が低すぎて打ちのめされてる」等）でも `interesting` にマッチしていた問題を解消するため、感情カテゴリのみ LLM に委譲する方式へ変更
+
+**感情カテゴリ（`ReactionCategory`）:**
+
+| カテゴリ           | 判定方式 | 代表パターン                     |
+| ------------------ | -------- | -------------------------------- |
+| `greeting_morning` | 正規表現 | おはよう・おはようございます     |
+| `greeting_night`   | 正規表現 | おやすみ・就寝・そろそろ寝       |
+| `greeting_return`  | 正規表現 | ただいま・帰宅                   |
+| `greeting_leave`   | 正規表現 | いってきます                     |
+| `achievement`      | LLM      | 完成・できた・やった！・公開した |
+| `tired`            | LLM      | お疲れ様・疲れた・眠い           |
+| `agree`            | LLM      | わかる・同意・共感               |
+| `cheer`            | LLM      | 頑張ります・やるぞ・作業開始     |
+| `cute`             | LLM      | かわいい・素敵・尊い             |
+| `interesting`      | LLM      | 面白い・発見・閃いた（ポジティブ文脈のみ） |
+| `sympathy`         | LLM      | 悲しい・落ち込んでいる・辛い状況 |
 
 ### `src/bot/reactor/emoji-reaction-map.ts`
 
@@ -429,3 +441,22 @@ grep '"level":"error"' .cache/error.log
 tail -f .cache/incident.log
 tail -f .cache/error.log
 ```
+
+---
+
+## デバッグツール
+
+### `tools/fetch-misskey-notes.mjs`
+
+Bot の直近投稿を Misskey API から取得してコンソールに表示するスタンドアロンスクリプト。
+`dotenv` 非依存で `.env` を手動パースするため、ビルド不要・Node.js のみで実行可能。
+
+```bash
+# 直近10件（デフォルト）
+node tools/fetch-misskey-notes.mjs
+
+# 件数指定
+node tools/fetch-misskey-notes.mjs --limit 20
+```
+
+**出力内容:** 投稿日時（JST）・可視性・CW ラベル・本文・リノート先 ID
