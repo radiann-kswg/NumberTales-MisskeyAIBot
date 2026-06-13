@@ -8,6 +8,7 @@ import { SessionStore } from './storage/session.js';
 import { BotStateStore } from './storage/bot-state.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
+import { createGlobalTLHandler } from './bot/handlers/global-tl.js';
 import { createFollowBackHandler } from './bot/handlers/follow.js';
 import { PostScheduler } from './bot/scheduler/index.js';
 import { setEmojiCache } from './bot/responder/emoji.js';
@@ -96,6 +97,14 @@ async function main(): Promise<void> {
   // homeTimeline リアクションハンドラ起動
   const handleTimelineNote = createTimelineHandler({ misskeyClient, myUserId, ai });
   misskeyClient.onHomeTL(handleTimelineNote);
+
+  // globalTimeline ハッシュタグ検出リアクションハンドラ起動（ENABLE_GLOBAL_TL=true の場合のみ）
+  if (config.features.enableGlobalTL) {
+    const handleGlobalTLNote = createGlobalTLHandler({ misskeyClient, myUserId, ai });
+    misskeyClient.onGlobalTL(handleGlobalTLNote);
+  } else {
+    logger.info('GlobalTL handler is disabled (ENABLE_GLOBAL_TL=false)');
+  }
 
   // フォローバックハンドラ起動
   const handleFollowed = createFollowBackHandler({ misskeyClient, myUserId });

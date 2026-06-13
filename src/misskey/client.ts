@@ -169,6 +169,23 @@ export class MisskeyClient {
   }
 
   /**
+   * globalTimeline チャンネルを購読してノートイベントを受け取る。
+   * インスタンス設定で無効化されている場合は warn ログを出してスキップする。
+   * @param callback ノート受信時のコールバック
+   */
+  onGlobalTL(callback: (note: Note) => void | Promise<void>): void {
+    try {
+      const channel = this.stream.useChannel('globalTimeline');
+      channel.on('note', (note) => {
+        void callback(note);
+      });
+      logger.info('Subscribed to globalTimeline');
+    } catch (err) {
+      logger.warn('Failed to subscribe to globalTimeline (may be disabled on this instance):', err);
+    }
+  }
+
+  /**
    * ノートにカスタム絵文字リアクションを付与する
    * @param noteId 対象ノート ID
    * @param emojiName 絵文字名（:と@.なし。例: iine_aphrnts42）

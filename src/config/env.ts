@@ -45,4 +45,7 @@ export const config = {
     replyCooldownMs: parseInt(optionalEnv('RATE_LIMIT_REPLY_COOLDOWN_MS', '0'), 10),
     globalPerHour: parseInt(optionalEnv('RATE_LIMIT_GLOBAL_PER_HOUR', '10'), 10),
   },
+  features: {
+    enableGlobalTL: optionalEnv('ENABLE_GLOBAL_TL', 'false') === 'true',
+  },
 } as const;

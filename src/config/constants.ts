@@ -17,8 +17,15 @@ export const BOT_CONSTANTS = {
   /** ヒューマノイド形態へのキーワードトリガー */
   HUMANOID_TRIGGERS: ['人型モード', 'ヒューマノイド'] as const,
 
-  /** NT本作直接関与ハッシュタグ（全体監視対象） */
-  WATCHED_HASHTAGS: ['ナンバーテールズ', 'ナンバーテールズの主人より'] as const,
+  /** グローバルTL監視対象ハッシュタグ（F-03） */
+  NT_RELATED_HASHTAGS: ['ナンバーテールズ', 'ナンバーテールズの主人より'] as const,
+
+  /**
+   * グローバルTL即時スキップワード。
+   * LLM を呼ぶ前段階で確実に除外すべき語を列挙する。
+   * 運用環境に応じて追加・調整すること。
+   */
+  NT_BLOCKLIST: [] as string[],
 
   /** スケジューラーの投稿チェック間隔（10分） */
   SCHEDULER_CHECK_INTERVAL_MS: 10 * 60 * 1000,
