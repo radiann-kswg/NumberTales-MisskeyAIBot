@@ -76,6 +76,16 @@ _creations-db/                # サブモジュール: 百花繚乱研究所 創
 
 ---
 
+## Bot 開発の設計方針
+
+- 投稿文字数: 日常会話は **100文字以内** を目安、詳細は CW（注釈）内に格納
+- カスタム絵文字を積極活用し、AI感を出しすぎない自然な投稿を心がける
+- **ユーザー個人情報の永続保存は行わない**
+- 球体型（55cm）/人型（165cm）のモード切り替えはBot上の演出として活用可
+- 同一フォームへの再切り替え要求では状態説明を繰り返さず、そのフォームのまま自然に会話を継続する
+
+---
+
 ## コードを変更する際の注意
 
 ### 型変更の伝播
@@ -125,6 +135,15 @@ npm run build
 pm2 reload ecosystem.config.cjs
 ```
 
+### Bot が返信しない場合の確認
+
+`.env` の `RATE_LIMIT_REPLY_COOLDOWN_MS` を確認する。`0` 以外（例: `1800000`）が設定されていると
+同一ユーザーへの返信が指定ミリ秒間ブロックされる。基本的に `0`（無制限）が推奨。
+
+```bash
+grep -vE "TOKEN|KEY|SECRET" .env | grep RATE_LIMIT
+```
+
 ### PM2 ログ確認
 
 ```bash
@@ -147,4 +166,8 @@ pm2 logs numbertales-bot --lines 20
 
 - キャラクターデータは `_creations-db/data/Works_NumberTales/` 配下の JSON を参照すること
 - Bot 応答文・プロンプト生成時は [_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
-- 投稿文字数: 日常会話は **100文字以内** を目安、詳細は CW（注釈）内に格納
+
+## セッションアーカイブ
+
+これまでの対話内容はuserによって [.github/session-archives/_agent-chats](./.github/session-archives/_agent-chats) に記録・保存されている。
+過去の経緯を参照したい場合はこのディレクトリを確認すること。
