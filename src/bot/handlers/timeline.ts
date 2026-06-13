@@ -1,5 +1,6 @@
 import type { entities } from 'misskey-js';
 import type { MisskeyClient } from '../../misskey/client.js';
+import type { AIProvider } from '../../ai/provider.js';
 import { shouldSkipReaction, classifyNoteEmotion } from '../reactor/classify.js';
 import { REACTION_EMOJI_MAP } from '../reactor/emoji-reaction-map.js';
 import { logger } from '../../utils/logger.js';
@@ -15,6 +16,7 @@ const REACTION_GLOBAL_PER_HOUR = 20;
 export interface TimelineHandlerDeps {
   misskeyClient: MisskeyClient;
   myUserId: string;
+  ai: AIProvider;
 }
 
 /**
@@ -28,7 +30,7 @@ export interface TimelineHandlerDeps {
  *   5. 絵文字をランダム選択してリアクション送信
  */
 export function createTimelineHandler(deps: TimelineHandlerDeps) {
-  const { misskeyClient, myUserId } = deps;
+  const { misskeyClient, myUserId, ai } = deps;
 
   /** userId -> 最後にリアクションしたタイムスタンプ (ms) */
   const lastReacted = new Map<string, number>();
@@ -43,8 +45,8 @@ export function createTimelineHandler(deps: TimelineHandlerDeps) {
     // 2. フィルタリング
     if (shouldSkipReaction(note)) return;
 
-    // 3. 感情カテゴリ判定
-    const category = classifyNoteEmotion(note);
+    // 3. 感情カテゴリ判定（挨拶は正規表現、それ以外は LLM）
+    const category = await classifyNoteEmotion(note, ai);
     if (category === null) return;
 
     // 4. レートリミット確認

@@ -11,6 +11,7 @@ import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createFollowBackHandler } from './bot/handlers/follow.js';
 import { PostScheduler } from './bot/scheduler/index.js';
 import { setEmojiCache } from './bot/responder/emoji.js';
+import { initializeCharacterDB } from './bot/character/loader.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
 
@@ -18,6 +19,9 @@ async function main(): Promise<void> {
   logger.info('NumberTales Misskey AI Bot — starting...');
   logger.info(`Environment : ${config.bot.nodeEnv}`);
   logger.info(`AI Provider : ${config.ai.provider}`);
+
+  // キャラクターDB を CreationsDBClient 経由で初期化（失敗時はフォールバック）
+  await initializeCharacterDB();
 
   // AI プロバイダーの初期化（OpenAI / Gemini を抽象レイヤー経由で切り替え）
   const ai = createAIProvider({
@@ -90,7 +94,7 @@ async function main(): Promise<void> {
   logger.info('Bot is listening for mentions...');
 
   // homeTimeline リアクションハンドラ起動
-  const handleTimelineNote = createTimelineHandler({ misskeyClient, myUserId });
+  const handleTimelineNote = createTimelineHandler({ misskeyClient, myUserId, ai });
   misskeyClient.onHomeTL(handleTimelineNote);
 
   // フォローバックハンドラ起動

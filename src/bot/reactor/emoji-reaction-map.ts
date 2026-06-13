@@ -61,6 +61,9 @@ export const REACTION_EMOJI_MAP = {
 
   /** 応援・気合い入れ */
   cheer: ['ganbare_aphrnts93', 'ikuzo_letsgo_aphrnts11'],
+
+  /** 悲しみ・落ち込み・辛い状況への共感 */
+  sympathy: ['murisinaide_aphrnts20'],
 } as const;
 
 export type ReactionCategory = keyof typeof REACTION_EMOJI_MAP;

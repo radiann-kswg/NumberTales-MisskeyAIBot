@@ -1,7 +1,28 @@
 import type { entities } from 'misskey-js';
+import type { AIProvider } from '../../ai/provider.js';
 import type { ReactionCategory } from './emoji-reaction-map.js';
 
 type Note = entities.Note;
+
+/** LLM が返せるカテゴリ（skip = リアクション不要） */
+type LLMEmotionCategory = ReactionCategory | 'skip';
+
+const LLM_VALID_CATEGORIES: ReadonlySet<string> = new Set<LLMEmotionCategory>([
+  'achievement', 'tired', 'agree', 'interesting', 'cute', 'cheer', 'sympathy', 'skip',
+]);
+
+const LLM_SYSTEM_PROMPT = `You are an emotion classifier for short Japanese social media posts.
+Classify the given post into exactly one category. Respond with ONLY the category name — no explanation, no punctuation.
+
+Categories:
+- achievement: 完成・達成・成功・公開などポジティブな報告
+- tired: 疲れた・眠い・仕事終わりなど疲労の表現
+- agree: 共感・同意・「わかる」系
+- interesting: 面白い・発見・閃き・知的な気づき（ポジティブ文脈に限る）
+- cute: かわいい・素敵・好き・尊い
+- cheer: 頑張るぞ・作業開始・気合い
+- sympathy: 悲しい・落ち込んでいる・辛い状況（優しく寄り添えるもの）
+- skip: 否定的文脈・怒り・自己否定・複雑な感情・中傷・議論・長い愚痴・分類困難`;
 
 /**
  * テキストを前処理してフィルタリング・分類に使えるクリーンなテキストに変換する。
@@ -9,10 +30,10 @@ type Note = entities.Note;
  */
 function cleanText(text: string): string {
   return text
-    .replace(/@[\w@.-]+/g, '')          // メンション除去 (@user@host 形式も対応)
-    .replace(/https?:\/\/\S+/g, '')     // URL除去
-    .replace(/:[\w_]+(?:@\.)?:/g, '')   // カスタム絵文字除去
-    .replace(/\s+/g, ' ')               // 空白正規化
+    .replace(/@[\w@.-]+/g, '')        // メンション除去 (@user@host 形式も対応)
+    .replace(/https?:\/\/\S+/g, '')   // URL除去
+    .replace(/:[\w_]+(?:@\.)?:/g, '') // カスタム絵文字除去
+    .replace(/\s+/g, ' ')             // 空白正規化
     .trim();
 }
 
@@ -29,17 +50,12 @@ function cleanText(text: string): string {
 export function shouldSkipReaction(note: Note): boolean {
   const text = note.text ?? '';
 
-  // 1. ファイル・画像添付あり
   if (note.files && note.files.length > 0) return true;
-
-  // 2. 高度なMFM（$[ = 変形アニメーション, ?[ = カスタムUI）
   if (/\$\[|\?\[/.test(text)) return true;
 
-  // 3. カスタム絵文字が3個以上
   const emojiCount = (text.match(/:[\w_]+(?:@\.)?:/g) ?? []).length;
   if (emojiCount >= 3) return true;
 
-  // 4. クリーン後テキスト長チェック
   const cleaned = cleanText(text);
   if (cleaned.length === 0 || cleaned.length > 50) return true;
 
@@ -47,53 +63,63 @@ export function shouldSkipReaction(note: Note): boolean {
 }
 
 /**
- * ノートのテキストから感情・文脈カテゴリを判定する。
- *
- * 優先度順にパターンマッチし、最初にマッチしたカテゴリを返す。
- * いずれにもマッチしない場合は null（リアクション不要）を返す。
+ * 挨拶系のみを正規表現で先行判定する（同期・LLM 不使用）。
+ * 挨拶は文脈が最も明確なためルールベースで処理する。
  */
-export function classifyNoteEmotion(note: Note): ReactionCategory | null {
+export function classifyGreeting(text: string): ReactionCategory | null {
+  if (/おはよ[うーぅ]?|おっはよ|おはようございます/i.test(text)) return 'greeting_morning';
+  if (/おやすみ(なさい)?|就寝|そろそろ寝|寝(ます|るね|ちゃう)|寝落ち/.test(text)) return 'greeting_night';
+  if (/ただいま|帰った|帰宅|帰ってきた/.test(text)) return 'greeting_return';
+  if (/いってきます|いってきま[すっ]|行ってきます|出かけ(ます|るね)/.test(text)) return 'greeting_leave';
+  return null;
+}
+
+/**
+ * LLM に感情カテゴリを分類させる（非同期）。
+ * 失敗時は null を返す（スキップ扱い）。
+ */
+export async function classifyEmotionByLLM(
+  text: string,
+  ai: AIProvider,
+): Promise<LLMEmotionCategory | null> {
+  try {
+    const response = await ai.chat(
+      [
+        { role: 'system', content: LLM_SYSTEM_PROMPT },
+        { role: 'user', content: text },
+      ],
+      { maxTokens: 20, temperature: 0 },
+    );
+
+    const raw = response.text.trim().toLowerCase();
+    if (LLM_VALID_CATEGORIES.has(raw)) {
+      return raw as LLMEmotionCategory;
+    }
+    // LLM が想定外の出力をした場合はスキップ
+    return 'skip';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ノートのテキストから感情・文脈カテゴリを判定するオーケストレーター（非同期）。
+ *
+ * 処理フロー:
+ *   1. 挨拶系を正規表現で先行判定（LLM 不使用）
+ *   2. 挨拶なし → LLM で感情カテゴリを判定
+ *   3. LLM が 'skip' または失敗 → null（リアクション不要）
+ */
+export async function classifyNoteEmotion(
+  note: Note,
+  ai: AIProvider,
+): Promise<ReactionCategory | null> {
   const text = cleanText(note.text ?? '');
 
-  // 挨拶系（文脈が最も明確なので最初に判定）
-  if (/おはよ[うーぅ]?|おっはよ|おはようございます/i.test(text)) {
-    return 'greeting_morning';
-  }
-  if (/おやすみ(なさい)?|就寝|そろそろ寝|寝(ます|るね|ちゃう)|寝落ち/.test(text)) {
-    return 'greeting_night';
-  }
-  if (/ただいま|帰った|帰宅|帰ってきた/.test(text)) {
-    return 'greeting_return';
-  }
-  if (/いってきます|いってきま[すっ]|行ってきます|出かけ(ます|るね)/.test(text)) {
-    return 'greeting_leave';
-  }
+  const greetingCategory = classifyGreeting(text);
+  if (greetingCategory !== null) return greetingCategory;
 
-  // 完成・達成・成功報告
-  if (/完成(した|しました|！|☆)?|できた(よ|！|ー)?|仕上げた|公開(した|しました)|リリース(した|しました)|終わった(よ|！)?|やった[！!ー]|成功(した)?|達成(した)?/.test(text)) {
-    return 'achievement';
-  }
-
-  // 疲労・お疲れ
-  if (/お?疲れ[様さ]?(でした)?|おつかれ|疲れた|ねむ[いっ]|眠[いっ]|仕事終わり|作業終わ/.test(text)) {
-    return 'tired';
-  }
-
-  // 応援・気合い
-  if (/頑張(ります|るぞ|るよ|るね)|やるぞ|いくぞ|作業(開始|はじめ|します|するよ)|今日も(よろしく|がんばる)/.test(text)) {
-    return 'cheer';
-  }
-
-  // かわいい・素敵
-  if (/かわい[いーっ！]|可愛い|素敵|きれい|キレイ|美しい|尊い|たいせつ|大切(だな|です)?/.test(text)) {
-    return 'cute';
-  }
-
-  // 面白い・発見・知見
-  if (/面白[いっ]|おもしろ[いっ]|発見|知見|閃いた|ひらめいた|天才|すごい発見/.test(text)) {
-    return 'interesting';
-  }
-
-  // どのカテゴリにもマッチしない（リアクション不要）
-  return null;
+  const llmCategory = await classifyEmotionByLLM(text, ai);
+  if (llmCategory === null || llmCategory === 'skip') return null;
+  return llmCategory;
 }

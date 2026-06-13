@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logger } from '../../utils/logger.js';
 
@@ -54,8 +54,14 @@ export interface CharacterRecord {
   NumerospecAbout?: string;
 }
 
-const CHARACTER_DB_PATH = fileURLToPath(
-  new URL('../../../_creations-db/data/Works_NumberTales/DataBases/db_Primary.json', import.meta.url),
+/** CreationsDBClient の最小インターフェース（.mjs に .d.ts が存在しないため手動定義） */
+interface ICreationsDBClient {
+  getRecords(workId: string, dbName: string): Promise<unknown[]>;
+}
+
+const CREATIONS_DB_ROOT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../_creations-db',
 );
 
 const FALLBACK_CHARACTER: CharacterRecord = {
@@ -68,30 +74,45 @@ const FALLBACK_CHARACTER: CharacterRecord = {
     TalkingTone: '中性的でフレンドリーな明るい話し方。',
     TopicPreference: 'ナンバーテールズの設定深掘りや創作支援、ヒューマノイド全般の知見に強い関心を示す。',
     TalkFrequency: '比較的自分から会話を進めることが多い。',
-    ConversationNotes: '自分もナンバーテールズの一人でありながら、開発者代行のような視点で他個体を支える立場がにじみやすい。',
+    ConversationNotes:
+      '自分もナンバーテールズの一人でありながら、開発者代行のような視点で他個体を支える立場がにじみやすい。',
   },
 };
 
 let cachedReleasedCharacters: CharacterRecord[] | null = null;
+
+/**
+ * CreationsDBClient 経由でキャラクターDBを非同期に初期化する。
+ * main() の起動シーケンスで一度だけ呼び出すこと。
+ * 失敗時はフォールバックとして FALLBACK_CHARACTER のみを使用する。
+ */
+export async function initializeCharacterDB(): Promise<void> {
+  try {
+    // .mjs サブモジュールには .d.ts が存在しないため型エラーを抑制して dynamic import する
+    // @ts-expect-error -- no .d.ts for .mjs submodule; cast to typed interface below
+    const mod = (await import('../../../_creations-db/pkg/nodejs/index.mjs')) as {
+      CreationsDBClient: new (repoRoot?: string) => ICreationsDBClient;
+    };
+    const client = new mod.CreationsDBClient(CREATIONS_DB_ROOT);
+    const records = await client.getRecords('NumberTales', 'Primary');
+    cachedReleasedCharacters = (records as CharacterRecord[]).filter(
+      (entry) => entry.Progress === 'released',
+    );
+    logger.info(`Character DB loaded: ${cachedReleasedCharacters.length} released records`);
+  } catch (err) {
+    logger.warn('Failed to load character DB via CreationsDBClient. Using fallback.', err);
+    cachedReleasedCharacters = [FALLBACK_CHARACTER];
+  }
+}
 
 function normalizeNum(value: string | number): string {
   return String(value).trim().replace(/^0+(?=\d)/, '');
 }
 
 function loadReleasedCharacters(): CharacterRecord[] {
-  if (cachedReleasedCharacters !== null) {
-    return cachedReleasedCharacters;
+  if (cachedReleasedCharacters === null) {
+    throw new Error('Character DB not initialized. Call initializeCharacterDB() at startup.');
   }
-
-  try {
-    const raw = readFileSync(CHARACTER_DB_PATH, 'utf8');
-    const parsed = JSON.parse(raw) as CharacterRecord[];
-    cachedReleasedCharacters = parsed.filter((entry) => entry.Progress === 'released');
-  } catch (err) {
-    logger.warn('Failed to load released NumberTales character DB. Falling back to 000 profile.', err);
-    cachedReleasedCharacters = [FALLBACK_CHARACTER];
-  }
-
   return cachedReleasedCharacters;
 }
 

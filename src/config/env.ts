@@ -30,10 +30,6 @@ export const config = {
   },
   storage: {
     dbPath: optionalEnv('DB_PATH', '.cache/session.db'),
-    creationsDbPath: optionalEnv(
-      'CREATIONS_DB_PATH',
-      './_creations-db/data/Works_NumberTales/DataBases/db_Primary.json',
-    ),
     /** ハラスメント・インシデントログの出力先ファイルパス */
     incidentLogPath: optionalEnv('INCIDENT_LOG_PATH', '.cache/incident.log'),
     /** エラー・警告ログの出力先ファイルパス（error / warn レベル） */
