@@ -171,11 +171,14 @@ export class PostScheduler {
     if (slot === null) return;
     if (this.isOnCooldown()) return;
 
-    // 月曜7時: 就任挨拶（B-4）
+    // 月曜7時: 就任挨拶（B-4）— 就任挨拶を送ったら通常スロット投稿はスキップ
     const hour = getJSTHour();
     const dayOfWeek = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCDay();
     if (dayOfWeek === 1 && hour === 7) {
       await this.weeklyPoll.postInaugurationGreeting();
+      this.lastPostedAt = Date.now();
+      this.nextCooldownMs = randomCooldownMs();
+      return;
     }
 
     try {

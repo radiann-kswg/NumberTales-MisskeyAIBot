@@ -119,6 +119,7 @@ grep -v "TOKEN|KEY" .env
 # ✅ 正しい（git pull は使わない）
 git fetch origin master
 git reset --hard origin/master
+git submodule update --init --recursive
 npm install --omit=dev
 npm run build
 pm2 reload ecosystem.config.cjs

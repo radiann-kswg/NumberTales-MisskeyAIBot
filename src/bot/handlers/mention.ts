@@ -369,6 +369,9 @@ export async function handleMention(
 
   // 管理者コマンド: 自発投稿担当（スケジューラーキャラクター）の切り替え
   const schedulerSwitchTarget = resolveSchedulerCharTarget(event.text);
+  if (schedulerSwitchTarget && !isAdminUser) {
+    logger.warn(`[Admin] Scheduler switch denied: userId=${event.userId} isAdmin=${isAdminUser} configuredIds=${JSON.stringify(config.bot.adminUserIds)}`);
+  }
   if (schedulerSwitchTarget && isAdminUser) {
     const schedulerTargetNum = String(schedulerSwitchTarget.Num);
     const prevNum = botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? '000';
