@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'dice' | 'trivia' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -83,6 +83,20 @@ const CALCULATE_PATTERNS: RegExp[] = [
   /sqrt|sin|cos|tan|log|factorial|√|∑/i,
 ];
 
+/**
+ * ヌメロジー相談型のトリガーパターン。
+ * 「悩みコンテキスト × 数字・生年月日」の組み合わせを検出する。
+ * コマンド型（LIFE_PATH_PATTERNS 等）より先に評価する。
+ */
+const NUMEROLOGY_CONSULTATION_PATTERNS: RegExp[] = [
+  /数字(で|的に|から)?(占って|見て|診断|アドバイス)(ほしい|くれ|くださ)?/,
+  /悩み.*(数字|ヌメロジー|生年月日)/,
+  /(数字|ヌメロジー).*相談/,
+  /生年月日.*(で|から)?.*(見て|占って|どう思う|アドバイス|相談)(ほしい|くれ|くださ)?/,
+  /数字(的|的に)?(見てほしい|占ってほしい|相談)/,
+  /ヌメロジー.*(で|から|的に)?.*(見て|占って|相談|教えて)/,
+];
+
 const LIFE_PATH_PATTERNS: RegExp[] = [
   /ライフパス|lifepath|life\s*path|誕生数|運命数/i,
   /\/numerology|\/lp\s/i,
@@ -138,6 +152,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of CREATIVE_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'creative-consultation' };
+  }
+
+  for (const pattern of NUMEROLOGY_CONSULTATION_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'numerology-consultation' };
   }
 
   for (const pattern of LIFE_PATH_PATTERNS) {

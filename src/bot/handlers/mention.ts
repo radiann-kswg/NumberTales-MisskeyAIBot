@@ -195,6 +195,47 @@ async function generateHarassmentReply(
   }
 }
 
+/**
+ * ヌメロジー相談モード: 悩みテキスト + ライフパスナンバー情報を組み合わせて LLM で返答を生成する。
+ *
+ * - テキストに生年月日が含まれている場合: ライフパスナンバーを算出し、数字の意味と悩みを絡めた解釈を生成
+ * - 生年月日がない場合: キャラクターらしく悩みに寄り添いつつ生年月日の提供を促す
+ */
+async function generateNumerologyConsultationReply(
+  ai: AIProvider,
+  character: CharacterRecord,
+  formTarget: FormTarget,
+  userText: string,
+): Promise<string> {
+  const lpResult = handleLifePath(userText);
+  const hasNumerology = lpResult.cwBody !== undefined;
+
+  const systemPrompt = buildCharacterSystemPrompt(character, 'chat', formTarget);
+  const consultConstraint = `
+【ヌメロジー相談モードの制約】
+- 押しつけがましくならず、寄り添うトーンで話す
+- ユーザーの悩みに具体的に触れる
+- 台詞テキストのみ返す（書式は呼び出し元が付与する）`;
+
+  const userContent = hasNumerology
+    ? `ユーザーの相談: 「${userText.slice(0, 100)}」\n\nライフパスナンバーの算出結果:\n${lpResult.cwBody}\n\nこの悩みに対して、上記ヌメロジーの視点からあなたのキャラクターとして寄り添う返答をしてください（120文字程度）。`
+    : `ユーザーの相談: 「${userText.slice(0, 100)}」\n\n生年月日がわからないため数字を算出できていません。悩みに寄り添いつつ、生年月日（例: 1990年1月1日）を教えてもらえるともっと詳しく見られると伝えてください（80文字以内）。`;
+
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system', content: systemPrompt + consultConstraint },
+        { role: 'user', content: userContent },
+      ],
+      { maxTokens: 200, temperature: 0.85 },
+    );
+    return result.text.trim();
+  } catch (err) {
+    logger.error('Numerology consultation AI error:', err);
+    return 'ちょっと今うまく繋がれなかった。生年月日を教えてくれたら数字で見られるから、また聞いてね。';
+  }
+}
+
 /** 挨拶に対して現在の時間帯を加味したキャラクター応答を LLM で生成する。失敗時は定型にフォールバック。 */
 async function generateGreetingReply(
   ai: AIProvider,
@@ -574,6 +615,28 @@ export async function handleMention(
       });
     } catch (err) {
       logger.error('Failed to post F06 reply:', err);
+    }
+    return;
+  }
+
+  // 4c. ヌメロジー相談モード（F-06 拡張）
+  if (effectiveIntent === 'numerology-consultation') {
+    const consultReply = await generateNumerologyConsultationReply(ai, activeCharacter, activeFormTarget, event.text);
+    const speechText = formatSpeech(activeCharacterNum, consultReply);
+    const { text, cw } = formatForNote(speechText, activeCharacterNum);
+
+    try {
+      await misskeyClient.reply(text, event.noteId, { cw });
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (numerology-consultation) to ${event.userId}`);
+
+      const reactionPool = MENTION_REACTION_MAP['numerology-consultation'] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+        logger.warn('Failed to add reaction to numerology-consultation mention:', err);
+      });
+    } catch (err) {
+      logger.error('Failed to post numerology-consultation reply:', err);
     }
     return;
   }
