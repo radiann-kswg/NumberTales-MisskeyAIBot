@@ -3,7 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { logger } from '../../utils/logger.js';
 
 export interface CharacterDialogueExample {
-  value: string;
+  /** 発言テキスト（日本語）。実スキーマの現行フィールド名 */
+  value_JP?: string;
+  /** 発言テキスト（旧フィールド名・後方互換用） */
+  value?: string;
   about?: string;
 }
 
@@ -52,6 +55,16 @@ export interface CharacterRecord {
   Favor?: string;
   /** ヌメロジー上の役割・特性 */
   NumerospecAbout?: string;
+  /** 強み・長所（劇中設定） */
+  Strength?: string;
+  /** 弱み・課題（劇中設定） */
+  Weakness?: string;
+  /** 劇中での立ち位置・行動概要 */
+  InStory?: string;
+  /** 背景・来歴 */
+  Backgrounds?: string;
+  /** 三人称での呼び方（他者からの言及時） */
+  ThirdPersonCalling?: string;
 }
 
 /** CreationsDBClient の最小インターフェース（.mjs に .d.ts が存在しないため手動定義） */

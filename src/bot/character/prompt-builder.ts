@@ -29,7 +29,8 @@ function stringifyDialogueExample(example: string | CharacterDialogueExample): s
     return normalizeText(example);
   }
 
-  const value = normalizeText(example.value);
+  // 実スキーマは value_JP が現行フィールド名。value は旧フィールド名のフォールバック
+  const value = normalizeText(example.value_JP ?? example.value);
   const about = normalizeText(example.about);
   if (!value) {
     return null;
@@ -208,6 +209,14 @@ export function buildCharacterSystemPrompt(
   if (summary) {
     lines.push(`- 概要メモ: ${summary}`);
   }
+  const inStory = normalizeText(profile.InStory);
+  const backgrounds = normalizeText(profile.Backgrounds);
+  if (inStory) {
+    lines.push(`- 劇中の立ち位置: ${inStory}`);
+  }
+  if (backgrounds) {
+    lines.push(`- 背景: ${backgrounds}`);
+  }
   if (relationSummary) {
     lines.push(`- 関係性メモ: ${relationSummary}`);
   }
@@ -265,12 +274,16 @@ export function buildCharacterSystemPrompt(
   const specialSkill = resolveTextField(profile.SpecialSkill);
   const favor = resolveTextField(profile.Favor);
   const numerospecAbout = resolveTextField(profile.NumerospecAbout);
+  const strength = normalizeText(profile.Strength);
+  const weakness = normalizeText(profile.Weakness);
 
-  if (hobby || specialSkill || favor || numerospecAbout) {
+  if (hobby || specialSkill || favor || numerospecAbout || strength || weakness) {
     lines.push('', '【このキャラクターの得意なこと・専門性】');
     if (hobby) lines.push(`- 趣味: ${hobby}`);
     if (specialSkill) lines.push(`- 特技: ${specialSkill}`);
     if (favor) lines.push(`- 好きなもの: ${favor}`);
+    if (strength) lines.push(`- 強み: ${strength}`);
+    if (weakness) lines.push(`- 弱み: ${weakness}`);
     if (numerospecAbout) lines.push(`- ヌメロジー上の特性: ${numerospecAbout}`);
   }
 
