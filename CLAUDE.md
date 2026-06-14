@@ -72,7 +72,17 @@ _ideas/
 _roleplay-datas/              # キャラクタープロンプト・AI連携情報
 _rough-idea/                  # アイデア検討メモ（対話ログ）
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
+_tasks/                       # 自動最適化タスクの作業ログ（creations-db 同期）
+tools/                        # 補助スクリプト（サブモジュール更新検知・サニタイズ等）
 ```
+
+## 自動化タスク
+
+サブモジュール `_creations-db` に upstream 更新があった時、6時間ごとのスケジュールタスク
+`creations-db-sync-optimize` が更新を取り込み、リポジトリ側の既存機能を追従・最適化して
+`_tasks/` にログを生成・コミット（push 無し）する。更新検知は
+`tools/check-creations-db-update.sh` が担う。詳細は
+[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md) を参照。
 
 ---
 
@@ -157,17 +167,4 @@ pm2 logs numbertales-bot --lines 20
 - **創作内容の自動生成**: 000(チトセ) や他ナンバーテールズの未公開設定・台詞・ストーリーを自動生成しないこと
 - **ガイドライン違反表現**: 反社会的・著しい性的表現・ヘイト行為・公式設定からの逸脱
 - **商用利用**: 創作DB（CC BY-NC 4.0）のデータを商用目的で運用しないこと
-- **サブモジュールへの直接編集**: `_creations-db/` 配下は参照専用
-- **`_rough-idea/` へのコードファイルの配置**: アイデアメモ専用フォルダ
-
----
-
-## キャラクター・DB リファレンス
-
-- キャラクターデータは `_creations-db/data/Works_NumberTales/` 配下の JSON を参照すること
-- Bot 応答文・プロンプト生成時は [_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
-
-## セッションアーカイブ
-
-これまでの対話内容はuserによって [.github/session-archives/_agent-chats](./.github/session-archives/_agent-chats) に記録・保存されている。
-過去の経緯を参照したい場合はこのディレクトリを確認すること。
+- **サブモジュールへの直接編集**: `_creations-db/` 配下は参照専
