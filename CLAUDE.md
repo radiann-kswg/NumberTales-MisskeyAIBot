@@ -76,13 +76,19 @@ _tasks/                       # 自動最適化タスクの作業ログ（creati
 tools/                        # 補助スクリプト（サブモジュール更新検知・サニタイズ等）
 ```
 
-## 自動化タスク
+## 自動化タスク（分業型）
 
-サブモジュール `_creations-db` に upstream 更新があった時、6時間ごとのスケジュールタスク
-`creations-db-sync-optimize` が更新を取り込み、リポジトリ側の既存機能を追従・最適化して
-`_tasks/` にログを生成・コミット（push 無し）する。更新検知は
-`tools/check-creations-db-update.sh` が担う。詳細は
-[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md) を参照。
+サブモジュール `_creations-db` の更新追従は、ネットワーク要否で役割を分けている。
+
+- **VM/ローカル（デプロイ側・ネットワーク必要）**: `git submodule update --remote _creations-db` で
+  サブモジュール作業ツリーを upstream の最新へ進める。
+- **Cowork スケジュールタスク `creations-db-sync-optimize`（6時間ごと・ネットワーク不要）**:
+  ゲート `tools/check-creations-db-update.sh` で「作業ツリー HEAD ≠ 記録済み gitlink」を検知し、
+  追従すべき更新がある時だけ、既存機能を最適化して `_tasks/` にログを生成し、
+  gitlink 更新を含めてコミット（push 無し）する。
+
+ゲートは fetch せず作業 HEAD と記録 gitlink を比較するだけなので、サンドボックスのネットワーク制限に
+依存しない。詳細は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md) を参照。
 
 ---
 
@@ -167,4 +173,17 @@ pm2 logs numbertales-bot --lines 20
 - **創作内容の自動生成**: 000(チトセ) や他ナンバーテールズの未公開設定・台詞・ストーリーを自動生成しないこと
 - **ガイドライン違反表現**: 反社会的・著しい性的表現・ヘイト行為・公式設定からの逸脱
 - **商用利用**: 創作DB（CC BY-NC 4.0）のデータを商用目的で運用しないこと
-- **サブモジュールへの直接編集**: `_creations-db/` 配下は参照専
+- **サブモジュールへの直接編集**: `_creations-db/` 配下は参照専用
+- **`_rough-idea/` へのコードファイルの配置**: アイデアメモ専用フォルダ
+
+---
+
+## キャラクター・DB リファレンス
+
+- キャラクターデータは `_creations-db/data/Works_NumberTales/` 配下の JSON を参照すること
+- Bot 応答文・プロンプト生成時は [_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
+
+## セッションアーカイブ
+
+これまでの対話内容はuserによって [.github/session-archives/_agent-chats](./.github/session-archives/_agent-chats) に記録・保存されている。
+過去の経緯を参照したい場合はこのディレクトリを確認すること。

@@ -4,7 +4,8 @@
 リポジトリ内の既存機能を最適化した際の **作業ログ** が自動生成される。
 
 ログの生成・更新は、スケジュールタスク `creations-db-sync-optimize`
-（6時間ごとに `_creations-db` の upstream を監視）によって行われる。
+（6時間ごとに「追従待ち更新」を検知する分業型タスク）によって行われる。
+upstream の fetch は VM/ローカルのデプロイ側で実施し、本タスクはネットワーク非依存。
 仕様は [docs/automation-creations-db-sync.md](../docs/automation-creations-db-sync.md) を参照。
 
 ## ファイル命名規則
