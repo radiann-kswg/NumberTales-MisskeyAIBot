@@ -18,7 +18,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) | 横断     | 返答 LLM 化・フォローバック機能追加          | 完了 ✅    |
 | [2026-06-03_milestone_db-client-migration.md](./2026-06-03_milestone_db-client-migration.md)           | 改修     | DB参照を pkg/nodejs クライアントに移行       | 完了 ✅    |
 | [2026-06-03_milestone_f04-llm-reaction.md](./2026-06-03_milestone_f04-llm-reaction.md)                 | F-04     | リアクション感情分類の LLM 駆動化            | 完了 ✅    |
-| [2026-06-03_milestone_global-tl-tag-detection.md](./2026-06-03_milestone_global-tl-tag-detection.md)   | F-03実装 | ハッシュタグ監視 globalTimeline 対応         | 未着手 ⏳  |
+| [2026-06-03_milestone_global-tl-tag-detection.md](./2026-06-03_milestone_global-tl-tag-detection.md)   | F-03実装 | ハッシュタグ監視 globalTimeline 対応         | 完了 ✅    |
+| [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) | Phase 3後続 | キャラプロンプト個性化（前提A）・ヌメロジー相談モード（機能①）・自発投稿ローテーション（機能②） | 完了 ✅ |
 
 ## フェーズ概要
 
@@ -36,7 +37,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-01                       | ゆる会話（メンション応答）                                | 完了 ✅   | Phase 1 実装済み                                                                                       |
 | F-02                       | 深夜雑談モード                                            | 完了 ✅   | Phase 2 実装済み                                                                                       |
 | F-03                       | 創作支援（壁打ちモード）                                  | 完了 ✅   | Phase 3 実装済み                                                                                       |
-| F-03 実装                  | ハッシュタグ監視 globalTimeline 対応                      | 未着手 ⏳ | [2026-06-03_milestone_global-tl-tag-detection.md](./2026-06-03_milestone_global-tl-tag-detection.md)   |
+| F-03 実装                  | ハッシュタグ監視 globalTimeline 対応                      | 完了 ✅   | [2026-06-03_milestone_global-tl-tag-detection.md](./2026-06-03_milestone_global-tl-tag-detection.md)   |
 | F-04                       | リアクション・エモパシー                                  | 完了 ✅   | Phase 2 実装済み                                                                                       |
 | F-04 改修                  | リアクション感情分類の LLM 駆動化（ハイブリッド方式）     | 完了 ✅   | [2026-06-03_milestone_f04-llm-reaction.md](./2026-06-03_milestone_f04-llm-reaction.md)                 |
 | F-05                       | TL観測レポート                                            | 未着手 ⏳ | bot-spec 上は構想のみ                                                                                  |
@@ -44,7 +45,10 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | マルチキャラクター Phase A | 個別切り替え・解除・管理者デフォルト変更・永続化          | 完了 ✅   | [2026-05-26_milestone_phase2-multicharacter.md](./2026-05-26_milestone_phase2-multicharacter.md)       |
 | 返答 LLM 化                | 切替メッセージ・DB呈稱パース・挨拶LLM化・F-06フレーミング | 完了 ✅   | [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) |
 | フォローバック             | フォローされた際に自動フォローバック（5 分クールダウン）  | 完了 ✅   | [2026-05-27_milestone_llm-responses-followback.md](./2026-05-27_milestone_llm-responses-followback.md) |
-| F-06 Stage B/C             | NumerospecStats 連携・AbilityStats 演出拡張               | 未着手 ⏳ | bot-spec 上は仕様あり                                                                                  |
+| 前提機能 A                 | キャラプロンプト個性化（Hobby/SpecialSkill/NumerospecAbout 等） | 完了 ✅ | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
+| 機能①（F-06 拡張）        | ヌメロジー相談モード（悩み＋ライフパス → LLM 解釈）       | 完了 ✅   | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
+| 機能②（F-02 拡張）        | 自発投稿キャラローテーション（週次担当キャラで自発投稿）   | 完了 ✅   | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
+| F-06 Stage B/C             | 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星      | 未着手 ⏳ | [`future-plan/F-06_stage-b-c.md`](../future-plan/F-06_stage-b-c.md)                                   |
 | F-06 Stage D               | 数字ミニゲーム（スロット・ポーカー・ヒットアンドブロウ）  | 保留 ⏸️  | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [2026-06-03_milestone_db-client-migration.md](./2026-06-03_milestone_db-client-migration.md)           |
 
