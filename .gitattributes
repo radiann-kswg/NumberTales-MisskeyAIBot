@@ -1,0 +1,20 @@
+# EOL normalization — store as LF in the repository
+* text=auto eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ts text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cjs text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+
+# Binary files — no EOL conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.db binary
+*.lock binary
