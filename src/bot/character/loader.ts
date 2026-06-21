@@ -7,7 +7,28 @@ export interface CharacterDialogueExample {
   value_JP?: string;
   /** 発言テキスト（旧フィールド名・後方互換用） */
   value?: string;
+  /** 備考（日本語） */
   about?: string;
+  /** 備考（英語） */
+  about_EN?: string;
+}
+
+/**
+ * ThisMasters エントリ（$Def_ThisMastersEntry 型）
+ * 旧フォーマット（value / about）は廃止済み。現行は value_JP / about_JP を使用する。
+ * _DBLink がある場合は DB 参照リンク（$Def_DBLinkRef 形式）を保持する（ボット側では未使用）。
+ */
+export interface CharacterThisMastersEntry {
+  /** 主人名（日本語） */
+  value_JP?: string | null;
+  /** 備考（日本語） */
+  about_JP?: string | null;
+  /** 主人名（英語） */
+  value_EN?: string | null;
+  /** 備考（英語） */
+  about_EN?: string | null;
+  /** DB参照リンク（$Def_DBLinkRef 形式、ボット側では参照のみ） */
+  _DBLink?: unknown;
 }
 
 export interface CharacterConversationPattern {
@@ -65,6 +86,16 @@ export interface CharacterRecord {
   Backgrounds?: string;
   /** 三人称での呼び方（他者からの言及時） */
   ThirdPersonCalling?: string;
+  /**
+   * 専属契約した主人リスト（$Def_ThisMastersEntry[] 型）
+   * v2026-06 以降、ThisMasters_EN は廃止され本フィールドに日英両フィールドが統合された。
+   */
+  ThisMasters?: CharacterThisMastersEntry[] | null;
+  /**
+   * 他 DB キャラクターとの関係（RelationToPrimary から改名: v2026-06）
+   * Secondary/SemiPrimary の個体がどの Primary 個体と関係を持つかを示す。
+   */
+  RelationTo_Primary?: CharacterRelation | null;
 }
 
 /** CreationsDBClient の最小インターフェース（.mjs に .d.ts が存在しないため手動定義） */
