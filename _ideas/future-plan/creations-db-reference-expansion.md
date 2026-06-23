@@ -1,8 +1,8 @@
 # 創作 DB 参照解決の手段拡張
 
 > 作成日: 2026-05-27
-> 更新日: 2026-06-21（Cloudflare Workers 実 API 稼働を反映）
-> ステータス: **アイディアP（HTTPフォールバック）着手可能** ✅
+> 更新日: 2026-06-23（アイディアP 実装完了を記録）
+> ステータス: **アイディアP（HTTPフォールバック）実装完了** ✅
 
 ---
 
@@ -115,6 +115,7 @@ export async function initializeCharacterDB(): Promise<void> {
 | ---- | ---- |
 | 2026-05-27 | 将来計画として記録。着手条件: 正式 API 整備 |
 | 2026-06-21 | Cloudflare Workers 実 API（ADR-0001）デプロイ完了 → 着手条件が満たされた |
+| 2026-06-23 | `src/bot/character/loader.ts` にフォールバック順序（物理参照→API→FALLBACK_CHARACTER）を実装、実装完了 |
 
 ---
 
