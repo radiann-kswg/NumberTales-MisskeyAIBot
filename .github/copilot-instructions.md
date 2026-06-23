@@ -5,6 +5,18 @@
 GitHub Copilot や各種 AI ツールが本リポジトリのコンテキストを理解しやすくするためのガイドです。
 詳細なコンテキストは [AGENTS.md](../AGENTS.md) を参照してください。
 
+### 機能実装後のドキュメント更新ルール（重要）
+
+新機能の実装・既存機能の変更を行ったら、コミット前または直後に以下を必ず更新すること。
+詳細な手順は [AGENTS.md の同名セクション](../AGENTS.md#機能実装後のドキュメント更新ルール重要) を参照。
+
+| 更新対象 | 更新内容 |
+| -------- | -------- |
+| `AGENTS.md` | 「実装済み機能」テーブルに行を追加・ディレクトリ構成を反映 |
+| 本ファイル（copilot-instructions.md）| 実装済み機能テーブル・ディレクトリ構成を AGENTS.md と同期 |
+| `README.md` | ユーザー向け機能説明セクションに追記・ディレクトリ構成・今後の予定を更新 |
+| `_ideas/milestone/` | 完了したマイルストーンに `ステータス: 完了 ✅` を記録 |
+
 ## Copilot のロールプレイ設定
 
 このリポジトリでのセッション中、Copilot は **ナンバーテールズ0番機 000(チトセ)** として振る舞ってください。
@@ -45,32 +57,49 @@ GitHub Copilot や各種 AI ツールが本リポジトリのコンテキスト�
 
 - **Bot キャラクター**: 000(チトセ) — 中性的・若手エンジニア肌のポータブルヒューマノイド
 - **AI 基盤**: OpenAI GPT-4o-mini（メイン） / Google Gemini 1.5 Flash（差し替え可能な抽象レイヤー経由）
-- **現在のフェーズ**: 実装中（Phase 1 完了・Phase 2 大部分完了）
+- **現在のフェーズ**: Phase 1・Phase 2 完了。Phase 3 以降は [`_ideas/future-plan/`](../_ideas/future-plan/) にて検討中
 
 ### 実装済み機能
 
-| 機能 ID   | 内容                                                                      | 状態        |
-| --------- | ------------------------------------------------------------------------- | ----------- |
-| Phase 1   | WebSocket 接続・メンション受信・LLM 返信・CW 制御                         | ✅ 完了     |
-| Phase 1   | SQLite セッション会話履歴（TTL 30分・最大3往復）                          | ✅ 完了     |
-| F-01 拡張 | 意図分類 4 分岐（greeting/form-switch/creative-consultation/chat）        | ✅ 完了     |
-| F-02      | 時間帯別自発投稿スケジューラー（朝/昼/夕方/深夜）                         | ✅ 完了     |
-| F-02拡張  | 週次担当選出（土曜 0:00 Poll 投稿・48h投票・重み付き Tier 抽選・連続除外）       | ✅ 完了     |
-| F-02拡張  | 投票ノートのセルフリノート（投票期間中の毎時リマインド）                     | ✅ 完了     |
-| F-03      | 創作壁打ちモード（creative-consultation ブランチ）                        | ✅ 完了     |
-| F-04      | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類）             | ✅ 完了     |
-| F-06      | 数字・ヌメロジーコマンド                                                  | ✅ 完了     |
-| —         | マルチキャラクター切り替え                                                | ✅ 実装済み |
-| —         | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング） | ✅ 実装済み |
-| —         | フォローバック（followed イベント受信時に自動フォロー）                   | ✅ 実装済み |
-| F-07      | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）        | ✅ 実装済み |
-| —         | インシデントロガー（ハラスメント検知時に NDJSON ファイル出力）            | ✅ 実装済み |
-| —         | エラーロガー（error/warn レベルを NDJSON ファイルに永続化）               | ✅ 実装済み |
-| —         | 絵文字補完（標準名不存在時にエイリアス/タグから解決・`resolveCoreFolderEmoji` 一元化） | ✅ 実装済み |
-| F-02改修 | 週次集計タイミング修正（日曜23:55→月曜0:00）・集計/就任挨拶を formatSpeech 形式に統一 | ✅ 実装済み |
-| —         | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）          | ✅ 実装済み |
+最新の完全な一覧は [AGENTS.md](../AGENTS.md#実装済み機能) を参照すること。
+
+| 機能 ID    | 内容                                                                                              | 状態        |
+| ---------- | ------------------------------------------------------------------------------------------------- | ----------- |
+| Phase 1    | WebSocket 接続・メンション受信・LLM 返信・CW 制御                                                 | ✅ 完了     |
+| Phase 1    | SQLite セッション会話履歴（TTL 30分・最大3往復）                                                  | ✅ 完了     |
+| F-01 拡張  | 意図分類 4 分岐（greeting/form-switch/creative-consultation/chat）                                | ✅ 完了     |
+| F-02       | 時間帯別自発投稿スケジューラー（朝/昼/夕方/深夜）                                                 | ✅ 完了     |
+| F-02拡張   | 週次担当選出（土曜 0:00 Poll 投稿・48h投票・重み付き Tier 抽選・連続除外）                        | ✅ 完了     |
+| F-02拡張   | 投票ノートのセルフリノート（投票期間中の毎時リマインド）                                           | ✅ 完了     |
+| F-02拡張   | 自発投稿キャラローテーション（週次担当キャラのプロンプトで自発投稿）                               | ✅ 完了     |
+| F-02改修   | 週次集計タイミング修正（日曜23:55→月曜0:00）・集計/就任挨拶を formatSpeech 形式に統一            | ✅ 実装済み |
+| F-03       | 創作壁打ちモード（creative-consultation ブランチ）                                                | ✅ 完了     |
+| F-03       | グローバルTL ハッシュタグ検出（M-D2 / `handlers/global-tl.ts`）                                  | ✅ 完了     |
+| F-04       | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類）                                    | ✅ 完了     |
+| F-04 改修  | リアクション感情分類の LLM ハイブリッド化（挨拶先行 + LLM 委譲）・`sympathy` カテゴリ追加        | ✅ 実装済み |
+| F-06       | 数字・ヌメロジーコマンド（ヌメロジー相談モード拡張含む）                                          | ✅ 完了     |
+| F-06 D1    | 数字スロット（Secvier 数字絵文字・役判定: ゾロ目/リーチ/昇順/降順）                              | ✅ 実装済み |
+| F-06 D2a   | ポーカー（5枚ドロー・Secvier トランプ絵文字・10段階役判定）                                      | ✅ 実装済み |
+| F-06 D2b   | ヨット（5d6 最大3回振り直し・Secvier ダイス絵文字・キープ色分け演出）                            | ✅ 実装済み |
+| F-06 D3    | ヒット＆ブロウ（4桁/3桁・最大10回・`crypto.randomInt` 使用）                                     | ✅ 実装済み |
+| —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
+| F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
+| —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
+| —          | キャラプロンプト個性化（`Hobby`/`SpecialSkill`/`NumerospecAbout` 等を専門性セクションとして追加） | ✅ 実装済み |
+| —          | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング）                         | ✅ 実装済み |
+| —          | フォローバック（followed イベント受信時に自動フォロー）                                           | ✅ 実装済み |
+| —          | インシデントロガー（ハラスメント検知時に NDJSON ファイル出力）                                    | ✅ 実装済み |
+| —          | エラーロガー（error/warn レベルを NDJSON ファイルに永続化）                                       | ✅ 実装済み |
+| —          | 絵文字補完（標準名不存在時にエイリアス/タグから解決・`resolveCoreFolderEmoji` 一元化）             | ✅ 実装済み |
+| —          | DB参照を `CreationsDBClient` 経由に移行（`DB_Hidden` 自動尊重・静的 import 廃止）                 | ✅ 実装済み |
+| —          | CreationsDB 3段階 HTTP フォールバック（サブモジュール → Cloudflare API → デフォルト定義）         | ✅ 実装済み |
+| —          | Bot 状態の永続ストレージ（`storage/bot-state.ts`・KV 形式 SQLite）                               | ✅ 実装済み |
+| —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
+| —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
 
 ## ディレクトリ構成
+
+最新の詳細構成は [AGENTS.md](../AGENTS.md#リポジトリ構成) を参照すること。
 
 ```
 src/
@@ -81,15 +110,25 @@ src/
     classifier/intent.ts      # 意図分類（返り値: ClassificationResult）
     handlers/mention.ts       # メンション受信ハンドラ（切り替え / F-06 / 雑談）
     handlers/timeline.ts      # homeTimeline リアクションハンドラ
+    handlers/global-tl.ts     # グローバルTL ハッシュタグ検出（F-03 / M-D2）
     handlers/follow.ts        # フォローバックハンドラ
-    ratelimit/                  # RateLimiter クラス
-    reactor/                    # 絵文字マップ・感情分類
-    responder/                  # 発言書式・テンプレート
-    scheduler/                  # 時間帯別自発投稿
+    ratelimit/                # RateLimiter クラス
+    reactor/                  # 絵文字マップ・感情分類（LLM ハイブリッド）
+    responder/                # 発言書式・テンプレート
+    scheduler/                # 時間帯別自発投稿・週次担当選出
   features/f06/               # 数字・ヌメロジーコマンド（F-06）
+    index.ts                  #   ハンドラ統合・ゲームディスパッチ
+    slot.ts                   #   数字スロット（D1）
+    poker.ts                  #   ポーカー5枚ドロー（D2a）
+    yacht.ts                  #   ヨット5d6（D2b）
+    hitblow.ts                #   ヒット＆ブロウ（D3）
+    responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
   config/                     # 環境変数・定数
   misskey/client.ts           # Misskey WebSocket クライアントラッパー
-  storage/session.ts          # SQLite セッションコンテキスト
+  storage/
+    session.ts                #   SQLite セッションコンテキスト（会話履歴）
+    bot-state.ts              #   Bot 状態の永続ストレージ（KV 形式・SQLite）
+    game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）
   utils/                      # ロガー等
 docs/                         # 詳細ドキュメント（architecture / development / deployment）
 _ideas/
@@ -104,6 +143,7 @@ _rough-idea/                  # Bot機能アイデア検討メモ（ChatGPT/Gemi
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
   data/                       # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
   docs/                       # DB仕様ドキュメント
+tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
 ```
 
 ## キャラクター設定・口調の参照
@@ -150,14 +190,18 @@ grep -v "TOKEN|KEY" .env
 
 VM 側に `dist/` などのローカル変更があると `git pull` が失敗する。
 **GitHub Actions および手動デプロイでは必ず `git reset --hard` を使用すること。**
+ビルドには devDependencies（typescript 等）が必要なため、先に通常の `npm install` を実行し、
+ビルド後に `npm prune --omit=dev` で本番最適化する。
 
 ```bash
-# ✅ 正しい手順
+# ✅ 正しい手順（CI と同じ流れ）
 git fetch origin master
 git reset --hard origin/master
-npm install --omit=dev
+git submodule update --init --recursive
+npm install               # devDependencies 込み（ビルドに必要）
 npm run build
-pm2 reload ecosystem.config.cjs
+npm prune --omit=dev      # ビルド後に本番用へ最適化
+pm2 reload ecosystem.config.cjs --env production
 
 # ❌ 間違い（ローカル変更があるとコンフリクトで止まる）
 git pull origin master
@@ -198,7 +242,7 @@ npm run typecheck
 export interface ClassificationResult {
   intent: Intent;
   formTarget?: 'core-folder' | 'humanoid';
-  numerologyType?: 'life-path' | 'kyusei';
+  numerologyType?: 'life-path' | 'kyusei' | 'moon-star';
   harassmentLevel?: 1 | 2 | 3; // F-07: harassment インテント時のみ
 }
 
