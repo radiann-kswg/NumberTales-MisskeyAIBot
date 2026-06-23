@@ -85,5 +85,8 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   'numerology-consultation': ['murisinaide_aphrnts20', 'naruhodo_aphrnts24', 'omoshiroi_i_aphrnts65'],
   dice: ['yattaze_aphrnts41', 'okay_aphrnts25'],
   trivia: ['omoshiroi_i_aphrnts65', 'tiken_aphrnts71'],
-  'game-slot': ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
+  'game-slot':    ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
+  'game-poker':   ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8'],
+  'game-yacht':   ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
+  'game-hitblow': ['tensaika_aphrnts8', 'omoshiroi_i_aphrnts65'],
 };

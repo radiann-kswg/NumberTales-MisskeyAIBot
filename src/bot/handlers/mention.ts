@@ -4,6 +4,7 @@ import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
+import type { GameSessionStore } from '../../storage/game-session.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
 import { classifyIntent, detectFormTarget, type FormTarget } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
@@ -21,7 +22,16 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';impo
   resolveDefaultCharacterTarget,
   resolveSchedulerCharTarget,
 } from '../character/switch.js';
-import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, handleSlot, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
+import {
+  handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, handleSlot,
+  handlePoker,
+  handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
+  handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
+  extractTriviaNumber,
+  type F06Result, type YachtState, type HitBlowState,
+} from '../../features/f06/index.js';
+import { parseRerollCommand } from '../../features/f06/yacht.js';
+import { parseGuess } from '../../features/f06/hitblow.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -54,6 +64,7 @@ export interface MentionHandlerDeps {
   myUserId: string;
   rateLimiter: RateLimiter;
   sessionStore: SessionStore;
+  gameSessionStore: GameSessionStore;
   activeCharacterStore: ActiveCharacterStore;
   incidentLogger: IncidentLogger;
   botState: BotStateStore;
@@ -174,7 +185,10 @@ async function generateHarassmentReply(
   const typeLabel: Record<string, string> = {
     calculate: '計算',
     dice: 'ダイスロール',
-    'game-slot': 'スロットゲーム',
+    'game-slot':    'スロットゲーム',
+    'game-poker':   'ポーカーゲーム',
+    'game-yacht':   'ヨットゲーム',
+    'game-hitblow': 'ヒット＆ブロウ',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
     'moon-star': '月命星',
@@ -285,7 +299,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger, botState } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -515,6 +529,72 @@ export async function handleMention(
     }
   }
 
+  // 4-pre. アクティブなゲームセッションを確認し、進行中コマンドを優先処理する
+  const activeYachtState = gameSessionStore.getSession<YachtState>(event.userId, 'yacht');
+  if (activeYachtState) {
+    const rerollCmd = parseRerollCommand(event.text);
+    if (rerollCmd !== null) {
+      const isKeep = rerollCmd === 'keep' || activeYachtState.rerollCount >= 2;
+      let yachtResult: F06Result = isKeep
+        ? handleYachtKeep(activeYachtState, gameSessionStore, event.userId)
+        : handleYachtReroll(activeYachtState, rerollCmd as number[], gameSessionStore, event.userId);
+      const yachtFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-yacht', yachtResult.text);
+      if (yachtFraming) yachtResult = { ...yachtResult, text: `${yachtFraming}\n${yachtResult.text}` };
+      const yachtNoteText = formatSpeech(activeCharacterNum, yachtResult.text);
+      try {
+        await misskeyClient.reply(yachtNoteText, event.noteId);
+        rateLimiter.recordReply(event.userId);
+        logger.info(`Replied (yacht-action) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-yacht'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post yacht action reply:', err);
+      }
+      return;
+    }
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handleYachtAbandon(gameSessionStore, event.userId);
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, abandonResult.text), event.noteId);
+        rateLimiter.recordReply(event.userId);
+      } catch (err) {
+        logger.error('Failed to post yacht abandon reply:', err);
+      }
+      return;
+    }
+  }
+
+  const activeHitBlowState = gameSessionStore.getSession<HitBlowState>(event.userId, 'hitblow');
+  if (activeHitBlowState) {
+    const guess = parseGuess(event.text, activeHitBlowState.digits);
+    if (guess !== null) {
+      let hbResult = handleHitBlowGuess(activeHitBlowState, guess, gameSessionStore, event.userId);
+      const hbFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-hitblow', hbResult.text);
+      if (hbFraming) hbResult = { ...hbResult, text: `${hbFraming}\n${hbResult.text}` };
+      const hbNoteText = formatSpeech(activeCharacterNum, hbResult.text);
+      try {
+        await misskeyClient.reply(hbNoteText, event.noteId);
+        rateLimiter.recordReply(event.userId);
+        logger.info(`Replied (hitblow-guess) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-hitblow'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post hitblow guess reply:', err);
+      }
+      return;
+    }
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handleHitBlowAbandon(activeHitBlowState, gameSessionStore, event.userId);
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, abandonResult.text), event.noteId);
+        rateLimiter.recordReply(event.userId);
+      } catch (err) {
+        logger.error('Failed to post hitblow abandon reply:', err);
+      }
+      return;
+    }
+  }
+
   // 4. 意図分類
   const { intent, formTarget, numerologyType, harassmentLevel } = classifyIntent(event.text);
   const effectiveIntent =
@@ -552,8 +632,29 @@ export async function handleMention(
     return;
   }
 
-  // 4a. F-06 計算・ダイス・スロット・数秘術・うんちく（early return）
-  if (effectiveIntent === 'calculate' || effectiveIntent === 'numerology' || effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot') {
+  // 4a. F-06 計算・ダイス・スロット・ゲーム・数秘術・うんちく（early return）
+  if (
+    effectiveIntent === 'calculate' || effectiveIntent === 'numerology' ||
+    effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
+    effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow'
+  ) {
+    // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
+    if (effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow') {
+      const existingGame = gameSessionStore.getAnyActiveSession(event.userId);
+      if (existingGame) {
+        const gameNames: Record<string, string> = { yacht: 'ヨット', hitblow: 'ヒット＆ブロウ' };
+        const ongoingName = gameNames[existingGame] ?? 'ゲーム';
+        const busyText = formatSpeech(activeCharacterNum, `今${ongoingName}の途中だよ！「やめ」か「終了」で終わらせてから試してね`);
+        try {
+          await misskeyClient.reply(busyText, event.noteId);
+          rateLimiter.recordReply(event.userId);
+        } catch (err) {
+          logger.error('Failed to post busy-game reply:', err);
+        }
+        return;
+      }
+    }
+
     let f06Result: F06Result;
 
     if (effectiveIntent === 'trivia') {
@@ -573,24 +674,35 @@ export async function handleMention(
         f06Result = { text: triviaErrorResponse() };
       }
     } else {
-      f06Result =
-        effectiveIntent === 'calculate'
-          ? handleCalculate(event.text)
-          : effectiveIntent === 'dice'
-            ? handleDice(event.text)
-            : effectiveIntent === 'game-slot'
-              ? handleSlot()
-              : numerologyType === 'life-path'
-                ? handleLifePath(event.text)
-                : numerologyType === 'moon-star'
-                  ? handleTsukimeisei(event.text)
-                  : handleKyusei(event.text);
+      if (effectiveIntent === 'game-poker') {
+        f06Result = handlePoker();
+      } else if (effectiveIntent === 'game-yacht') {
+        f06Result = handleYachtStart(event.userId, gameSessionStore);
+      } else if (effectiveIntent === 'game-hitblow') {
+        f06Result = handleHitBlowStart(event.userId, gameSessionStore, event.text);
+      } else {
+        f06Result =
+          effectiveIntent === 'calculate'
+            ? handleCalculate(event.text)
+            : effectiveIntent === 'dice'
+              ? handleDice(event.text)
+              : effectiveIntent === 'game-slot'
+                ? handleSlot()
+                : numerologyType === 'life-path'
+                  ? handleLifePath(event.text)
+                  : numerologyType === 'moon-star'
+                    ? handleTsukimeisei(event.text)
+                    : handleKyusei(event.text);
+      }
 
       // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
       const framingType =
         effectiveIntent === 'calculate' ? 'calculate'
         : effectiveIntent === 'dice' ? 'dice'
         : effectiveIntent === 'game-slot' ? 'game-slot'
+        : effectiveIntent === 'game-poker' ? 'game-poker'
+        : effectiveIntent === 'game-yacht' ? 'game-yacht'
+        : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
         : numerologyType === 'life-path' ? 'life-path'
         : numerologyType === 'moon-star' ? 'moon-star'
         : 'kyusei';

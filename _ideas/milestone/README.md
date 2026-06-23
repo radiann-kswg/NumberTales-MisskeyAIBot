@@ -53,7 +53,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | 機能②（F-02 拡張）        | 自発投稿キャラローテーション（週次担当キャラで自発投稿）   | 完了 ✅   | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
 | F-06 Stage B/C             | 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星      | 未着手 ⏳ | [`future-plan/F-06_stage-b-c.md`](../future-plan/F-06_stage-b-c.md)                                   |
 | F-06 Stage D-1             | 数字スロット（Secvier 数字絵文字 0〜9 対応）               | 完了 ✅   | [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
-| F-06 Stage D-2〜5          | ポーカー・ヨット・ヒット＆ブロウ・牌引き・ルーレット       | 未着手 ⏳ | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
+| F-06 Stage D-2a/2b/3       | ポーカー・ヨット・ヒット＆ブロウ                           | 完了 ✅   | [2026-06-23_milestone_f06-d2-d3-games.md](./2026-06-23_milestone_f06-d2-d3-games.md)                  |
+| F-06 Stage D-4/D-5         | 牌引き占い・ルーレット                                     | 未着手 ⏳ | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [2026-06-03_milestone_db-client-migration.md](./2026-06-03_milestone_db-client-migration.md)           |
 | DB参照改修②               | CreationsDB Cloudflare API HTTP フォールバック追加         | 完了 ✅   | [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
 | F-10                       | 今日のエンジェルナンバー占い                               | 着手 🔧   | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md) |

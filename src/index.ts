@@ -5,6 +5,7 @@ import { MisskeyClient } from './misskey/client.js';
 import { RateLimiter } from './bot/ratelimit/index.js';
 import { ActiveCharacterStore } from './bot/character/store.js';
 import { SessionStore } from './storage/session.js';
+import { GameSessionStore } from './storage/game-session.js';
 import { BotStateStore } from './storage/bot-state.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
@@ -55,6 +56,11 @@ async function main(): Promise<void> {
   sessionStore.pruneExpired(); // 起動時に期限切れをクリーン
   logger.info(`Session store ready: ${config.storage.dbPath}`);
 
+  // ゲームセッションストア初期化（ターン制ミニゲーム用）
+  const gameSessionStore = new GameSessionStore(config.storage.dbPath);
+  gameSessionStore.pruneExpired();
+  logger.info('Game session store ready');
+
   // Bot 状態ストア初期化（週次担当キャラクター等の永続状態）
   const botState = new BotStateStore(config.storage.dbPath);
   logger.info('Bot state store ready');
@@ -89,7 +95,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, activeCharacterStore, incidentLogger, botState });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -121,6 +127,7 @@ async function main(): Promise<void> {
     misskeyClient.close();
     activeCharacterStore.close();
     sessionStore.close();
+    gameSessionStore.close();
     botState.close();
     process.exit(0);
   };

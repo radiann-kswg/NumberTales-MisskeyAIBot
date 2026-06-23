@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -68,6 +68,28 @@ const SLOT_PATTERNS: RegExp[] = [
   /スロット(?:を?回して|しよう|やって|して|お願い)/,
   /^スロット$/,
   /\/slot\b/i,
+];
+
+const POKER_PATTERNS: RegExp[] = [
+  /ポーカー(?:しよう|やって|して|お願い|ゲーム)?/,
+  /カードゲーム(?:しよう|やって|して)?/,
+  /\/poker\b/i,
+];
+
+const YACHT_PATTERNS: RegExp[] = [
+  /ヨット(?:ゲーム)?(?:しよう|やって|して|お願い)?/,
+  /ヤッツィー?(?:しよう|やって|して|お願い)?/,
+  /ダイス(?:ゲーム)?(?:しよう|やって|して)/,
+  /\/yacht\b/i,
+];
+
+const HITBLOW_PATTERNS: RegExp[] = [
+  /ヒット[&＆・]?ブロウ(?:やって|して|しよう|お願い)?/,
+  /数当て(?:ゲーム)?(?:しよう|やって|して)?/,
+  /数字を?当て(?:て|よう)/,
+  /(?:数字|数)(?:の)?(?:ゲーム)?(?:しよう|やって|して)/,
+  /\/hitblow\b/i,
+  /\/hb\b/i,
 ];
 
 const DICE_PATTERNS: RegExp[] = [
@@ -178,6 +200,18 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of SLOT_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-slot' };
+  }
+
+  for (const pattern of POKER_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-poker' };
+  }
+
+  for (const pattern of YACHT_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-yacht' };
+  }
+
+  for (const pattern of HITBLOW_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-hitblow' };
   }
 
   for (const pattern of DICE_PATTERNS) {

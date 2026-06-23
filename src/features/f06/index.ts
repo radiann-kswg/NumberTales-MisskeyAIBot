@@ -20,6 +20,19 @@ import {
   NUMEROLOGY_CW_LABEL,
   type SlotRole,
 } from './responder.js';
+import { dealPokerHand, evaluatePokerHand, pokerResultText } from './poker.js';
+import {
+  rollDice,
+  rerollDice,
+  yachtInitialMessage,
+  yachtMidMessage,
+  yachtFinalMessage,
+  type YachtState,
+} from './yacht.js';
+import { generateSecret, calculateHitBlow, parseGuess, type HitBlowState } from './hitblow.js';
+import type { GameSessionStore } from '../../storage/game-session.js';
+
+export type { YachtState, HitBlowState };
 
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
 
@@ -259,6 +272,119 @@ export function handleSlot(): F06Result {
     Math.floor(Math.random() * 10),
   ];
   return { text: slotResultText(digits, determineSlotRole(digits)) };
+}
+
+// ----------------------------------------------------------------
+// ポーカー（D3-2a）
+// ----------------------------------------------------------------
+
+/** 5 枚ドローポーカーを 1 回行い、手役と絵文字表示を返す */
+export function handlePoker(): F06Result {
+  const cards = dealPokerHand();
+  const hand = evaluatePokerHand(cards);
+  return { text: pokerResultText(cards, hand) };
+}
+
+// ----------------------------------------------------------------
+// ヨット（D3-2b）
+// ----------------------------------------------------------------
+
+/** ヨットゲームを開始する（5d6 初回ロール）。既存セッションは上書き。 */
+export function handleYachtStart(userId: string, store: GameSessionStore): F06Result {
+  const dice = rollDice();
+  const state: YachtState = { dice, rerollCount: 0, keptIndices: [] };
+  store.setSession(userId, 'yacht', state);
+  return { text: yachtInitialMessage(state) };
+}
+
+/**
+ * ヨットの振り直しを処理する。
+ * rerollIndices: 振り直すダイスの 0-indexed インデックスリスト。
+ * 2 回目の振り直しが完了したらゲームを自動終了する。
+ */
+export function handleYachtReroll(
+  state: YachtState,
+  rerollIndices: number[],
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  const keptIndices = [0, 1, 2, 3, 4].filter((i) => !rerollIndices.includes(i));
+  const newDice = rerollDice(state.dice, rerollIndices);
+  const newRerollCount = state.rerollCount + 1;
+  const newState: YachtState = { dice: newDice, rerollCount: newRerollCount, keptIndices };
+
+  if (newRerollCount >= 2) {
+    // 2 回振り直し完了 → ゲーム自動終了
+    store.deleteSession(userId, 'yacht');
+    return { text: yachtFinalMessage(newDice) };
+  }
+
+  store.setSession(userId, 'yacht', newState);
+  return { text: yachtMidMessage(newState) };
+}
+
+/** ユーザーが「このまま」で確定したときの処理 */
+export function handleYachtKeep(state: YachtState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'yacht');
+  return { text: yachtFinalMessage(state.dice) };
+}
+
+/** ゲームを中断・放棄する */
+export function handleYachtAbandon(store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'yacht');
+  return { text: 'ヨット、終了したよ。また遊ぼうね！' };
+}
+
+// ----------------------------------------------------------------
+// ヒット＆ブロウ（D3-3）
+// ----------------------------------------------------------------
+
+/** ヒット＆ブロウゲームを開始する。既存セッションは上書き。 */
+export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
+  const digits: 3 | 4 = /3桁|3ケタ|3けた/.test(text) ? 3 : 4;
+  const secret = generateSecret(digits);
+  const state: HitBlowState = { secret, guessCount: 0, maxGuesses: 10, digits };
+  store.setSession(userId, 'hitblow', state);
+  return {
+    text: `${digits}桁の数字を設定したよ（重複なし）。最大${state.maxGuesses}回で当ててね！\n数字を送って予想してみよう`,
+  };
+}
+
+/**
+ * ユーザーの予想を処理する。
+ * 正解・試行数上限でゲーム終了、そうでなければ Hit/Blow を返す。
+ */
+export function handleHitBlowGuess(
+  state: HitBlowState,
+  guess: number[],
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  const { hits, blows } = calculateHitBlow(state.secret, guess);
+  const newGuessCount = state.guessCount + 1;
+  const guessStr = guess.join('');
+  const remaining = state.maxGuesses - newGuessCount;
+
+  if (hits === state.digits) {
+    store.deleteSession(userId, 'hitblow');
+    return { text: `「${guessStr}」→ ${hits}ヒット！\n正解！${newGuessCount}回でクリア！` };
+  }
+
+  if (remaining <= 0) {
+    store.deleteSession(userId, 'hitblow');
+    const secretStr = state.secret.join('');
+    return { text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ\n残念……正解は「${secretStr}」だったよ` };
+  }
+
+  store.setSession(userId, 'hitblow', { ...state, guessCount: newGuessCount });
+  return { text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ（残り${remaining}回）` };
+}
+
+/** ゲームを中断・放棄する（正解を明かす） */
+export function handleHitBlowAbandon(state: HitBlowState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'hitblow');
+  const secretStr = state.secret.join('');
+  return { text: `ヒット＆ブロウを終了したよ。答えは「${secretStr}」だったよ` };
 }
 
 /**
