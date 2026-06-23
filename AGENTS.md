@@ -378,6 +378,8 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 - ナンバーテールズ公式サイト: https://www.numbertales-radiann.com/
 - 000(チトセ) キャラクターページ: https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=
 - AI連携リンク集: [\_roleplay-datas/ai-link.md](./_roleplay-datas/ai-link.md)
+- **Secvier カスタム絵文字**: https://github.com/radiann-kswg/Secvier_ImageAssets
+  （F-06 ミニゲーム演出で使用する数字・トランプ・ダイス絵文字セット。Bot 稼働インスタンスへの事前インポートが必要）
 
 ---
 
