@@ -10,6 +10,9 @@ dist/
 # 一時キャッシュ（セッションDB等）
 .cache/
 
+# 情報収集ログ
+_ideas/.research/
+
 # ログファイル
 *.log
 logs/
