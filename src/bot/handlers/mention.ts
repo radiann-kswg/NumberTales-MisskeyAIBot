@@ -21,7 +21,7 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';impo
   resolveDefaultCharacterTarget,
   resolveSchedulerCharTarget,
 } from '../character/switch.js';
-import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
+import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, handleSlot, extractTriviaNumber, type F06Result } from '../../features/f06/index.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -174,6 +174,7 @@ async function generateHarassmentReply(
   const typeLabel: Record<string, string> = {
     calculate: '計算',
     dice: 'ダイスロール',
+    'game-slot': 'スロットゲーム',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
     'moon-star': '月命星',
@@ -551,8 +552,8 @@ export async function handleMention(
     return;
   }
 
-  // 4a. F-06 計算・ダイス・数秘術・うんちく（early return）
-  if (effectiveIntent === 'calculate' || effectiveIntent === 'numerology' || effectiveIntent === 'dice' || effectiveIntent === 'trivia') {
+  // 4a. F-06 計算・ダイス・スロット・数秘術・うんちく（early return）
+  if (effectiveIntent === 'calculate' || effectiveIntent === 'numerology' || effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot') {
     let f06Result: F06Result;
 
     if (effectiveIntent === 'trivia') {
@@ -577,16 +578,19 @@ export async function handleMention(
           ? handleCalculate(event.text)
           : effectiveIntent === 'dice'
             ? handleDice(event.text)
-            : numerologyType === 'life-path'
-              ? handleLifePath(event.text)
-              : numerologyType === 'moon-star'
-                ? handleTsukimeisei(event.text)
-                : handleKyusei(event.text);
+            : effectiveIntent === 'game-slot'
+              ? handleSlot()
+              : numerologyType === 'life-path'
+                ? handleLifePath(event.text)
+                : numerologyType === 'moon-star'
+                  ? handleTsukimeisei(event.text)
+                  : handleKyusei(event.text);
 
       // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
       const framingType =
         effectiveIntent === 'calculate' ? 'calculate'
         : effectiveIntent === 'dice' ? 'dice'
+        : effectiveIntent === 'game-slot' ? 'game-slot'
         : numerologyType === 'life-path' ? 'life-path'
         : numerologyType === 'moon-star' ? 'moon-star'
         : 'kyusei';

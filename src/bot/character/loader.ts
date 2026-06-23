@@ -125,12 +125,20 @@ const FALLBACK_CHARACTER: CharacterRecord = {
 
 let cachedReleasedCharacters: CharacterRecord[] | null = null;
 
+const CLOUDFLARE_API_RECORDS_URL =
+  'https://database.numbertales-radiann.net/api/v1/NumberTales/Primary/records';
+
 /**
  * CreationsDBClient 経由でキャラクターDBを非同期に初期化する。
  * main() の起動シーケンスで一度だけ呼び出すこと。
- * 失敗時はフォールバックとして FALLBACK_CHARACTER のみを使用する。
+ *
+ * フォールバック順序:
+ *   ① サブモジュール物理参照（CreationsDBClient）
+ *   ② Cloudflare Workers API（HTTP fetch）
+ *   ③ FALLBACK_CHARACTER のみ
  */
 export async function initializeCharacterDB(): Promise<void> {
+  // ① 物理参照（サブモジュール）
   try {
     // .mjs サブモジュールには .d.ts が存在しないため型エラーを抑制して dynamic import する
     // @ts-expect-error -- no .d.ts for .mjs submodule; cast to typed interface below
@@ -143,10 +151,27 @@ export async function initializeCharacterDB(): Promise<void> {
       (entry) => entry.Progress === 'released',
     );
     logger.info(`Character DB loaded: ${cachedReleasedCharacters.length} released records`);
+    return;
   } catch (err) {
-    logger.warn('Failed to load character DB via CreationsDBClient. Using fallback.', err);
-    cachedReleasedCharacters = [FALLBACK_CHARACTER];
+    logger.warn('Failed to load character DB via submodule. Trying Cloudflare API...', err);
   }
+
+  // ② Cloudflare Workers API フォールバック
+  try {
+    const res = await fetch(CLOUDFLARE_API_RECORDS_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const records = (await res.json()) as CharacterRecord[];
+    cachedReleasedCharacters = records.filter((entry) => entry.Progress === 'released');
+    logger.info(
+      `Character DB loaded via Cloudflare API: ${cachedReleasedCharacters.length} released records`,
+    );
+    return;
+  } catch (err) {
+    logger.warn('Failed to load character DB via Cloudflare API. Using fallback.', err);
+  }
+
+  // ③ デフォルトキャラクターのみ
+  cachedReleasedCharacters = [FALLBACK_CHARACTER];
 }
 
 function normalizeNum(value: string | number): string {

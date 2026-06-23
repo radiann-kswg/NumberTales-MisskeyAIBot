@@ -196,3 +196,43 @@ export function buildTriviaUserPrompt(n: number): string {
 export function triviaErrorResponse(): string {
   return 'うんちく、今はちょっと思い浮かばないな……また聞いてね';
 }
+
+// ----------------------------------------------------------------
+// 数字スロット（D3-1）
+// ----------------------------------------------------------------
+
+export type SlotRole = 'jackpot' | 'reach' | 'sequential-asc' | 'sequential-desc' | 'scatter';
+
+/**
+ * Misskey インスタンスに登録した Secvier 系数字絵文字の名前マップ（0〜9）。
+ * 色: 緑(0,5) 黄(1,8) 白(2,6) 赤(3,7) 青(4,9)
+ */
+export const SLOT_DIGIT_EMOJIS: Record<number, string> = {
+  0: 'sv_suigyoku_0',
+  1: 'sv_sakin_1',
+  2: 'sv_hakuji_2',
+  3: 'sv_kougyoku_3',
+  4: 'sv_seiyuu_4',
+  5: 'sv_suigyoku_5',
+  6: 'sv_hakuji_6',
+  7: 'sv_kougyoku_7',
+  8: 'sv_sakin_8',
+  9: 'sv_seiyuu_9',
+};
+
+const SLOT_ROLE_LABELS: Record<SlotRole, string> = {
+  jackpot: 'ナンバーテールズ！！ ゾロ目大当たり！',
+  reach: 'リーチ！',
+  'sequential-asc': '昇順！',
+  'sequential-desc': '降順！',
+  scatter: 'バラバラ……',
+};
+
+/**
+ * スロット結果のテキストを生成する。
+ * 数字絵文字 3 つ + 役名の 2 行形式。
+ */
+export function slotResultText(digits: [number, number, number], role: SlotRole): string {
+  const emojiLine = digits.map((d) => `:${SLOT_DIGIT_EMOJIS[d]!}:`).join(' ');
+  return `${emojiLine}\n${SLOT_ROLE_LABELS[role]}`;
+}

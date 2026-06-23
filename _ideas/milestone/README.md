@@ -20,6 +20,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-06-03_milestone_f04-llm-reaction.md](./2026-06-03_milestone_f04-llm-reaction.md)                 | F-04     | リアクション感情分類の LLM 駆動化            | 完了 ✅    |
 | [2026-06-03_milestone_global-tl-tag-detection.md](./2026-06-03_milestone_global-tl-tag-detection.md)   | F-03実装 | ハッシュタグ監視 globalTimeline 対応         | 完了 ✅    |
 | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) | Phase 3後続 | キャラプロンプト個性化（前提A）・ヌメロジー相談モード（機能①）・自発投稿ローテーション（機能②） | 完了 ✅ |
+| [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) | F-06D / 改修 | F-06 Stage D-1 数字スロット・CreationsDB HTTP フォールバック | 完了 ✅ |
 
 ## フェーズ概要
 
@@ -49,8 +50,12 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | 機能①（F-06 拡張）        | ヌメロジー相談モード（悩み＋ライフパス → LLM 解釈）       | 完了 ✅   | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
 | 機能②（F-02 拡張）        | 自発投稿キャラローテーション（週次担当キャラで自発投稿）   | 完了 ✅   | [2026-06-16_milestone_character-specialization-and-numerology-consultation.md](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) |
 | F-06 Stage B/C             | 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星      | 未着手 ⏳ | [`future-plan/F-06_stage-b-c.md`](../future-plan/F-06_stage-b-c.md)                                   |
-| F-06 Stage D               | 数字ミニゲーム（スロット・ポーカー・ヒットアンドブロウ）  | 保留 ⏸️  | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
+| F-06 Stage D-1             | 数字スロット（Secvier 数字絵文字 0〜9 対応）               | 完了 ✅   | [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
+| F-06 Stage D-2〜5          | ポーカー・ヨット・ヒット＆ブロウ・牌引き・ルーレット       | 未着手 ⏳ | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [2026-06-03_milestone_db-client-migration.md](./2026-06-03_milestone_db-client-migration.md)           |
+| DB参照改修②               | CreationsDB Cloudflare API HTTP フォールバック追加         | 完了 ✅   | [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
+| F-10                       | 今日のエンジェルナンバー占い                               | 未着手 ⏳ | [future-plan/F-10-angel-number-fortune.md](../future-plan/F-10-angel-number-fortune.md)                |
+| F-12                       | リマインダー機能                                           | 未着手 ⏳ | [future-plan/F-12-reminder.md](../future-plan/F-12-reminder.md)                                        |
 
 ## bot-spec 残タスク
 

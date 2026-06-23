@@ -16,7 +16,9 @@ import {
   diceRollResponse,
   rangeRollResponse,
   diceErrorResponse,
+  slotResultText,
   NUMEROLOGY_CW_LABEL,
+  type SlotRole,
 } from './responder.js';
 
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
@@ -232,6 +234,31 @@ export function handleTsukimeisei(text: string): F06Result {
     cwBody: tsukimeiCwBody(year, month, day, yearStar, moonStar),
     cwLabel: NUMEROLOGY_CW_LABEL,
   };
+}
+
+// ----------------------------------------------------------------
+// 数字スロット（D3-1）
+// ----------------------------------------------------------------
+
+type SlotDigits = [number, number, number];
+
+function determineSlotRole(digits: SlotDigits): SlotRole {
+  const [a, b, c] = digits;
+  if (a === b && b === c) return 'jackpot';
+  if (a === b || b === c || a === c) return 'reach';
+  if (a + 1 === b && b + 1 === c) return 'sequential-asc';
+  if (a - 1 === b && b - 1 === c) return 'sequential-desc';
+  return 'scatter';
+}
+
+/** 0〜9 の数字を 3 桁ランダム生成し、役判定・絵文字表示テキストを返す */
+export function handleSlot(): F06Result {
+  const digits: SlotDigits = [
+    Math.floor(Math.random() * 10),
+    Math.floor(Math.random() * 10),
+    Math.floor(Math.random() * 10),
+  ];
+  return { text: slotResultText(digits, determineSlotRole(digits)) };
 }
 
 /**

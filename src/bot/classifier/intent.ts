@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -62,6 +62,12 @@ const CREATIVE_PATTERNS: RegExp[] = [
   /壁打ち/,
   /お絵描き.*お題/,
   /創作.*(相談|話)/,
+];
+
+const SLOT_PATTERNS: RegExp[] = [
+  /スロット(?:を?回して|しよう|やって|して|お願い)/,
+  /^スロット$/,
+  /\/slot\b/i,
 ];
 
 const DICE_PATTERNS: RegExp[] = [
@@ -168,6 +174,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of KYUSEI_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'numerology', numerologyType: 'kyusei' };
+  }
+
+  for (const pattern of SLOT_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-slot' };
   }
 
   for (const pattern of DICE_PATTERNS) {
