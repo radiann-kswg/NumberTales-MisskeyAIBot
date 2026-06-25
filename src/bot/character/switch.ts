@@ -22,7 +22,7 @@ function stripHonorific(text: string): string {
 
 function extractAliases(profile: CharacterRecord): string[] {
   const aliases = new Set<string>();
-  const name = profile.Name ?? '';
+  const name = profile.Name_JP ?? profile.Name ?? '';
   const normalizedName = normalizeSearchText(name);
   if (normalizedName) {
     aliases.add(normalizedName);
@@ -132,8 +132,8 @@ export function resolveSchedulerCharTarget(text: string): CharacterRecord | null
 }
 
 export function buildCharacterSwitchText(target: CharacterRecord, alreadyActive: boolean): string {
-  const name = target.Name ?? `${String(target.Num)}番機`;
-  const firstPerson = normalizeCalling(target.FirstPersonCalling, 'この子');
+  const name = target.Name_JP ?? target.Name ?? `${String(target.Num)}番機`;
+  const firstPerson = normalizeCalling(target.FirstPersonCalling_JP ?? target.FirstPersonCalling, 'この子');
 
   if (alreadyActive) {
     return `${name}で待機しているよ。続けて話してみて。`;
@@ -143,7 +143,7 @@ export function buildCharacterSwitchText(target: CharacterRecord, alreadyActive:
 }
 
 export function buildDefaultCharacterSwitchText(target: CharacterRecord, alreadyDefault: boolean): string {
-  const name = target.Name ?? `${String(target.Num)}番機`;
+  const name = target.Name_JP ?? target.Name ?? `${String(target.Num)}番機`;
 
   if (alreadyDefault) {
     return `全体の標準担当は、すでに${name}のままだよ。`;
@@ -171,8 +171,8 @@ export function buildFormSwitchText(
   target: CharacterRecord,
   formTarget: FormTarget,
 ): string {
-  const name = target.Name ?? `${String(target.Num)}番機`;
-  const firstPerson = normalizeCalling(target.FirstPersonCalling, '私');
+  const name = target.Name_JP ?? target.Name ?? `${String(target.Num)}番機`;
+  const firstPerson = normalizeCalling(target.FirstPersonCalling_JP ?? target.FirstPersonCalling, '私');
 
   if (formTarget === 'core-folder') {
     return `${name}がコアフォルダ形態になったよ。${firstPerson}は ぷにっと待機中。何かあるかな？`;

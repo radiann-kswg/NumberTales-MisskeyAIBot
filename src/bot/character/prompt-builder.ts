@@ -72,8 +72,8 @@ function buildRelationSummary(profile: CharacterRecord): string | null {
 
 function buildStyleFallback(profile: CharacterRecord): string {
   const pieces = [
-    normalizeText(profile.Character),
-    normalizeText(profile.Summary),
+    normalizeText(profile.Character_JP ?? profile.Character),
+    normalizeText(profile.Summary_JP ?? profile.Summary),
   ].filter((piece): piece is string => piece !== null);
 
   return pieces.join(' ');
@@ -177,12 +177,12 @@ export function buildCharacterSystemPrompt(
   formTarget: FormTarget = 'humanoid',
 ): string {
   const num = String(profile.Num);
-  const name = normalizeText(profile.Name) ?? `${num}番機`;
-  const firstPersonField = parseCallingField(profile.FirstPersonCalling);
-  const secondPersonField = parseCallingField(profile.SecondPersonCalling);
-  const forMaster = normalizeText(profile.ForMasterCalling);
-  const character = normalizeText(profile.Character);
-  const summary = normalizeText(profile.Summary);
+  const name = normalizeText(profile.Name_JP ?? profile.Name) ?? `${num}番機`;
+  const firstPersonField = parseCallingField(profile.FirstPersonCalling_JP ?? profile.FirstPersonCalling);
+  const secondPersonField = parseCallingField(profile.SecondPersonCalling_JP ?? profile.SecondPersonCalling);
+  const forMaster = normalizeText(profile.ForMasterCalling_JP ?? profile.ForMasterCalling);
+  const character = normalizeText(profile.Character_JP ?? profile.Character);
+  const summary = normalizeText(profile.Summary_JP ?? profile.Summary);
   const relationSummary = buildRelationSummary(profile);
   const pattern = profile.ConversationPattern;
   const dialogueExamples = buildDialogueExamples(pattern);
@@ -209,8 +209,8 @@ export function buildCharacterSystemPrompt(
   if (summary) {
     lines.push(`- 概要メモ: ${summary}`);
   }
-  const inStory = normalizeText(profile.InStory);
-  const backgrounds = normalizeText(profile.Backgrounds);
+  const inStory = normalizeText(profile.InStory_JP ?? profile.InStory);
+  const backgrounds = normalizeText(profile.Backgrounds_JP ?? profile.Backgrounds);
   if (inStory) {
     lines.push(`- 劇中の立ち位置: ${inStory}`);
   }
@@ -231,23 +231,23 @@ export function buildCharacterSystemPrompt(
   }
 
   if (pattern) {
-    if (normalizeText(pattern.TalkingTone)) {
-      lines.push(`- 口調: ${normalizeText(pattern.TalkingTone)}`);
+    if (normalizeText(pattern.TalkingTone_JP ?? pattern.TalkingTone)) {
+      lines.push(`- 口調: ${normalizeText(pattern.TalkingTone_JP ?? pattern.TalkingTone)}`);
     }
-    if (normalizeText(pattern.TopicPreference)) {
-      lines.push(`- 話題傾向: ${normalizeText(pattern.TopicPreference)}`);
+    if (normalizeText(pattern.TopicPreference_JP ?? pattern.TopicPreference)) {
+      lines.push(`- 話題傾向: ${normalizeText(pattern.TopicPreference_JP ?? pattern.TopicPreference)}`);
     }
-    if (normalizeText(pattern.TalkFrequency)) {
-      lines.push(`- 会話の積極性: ${normalizeText(pattern.TalkFrequency)}`);
+    if (normalizeText(pattern.TalkFrequency_JP ?? pattern.TalkFrequency)) {
+      lines.push(`- 会話の積極性: ${normalizeText(pattern.TalkFrequency_JP ?? pattern.TalkFrequency)}`);
     }
-    if (normalizeText(pattern.PreferredTopics)) {
-      lines.push(`- 好きな話題: ${normalizeText(pattern.PreferredTopics)}`);
+    if (normalizeText(pattern.PreferredTopics_JP ?? pattern.PreferredTopics)) {
+      lines.push(`- 好きな話題: ${normalizeText(pattern.PreferredTopics_JP ?? pattern.PreferredTopics)}`);
     }
-    if (normalizeText(pattern.AvoidedTopics)) {
-      lines.push(`- 避けたい話題: ${normalizeText(pattern.AvoidedTopics)}`);
+    if (normalizeText(pattern.AvoidedTopics_JP ?? pattern.AvoidedTopics)) {
+      lines.push(`- 避けたい話題: ${normalizeText(pattern.AvoidedTopics_JP ?? pattern.AvoidedTopics)}`);
     }
-    if (normalizeText(pattern.ConversationNotes)) {
-      lines.push(`- 会話時メモ: ${normalizeText(pattern.ConversationNotes)}`);
+    if (normalizeText(pattern.ConversationNotes_JP ?? pattern.ConversationNotes)) {
+      lines.push(`- 会話時メモ: ${normalizeText(pattern.ConversationNotes_JP ?? pattern.ConversationNotes)}`);
     }
     if (dialogueExamples) {
       lines.push(`- 発言例: ${dialogueExamples}`);
@@ -270,12 +270,12 @@ export function buildCharacterSystemPrompt(
   }
 
   // 専門性セクション
-  const hobby = resolveTextField(profile.Hobby);
-  const specialSkill = resolveTextField(profile.SpecialSkill);
-  const favor = resolveTextField(profile.Favor);
-  const numerospecAbout = resolveTextField(profile.NumerospecAbout);
-  const strength = normalizeText(profile.Strength);
-  const weakness = normalizeText(profile.Weakness);
+  const hobby = resolveTextField(profile.Hobby_JP ?? profile.Hobby);
+  const specialSkill = resolveTextField(profile.SpecialSkill_JP ?? profile.SpecialSkill);
+  const favor = resolveTextField(profile.Favor_JP ?? profile.Favor);
+  const numerospecAbout = resolveTextField(profile.NumerospecAbout_JP ?? profile.NumerospecAbout);
+  const strength = normalizeText(profile.Strength_JP ?? profile.Strength);
+  const weakness = normalizeText(profile.Weakness_JP ?? profile.Weakness);
 
   if (hobby || specialSkill || favor || numerospecAbout || strength || weakness) {
     lines.push('', '【このキャラクターの得意なこと・専門性】');

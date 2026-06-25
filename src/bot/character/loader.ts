@@ -35,21 +35,30 @@ export interface CharacterThisMastersEntry {
 export interface NumberMarkEntry {
   Formation: string;
   Marks: Array<{
+    MarkPosition_JP?: string;
     MarkPosition?: string;
     MarkPosition_EN?: string;
+    MarkColor_JP?: string;
     MarkColor?: string;
     MarkColor_EN?: string;
+    MarkNotation_JP?: string;
     MarkNotation?: string;
     MarkNotation_EN?: string;
   }>;
 }
 
 export interface CharacterConversationPattern {
+  TalkingTone_JP?: string;
   TalkingTone?: string;
+  TopicPreference_JP?: string;
   TopicPreference?: string;
+  TalkFrequency_JP?: string;
   TalkFrequency?: string;
+  PreferredTopics_JP?: string;
   PreferredTopics?: string;
+  AvoidedTopics_JP?: string;
   AvoidedTopics?: string;
+  ConversationNotes_JP?: string;
   ConversationNotes?: string;
   DialogueExamples?: Array<string | CharacterDialogueExample>;
 }
@@ -72,32 +81,47 @@ export interface HideTextWrapper {
 
 export interface CharacterRecord {
   Num: string | number;
+  Name_JP?: string;
   Name?: string;
   Progress?: string;
+  FirstPersonCalling_JP?: string;
   FirstPersonCalling?: string;
+  SecondPersonCalling_JP?: string;
   SecondPersonCalling?: string;
+  ForMasterCalling_JP?: string;
   ForMasterCalling?: string;
+  Character_JP?: string;
   Character?: string;
+  Summary_JP?: string;
   Summary?: string;
   Relation?: CharacterRelation;
   ConversationPattern?: CharacterConversationPattern;
   /** 趣味・得意テーマ（非公開の場合は HideTextWrapper） */
+  Hobby_JP?: string | HideTextWrapper;
   Hobby?: string | HideTextWrapper;
   /** 特技 */
+  SpecialSkill_JP?: string;
   SpecialSkill?: string;
   /** 好きなもの */
+  Favor_JP?: string;
   Favor?: string;
   /** ヌメロジー上の役割・特性 */
+  NumerospecAbout_JP?: string;
   NumerospecAbout?: string;
   /** 強み・長所（劇中設定） */
+  Strength_JP?: string;
   Strength?: string;
   /** 弱み・課題（劇中設定） */
+  Weakness_JP?: string;
   Weakness?: string;
   /** 劇中での立ち位置・行動概要 */
+  InStory_JP?: string;
   InStory?: string;
   /** 背景・来歴 */
+  Backgrounds_JP?: string;
   Backgrounds?: string;
   /** 三人称での呼び方（他者からの言及時） */
+  ThirdPersonCalling_JP?: string;
   ThirdPersonCalling?: string;
   /**
    * 各 formation ごとの数字マーキング位置情報（v2026-06 追加）

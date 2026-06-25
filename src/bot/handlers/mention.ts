@@ -326,8 +326,8 @@ export async function handleMention(
     const speechText = formatSpeech(
       BOT_CONSTANTS.CHITOSE_NUM,
       buildCharacterSwitchHelpText({
-        activeCharacterName: activeCharacter.Name ?? `${activeCharacterNum}番機`,
-        defaultCharacterName: defaultCharacter.Name ?? `${String(defaultCharacter.Num)}番機`,
+        activeCharacterName: (activeCharacter.Name_JP ?? activeCharacter.Name) ?? `${activeCharacterNum}番機`,
+        defaultCharacterName: (defaultCharacter.Name_JP ?? defaultCharacter.Name) ?? `${String(defaultCharacter.Num)}番機`,
         isAdmin: isAdminUser,
       }),
     );
@@ -354,7 +354,7 @@ export async function handleMention(
     sessionStore.clearHistory(event.userId);
 
     const fallbackResetText = buildCharacterResetText(
-      defaultCharacter.Name ?? `${defaultCharacterNum}番機`,
+      (defaultCharacter.Name_JP ?? defaultCharacter.Name) ?? `${defaultCharacterNum}番機`,
       !hadOverride,
     );
     const resetScenario = hadOverride
@@ -434,7 +434,7 @@ export async function handleMention(
     const alreadyScheduler = prevNum === schedulerTargetNum;
 
     botState.setState(STATE_KEY_SCHEDULER_CHAR, schedulerTargetNum);
-    const schedulerTargetName = schedulerSwitchTarget.Name ?? `${schedulerTargetNum}番機`;
+    const schedulerTargetName = (schedulerSwitchTarget.Name_JP ?? schedulerSwitchTarget.Name) ?? `${schedulerTargetNum}番機`;
 
     const replyContent = alreadyScheduler
       ? `自発投稿担当はすでに${schedulerTargetName}だよ。そのまま継続するね。`

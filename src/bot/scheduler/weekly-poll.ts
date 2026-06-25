@@ -75,7 +75,7 @@ const TIER_WEIGHTS: Record<1 | 2 | 3, number> = { 1: 15, 2: 3, 3: 1 };
  */
 function getCharTier(c: CharacterRecord): 1 | 2 | 3 {
   if (c.ConversationPattern) return 1;
-  if (c.Character ?? c.Summary ?? c.Relation?.Commented) return 2;
+  if ((c.Character_JP ?? c.Character) ?? (c.Summary_JP ?? c.Summary) ?? c.Relation?.Commented) return 2;
   return 3;
 }
 
@@ -404,7 +404,7 @@ export class WeeklyPollScheduler {
     const winnerNum = this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? '000';
     const characters = getReleasedCharacters();
     const winner = characters.find((c) => String(c.Num) === winnerNum) ?? getDefaultCharacterProfile();
-    const winnerName = winner.Name ?? `${winnerNum}番機`;
+    const winnerName = winner.Name_JP ?? winner.Name ?? `${winnerNum}番機`;
 
     try {
       const result = await this.deps.ai.chat(
@@ -412,8 +412,8 @@ export class WeeklyPollScheduler {
           {
             role: 'system',
             content: `あなたはナンバーテールズの「${winnerName}」として、今週の担当キャラクターとして就任の一言を投稿します。
-このキャラクターの性格概要: ${winner.Character ?? '中性的でフレンドリー'}
-一人称: ${typeof winner.FirstPersonCalling === 'string' ? winner.FirstPersonCalling.split('\n')[0]!.split('※')[0]!.trim().split(/[,/]/)[0]!.trim() : '私'}
+このキャラクターの性格概要: ${(winner.Character_JP ?? winner.Character) ?? '中性的でフレンドリー'}
+一人称: ${typeof (winner.FirstPersonCalling_JP ?? winner.FirstPersonCalling) === 'string' ? (winner.FirstPersonCalling_JP ?? winner.FirstPersonCalling)!.split('\n')[0]!.split('※')[0]!.trim().split(/[,/]/)[0]!.trim() : '私'}
 【制約】
 - 台詞テキストのみ出力（書式は呼び出し元が付与する）
 - 50文字以内
