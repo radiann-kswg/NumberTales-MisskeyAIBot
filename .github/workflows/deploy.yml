@@ -34,6 +34,7 @@ jobs:
             # 最新コードを取得（ローカル変更を破棄してリモートに合わせる）
             git fetch origin master
             git reset --hard origin/master
+            git submodule update --init --recursive
 
             # 依存パッケージをインストール（ビルドに devDependencies が必要）
             npm install
