@@ -12,6 +12,7 @@ export const REACTION_EMOJI_MAP = {
     'sugoi_aphrnts57',        // すごい
     'igyo_aphrnts88',         // 偉業
     'sasuga_aphrnts61',       // さすが
+    'completed_aphrnts72',    // 完了！
   ],
 
   /** 疲労・お疲れ・就寝前 */
@@ -37,6 +38,7 @@ export const REACTION_EMOJI_MAP = {
     'tiken_aphrnts71',           // 知見
     'soreda_aphrnts99',          // それだ！着想
     'realize_current_aphrnts44', // 閃いた・電撃
+    'hirameita_aphrnts62',       // ひらめいた！
   ],
 
   /** かわいい・素敵・好き */
@@ -60,10 +62,10 @@ export const REACTION_EMOJI_MAP = {
   greeting_night: ['oyasumi_aphrnts94'],
 
   /** 応援・気合い入れ */
-  cheer: ['ganbare_aphrnts93', 'ikuzo_letsgo_aphrnts11'],
+  cheer: ['ganbare_aphrnts93', 'ikuzo_letsgo_aphrnts11', 'sorosoro_yaruka_aphrnts32'],
 
   /** 悲しみ・落ち込み・辛い状況への共感 */
-  sympathy: ['murisinaide_aphrnts20'],
+  sympathy: ['murisinaide_aphrnts20', 'daijoubu_q_aphrnts7', 'araara_aphrnts9'],
 } as const;
 
 export type ReactionCategory = keyof typeof REACTION_EMOJI_MAP;
@@ -75,12 +77,12 @@ export type ReactionCategory = keyof typeof REACTION_EMOJI_MAP;
  * いずれかをランダム選択する。
  */
 export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
-  greeting: ['yoroshiku_aphrnts27', 'iine_aphrnts42'],
+  greeting: ['yoroshiku_aphrnts27', 'iine_aphrnts42', 'mochiron_aphrnts33'],
   'character-switch': ['okay_aphrnts25', 'yoroshiku_aphrnts27'],
   'form-switch': ['iine_aphrnts42', 'okay_aphrnts25'],
-  'creative-consultation': ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8'],
-  chat: ['naruhodo_aphrnts24', 'wakaru_aphrnts22', 'iine_aphrnts42', 'tashikani_aphrnts75'],
-  calculate: ['naruhodo_aphrnts24', 'sugoi_aphrnts57'],
+  'creative-consultation': ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8', 'makasete_aphrnts35', 'hirameita_aphrnts62'],
+  chat: ['naruhodo_aphrnts24', 'wakaru_aphrnts22', 'iine_aphrnts42', 'tashikani_aphrnts75', 'wakatta_aphrnts52', 'sounano_aphrnts73'],
+  calculate: ['naruhodo_aphrnts24', 'sugoi_aphrnts57', 'wakatta_aphrnts52'],
   numerology: ['omoshiroi_i_aphrnts65', 'naruhodo_aphrnts24'],
   'numerology-consultation': ['murisinaide_aphrnts20', 'naruhodo_aphrnts24', 'omoshiroi_i_aphrnts65'],
   dice: ['yattaze_aphrnts41', 'okay_aphrnts25'],
@@ -89,4 +91,5 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   'game-poker':   ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8'],
   'game-yacht':   ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
   'game-hitblow': ['tensaika_aphrnts8', 'omoshiroi_i_aphrnts65'],
+  'game-mahjong': ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65', 'ee_ooo_aphrnts89'],
 };

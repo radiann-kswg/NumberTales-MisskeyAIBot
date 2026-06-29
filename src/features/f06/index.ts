@@ -21,6 +21,7 @@ import {
   type SlotRole,
 } from './responder.js';
 import { dealPokerHand, evaluatePokerHand, pokerResultText } from './poker.js';
+import { dealHand, evaluateHand, mahjongResultText } from './mahjong.js';
 import {
   rollDice,
   rerollDice,
@@ -272,6 +273,17 @@ export function handleSlot(): F06Result {
     Math.floor(Math.random() * 10),
   ];
   return { text: slotResultText(digits, determineSlotRole(digits)) };
+}
+
+// ----------------------------------------------------------------
+// 麻雀配牌チャレンジ（D3-2c）
+// ----------------------------------------------------------------
+
+/** 136枚デッキから14枚を配牌し、役判定・翻数を返す（1回完結） */
+export function handleMahjong(): F06Result {
+  const tiles = dealHand();
+  const result = evaluateHand(tiles);
+  return mahjongResultText(tiles, result);
 }
 
 // ----------------------------------------------------------------

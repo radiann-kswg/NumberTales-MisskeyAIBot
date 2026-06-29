@@ -24,7 +24,7 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';impo
 } from '../character/switch.js';
 import {
   handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, handleSlot,
-  handlePoker,
+  handlePoker, handleMahjong,
   handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   extractTriviaNumber,
@@ -189,6 +189,7 @@ async function generateHarassmentReply(
     'game-poker':   'ポーカーゲーム',
     'game-yacht':   'ヨットゲーム',
     'game-hitblow': 'ヒット＆ブロウ',
+    'game-mahjong': '麻雀配牌チャレンジ',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
     'moon-star': '月命星',
@@ -636,7 +637,8 @@ export async function handleMention(
   if (
     effectiveIntent === 'calculate' || effectiveIntent === 'numerology' ||
     effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
-    effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow'
+    effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow' ||
+    effectiveIntent === 'game-mahjong'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
     if (effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow') {
@@ -674,7 +676,9 @@ export async function handleMention(
         f06Result = { text: triviaErrorResponse() };
       }
     } else {
-      if (effectiveIntent === 'game-poker') {
+      if (effectiveIntent === 'game-mahjong') {
+        f06Result = handleMahjong();
+      } else if (effectiveIntent === 'game-poker') {
         f06Result = handlePoker();
       } else if (effectiveIntent === 'game-yacht') {
         f06Result = handleYachtStart(event.userId, gameSessionStore);
@@ -703,6 +707,7 @@ export async function handleMention(
         : effectiveIntent === 'game-poker' ? 'game-poker'
         : effectiveIntent === 'game-yacht' ? 'game-yacht'
         : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
+        : effectiveIntent === 'game-mahjong' ? 'game-mahjong'
         : numerologyType === 'life-path' ? 'life-path'
         : numerologyType === 'moon-star' ? 'moon-star'
         : 'kyusei';

@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -81,6 +81,14 @@ const YACHT_PATTERNS: RegExp[] = [
   /ヤッツィー?(?:しよう|やって|して|お願い)?/,
   /ダイス(?:ゲーム)?(?:しよう|やって|して)/,
   /\/yacht\b/i,
+];
+
+const MAHJONG_PATTERNS: RegExp[] = [
+  /麻雀(?:しよう|やって|して|お願い|ゲーム)?/,
+  /配牌(?:して|チャレンジ)?/,
+  /まーじゃん/,
+  /\/mahjong\b/i,
+  /\/mj\b/i,
 ];
 
 const HITBLOW_PATTERNS: RegExp[] = [
@@ -212,6 +220,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of HITBLOW_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-hitblow' };
+  }
+
+  for (const pattern of MAHJONG_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-mahjong' };
   }
 
   for (const pattern of DICE_PATTERNS) {
