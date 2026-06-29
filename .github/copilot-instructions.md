@@ -172,6 +172,17 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 
 ---
 
+## Git ブランチ運用
+
+詳細は [AGENTS.md のブランチ運用セクション](../AGENTS.md#git-ブランチ運用) を参照すること。
+
+- **`develop`**: 新機能・試作の開発はすべてここで行う
+- **`master`**: 本番デプロイ対象。`master` への push で GitHub Actions が自動デプロイする
+- **`develop` → `master` のマージは必ず PR 経由で行うこと**（直接 push 禁止）
+- Copilot は `master` ブランチへ直接コミット・push しないこと
+
+---
+
 ## VM 操作・SSH 作業上の注意（重要）
 
 ### `.env` ファイル確認コマンド

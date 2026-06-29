@@ -275,8 +275,9 @@ logger.enableFileOutput(path2);
 ## Git ブランチ運用
 
 - **`master`**: 本番デプロイ対象ブランチ。`master` への push で GitHub Actions（[.github/workflows/deploy.yml](./.github/workflows/deploy.yml)）が VM へ自動デプロイする。
-- **`develop`**: 開発統合ブランチ。機能開発はここで進め、安定後に `master` へ反映する。
-- 直接 `master` を壊さないこと。デプロイに直結する点を常に意識する。
+- **`develop`**: 開発統合ブランチ。新機能の開発・試作はすべてここで進める。動作確認が取れたら `master` へ反映する。
+- **`develop` → `master` のマージは必ず PR 経由で行うこと。** 本番環境の実機（[@APHR_NTs](https://radiann6631.net/@APHR_NTs)）に直結するため、直接 push は禁止。
+- エージェントは `master` ブランチへ直接コミット・push しないこと。
 
 ---
 
