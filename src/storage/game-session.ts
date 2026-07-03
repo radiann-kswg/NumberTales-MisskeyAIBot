@@ -11,8 +11,20 @@ import { dirname } from 'node:path';
 
 export type GameType = 'yacht' | 'hitblow';
 
+/** 「もう一回」継続コマンド（D3-7）の対象となる5ゲーム */
+export type RecentGameType = 'yacht' | 'hitblow' | 'slot' | 'poker' | 'mahjong';
+
 /** ゲームセッションの有効期間（60分） */
 const GAME_SESSION_TTL_MS = 60 * 60 * 1000;
+
+/** 直近プレイしたゲームを「もう一回」の対象とみなす時間窓（10分） */
+const RECENT_GAME_TTL_MS = 10 * 60 * 1000;
+
+/** 継続コマンド自体のレート制限: 時間窓（10分） */
+const REPEAT_WINDOW_MS = 10 * 60 * 1000;
+
+/** 継続コマンド自体のレート制限: 時間窓内の最大許可回数（3回） */
+const REPEAT_MAX_COUNT = 3;
 
 export class GameSessionStore {
   private readonly db: Database.Database;
@@ -36,6 +48,19 @@ export class GameSessionStore {
       );
       CREATE INDEX IF NOT EXISTS idx_game_sessions_updated
         ON game_sessions (updated_at);
+
+      CREATE TABLE IF NOT EXISTS recent_games (
+        user_id    TEXT PRIMARY KEY,
+        game_type  TEXT NOT NULL,
+        played_at  INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS game_repeat_log (
+        user_id      TEXT NOT NULL,
+        triggered_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_game_repeat_log_user
+        ON game_repeat_log (user_id, triggered_at);
     `);
   }
 
@@ -116,6 +141,67 @@ export class GameSessionStore {
     this.db
       .prepare(`DELETE FROM game_sessions WHERE updated_at <= ?`)
       .run(cutoff);
+
+    const recentCutoff = Date.now() - RECENT_GAME_TTL_MS;
+    this.db
+      .prepare(`DELETE FROM recent_games WHERE played_at <= ?`)
+      .run(recentCutoff);
+
+    const repeatCutoff = Date.now() - REPEAT_WINDOW_MS;
+    this.db
+      .prepare(`DELETE FROM game_repeat_log WHERE triggered_at <= ?`)
+      .run(repeatCutoff);
+  }
+
+  /**
+   * 5ゲームいずれかの開始時に「直近プレイしたゲーム」を上書き記録する（D3-7）。
+   */
+  recordPlayed(userId: string, gameType: RecentGameType): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO recent_games (user_id, game_type, played_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           game_type = excluded.game_type,
+           played_at = excluded.played_at`,
+      )
+      .run(userId, gameType, now);
+  }
+
+  /**
+   * 「もう一回」の対象ゲームを返す。直近プレイが時間窓（10分）を過ぎていれば null。
+   */
+  getRepeatTarget(userId: string): RecentGameType | null {
+    const cutoff = Date.now() - RECENT_GAME_TTL_MS;
+    const row = this.db
+      .prepare(
+        `SELECT game_type FROM recent_games WHERE user_id = ? AND played_at > ?`,
+      )
+      .get(userId, cutoff) as { game_type: string } | undefined;
+    return row ? (row.game_type as RecentGameType) : null;
+  }
+
+  /**
+   * 継続コマンド自体のレート制限判定（10分間に3回まで）。
+   */
+  canRepeat(userId: string): boolean {
+    const cutoff = Date.now() - REPEAT_WINDOW_MS;
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM game_repeat_log WHERE user_id = ? AND triggered_at > ?`,
+      )
+      .get(userId, cutoff) as { count: number };
+    return row.count < REPEAT_MAX_COUNT;
+  }
+
+  /**
+   * 継続コマンドの発火を記録する（`canRepeat()` が true を返した後に呼ぶ）。
+   */
+  recordRepeatTrigger(userId: string): void {
+    this.db
+      .prepare(`INSERT INTO game_repeat_log (user_id, triggered_at) VALUES (?, ?)`)
+      .run(userId, Date.now());
   }
 
   close(): void {
