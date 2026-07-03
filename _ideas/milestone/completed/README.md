@@ -22,5 +22,7 @@
 | [2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./2026-06-23_milestone_f06-d1-slot-and-db-fallback.md)                     | F-06D / 改修      | F-06 Stage D-1 数字スロット・CreationsDB HTTP フォールバック |
 | [2026-06-23_milestone_f06-d2-d3-games.md](./2026-06-23_milestone_f06-d2-d3-games.md)                                             | F-06 Stage D-2/D-3 | ポーカー・ヨット・ヒット＆ブロウ                            |
 | [2026-06-29_milestone_f06-d3-2c-mahjong.md](./2026-06-29_milestone_f06-d3-2c-mahjong.md)                                         | F-06 Stage D3-2c   | 麻雀配牌チャレンジ                                          |
+| [2026-07-03_milestone_f06-d3-6-emoji-ux.md](./2026-07-03_milestone_f06-d3-6-emoji-ux.md)                                         | F-06 Stage D3-6    | ミニゲーム Secvier 絵文字活用強化（ヒット＆ブロウ・ヨット・汎用ダイスロール） |
+| [2026-07-03_milestone_f06-d3-7-repeat-command.md](./2026-07-03_milestone_f06-d3-7-repeat-command.md)                             | F-06 Stage D3-7    | ゲーム終了後の継続コマンド対応「もう一回」                  |
 
 進行中・未着手のマイルストーンは [`_ideas/milestone/README.md`](../README.md) を参照してください。

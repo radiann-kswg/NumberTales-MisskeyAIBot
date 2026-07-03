@@ -16,8 +16,6 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | --------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ---------- |
 | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md)    | F-10             | 今日のエンジェルナンバー占い（実装仕様）                                                      | 着手 🔧    |
 | [2026-06-23_milestone_f12-reminder.md](./2026-06-23_milestone_f12-reminder.md)                             | F-12             | リマインダー機能（実装仕様）                                                                   | 設計中 🔧  |
-| [2026-07-03_milestone_f06-d3-6-emoji-ux.md](./2026-07-03_milestone_f06-d3-6-emoji-ux.md)                   | F-06 Stage D3-6  | ミニゲーム（ヒット＆ブロウ・ヨット・汎用ダイスロール）の Secvier 絵文字活用強化（実装仕様）    | 着手 🔧    |
-| [2026-07-03_milestone_f06-d3-7-repeat-command.md](./2026-07-03_milestone_f06-d3-7-repeat-command.md)       | F-06 Stage D3-7  | ゲーム終了後の継続コマンド対応「もう一回」（実装仕様）                                         | 着手 🔧    |
 
 ## フェーズ概要
 
@@ -51,8 +49,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-06 Stage D-2a/2b/3       | ポーカー・ヨット・ヒット＆ブロウ                           | 完了 ✅   | [completed/2026-06-23_milestone_f06-d2-d3-games.md](./completed/2026-06-23_milestone_f06-d2-d3-games.md)                  |
 | F-06 Stage D-2c            | 麻雀配牌チャレンジ                                         | 完了 ✅   | [completed/2026-06-29_milestone_f06-d3-2c-mahjong.md](./completed/2026-06-29_milestone_f06-d3-2c-mahjong.md)              |
 | F-06 Stage D-4/D-5         | 牌引き占い・ルーレット                                     | 未着手 ⏳ | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
-| F-06 Stage D3-6            | ミニゲーム絵文字活用強化（ヒット＆ブロウ/ヨット/ダイスロール） | 着手 🔧   | [2026-07-03_milestone_f06-d3-6-emoji-ux.md](./2026-07-03_milestone_f06-d3-6-emoji-ux.md)                |
-| F-06 Stage D3-7            | ゲーム終了後の継続コマンド対応（「もう一回」）              | 着手 🔧   | [2026-07-03_milestone_f06-d3-7-repeat-command.md](./2026-07-03_milestone_f06-d3-7-repeat-command.md)    |
+| F-06 Stage D3-6            | ミニゲーム絵文字活用強化（ヒット＆ブロウ/ヨット/ダイスロール） | 完了 ✅   | [completed/2026-07-03_milestone_f06-d3-6-emoji-ux.md](./completed/2026-07-03_milestone_f06-d3-6-emoji-ux.md) |
+| F-06 Stage D3-7            | ゲーム終了後の継続コマンド対応（「もう一回」）              | 完了 ✅   | [completed/2026-07-03_milestone_f06-d3-7-repeat-command.md](./completed/2026-07-03_milestone_f06-d3-7-repeat-command.md) |
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [completed/2026-06-03_milestone_db-client-migration.md](./completed/2026-06-03_milestone_db-client-migration.md)           |
 | DB参照改修②               | CreationsDB Cloudflare API HTTP フォールバック追加         | 完了 ✅   | [completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
 | F-10                       | 今日のエンジェルナンバー占い                               | 着手 🔧   | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md) |

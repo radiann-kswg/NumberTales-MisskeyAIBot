@@ -161,7 +161,8 @@ src/
     slot.ts                   #   数字スロット（D1）
     poker.ts                  #   ポーカー5枚ドロー（D2a）
     yacht.ts                  #   ヨット5d6（D2b）
-    hitblow.ts                #   ヒット＆ブロウ（D3）
+    hitblow.ts                #   ヒット＆ブロウ（D3・回答ログ絵文字化 D3-6 含む）
+    dice-color.ts             #   キャラ番号の桁根 → ダイス絵文字色（D3-6）
     responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
   features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ
   config/                     # 環境変数(env.ts)・定数(constants.ts)
@@ -169,7 +170,7 @@ src/
   storage/
     session.ts                #   SQLite セッションコンテキスト（会話履歴）
     bot-state.ts              #   Bot 状態の永続ストレージ（KV 形式・SQLite）
-    game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）
+    game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）＋継続コマンド用 recent_games/game_repeat_log（D3-7）
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
@@ -217,6 +218,8 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | F-06 D2a   | ポーカー（5枚ドロー・Secvier トランプ絵文字・10段階役判定）                                      | ✅ 実装済み |
 | F-06 D2b   | ヨット（5d6 最大3回振り直し・Secvier ダイス絵文字・キープ色分け演出）                            | ✅ 実装済み |
 | F-06 D3    | ヒット＆ブロウ（4桁/3桁・最大10回・`crypto.randomInt` 使用）                                     | ✅ 実装済み |
+| F-06 D3-6  | 既存3ミニゲームの絵文字UX強化（ヒット＆ブロウ回答ログ絵文字化・ヨット丸数字UI＋出目ベース振り直し＋確認フロー・nDmダイス色付き絵文字表示） | ✅ 実装済み |
+| F-06 D3-7  | ゲーム終了後の継続コマンド対応（「もう一回」等 → `RecentGameStore` で直近ゲームを自動再開・10分間3回まで） | ✅ 実装済み |
 | —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
 | F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
 | —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
