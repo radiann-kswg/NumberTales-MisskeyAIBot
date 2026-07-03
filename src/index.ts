@@ -17,7 +17,25 @@ import { initializeCharacterDB } from './bot/character/loader.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
 
+/**
+ * イベントハンドラ（onMention/onHomeTL 等）内で発生した未捕捉エラーはこのプロセスの
+ * 通常の Promise チェーンの外側で発生するため、`main().catch()` では拾えない。
+ * ここで拾わないと Node が unhandledRejection/uncaughtException でプロセスごと
+ * 落ちてしまう（1件の投稿処理の失敗が Bot 全体のダウンに直結してしまう）ため、
+ * ログに記録した上でプロセスは継続させる。
+ */
+function registerGlobalErrorHandlers(): void {
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled promise rejection (process kept alive):', reason);
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception (process kept alive):', err);
+  });
+}
+
 async function main(): Promise<void> {
+  registerGlobalErrorHandlers();
+
   logger.info('NumberTales Misskey AI Bot — starting...');
   logger.info(`Environment : ${config.bot.nodeEnv}`);
   logger.info(`AI Provider : ${config.ai.provider}`);
