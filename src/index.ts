@@ -7,6 +7,7 @@ import { ActiveCharacterStore } from './bot/character/store.js';
 import { SessionStore } from './storage/session.js';
 import { GameSessionStore } from './storage/game-session.js';
 import { BotStateStore } from './storage/bot-state.js';
+import { ReminderStore } from './storage/reminder.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createGlobalTLHandler } from './bot/handlers/global-tl.js';
@@ -83,6 +84,11 @@ async function main(): Promise<void> {
   const botState = new BotStateStore(config.storage.dbPath);
   logger.info('Bot state store ready');
 
+  // リマインダーストア初期化（F-12）
+  const reminderStore = new ReminderStore(config.storage.dbPath);
+  reminderStore.pruneOld();
+  logger.info('Reminder store ready');
+
   // ユーザーごとのアクティブキャラクター状態（Phase A 基盤）
   const activeCharacterStore = new ActiveCharacterStore(
     config.storage.dbPath,
@@ -113,7 +119,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, reminderStore });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -135,7 +141,7 @@ async function main(): Promise<void> {
   misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
-  const scheduler = new PostScheduler({ ai, misskeyClient, botState });
+  const scheduler = new PostScheduler({ ai, misskeyClient, botState, reminderStore });
   scheduler.start();
 
   // プロセス終了時のクリーンアップ
@@ -147,6 +153,7 @@ async function main(): Promise<void> {
     sessionStore.close();
     gameSessionStore.close();
     botState.close();
+    reminderStore.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);

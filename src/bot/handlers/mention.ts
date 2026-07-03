@@ -6,6 +6,8 @@ import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import { type ReminderStore, REMINDER_MAX_PENDING } from '../../storage/reminder.js';
+import { extractReminderRequest, formatReminderList, extractCancelTarget } from '../../features/reminder/index.js';
 import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
@@ -68,6 +70,7 @@ export interface MentionHandlerDeps {
   activeCharacterStore: ActiveCharacterStore;
   incidentLogger: IncidentLogger;
   botState: BotStateStore;
+  reminderStore: ReminderStore;
 }
 
 /**
@@ -300,7 +303,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, reminderStore } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -882,6 +885,102 @@ export async function handleMention(
       });
     } catch (err) {
       logger.error('Failed to post numerology-consultation reply:', err);
+    }
+    return;
+  }
+
+  // 4d. リマインダー機能（F-12）
+  if (
+    effectiveIntent === 'reminder-set' ||
+    effectiveIntent === 'reminder-list' ||
+    effectiveIntent === 'reminder-cancel'
+  ) {
+    let reminderReplyText: string;
+    try {
+      if (effectiveIntent === 'reminder-list') {
+        const pending = reminderStore.listPending(event.userId);
+        reminderReplyText =
+          pending.length === 0
+            ? '今のところ何も覚えてないよ。'
+            : `覚えているものを教えるね。\n${formatReminderList(pending)}\n今のところこの${pending.length}件だよ。`;
+      } else if (effectiveIntent === 'reminder-cancel') {
+        const target = extractCancelTarget(event.text);
+        const cancelled =
+          target.type === 'index'
+            ? reminderStore.cancelByIndex(event.userId, target.value)
+            : reminderStore.cancelByContent(event.userId, target.value);
+        reminderReplyText = cancelled
+          ? `「${cancelled.content}」のリマインダー、キャンセルしたよ。`
+          : '該当するリマインダーが見つからなかった。「リマインダー一覧」で確認してみて？';
+      } else {
+        const pendingCount = reminderStore.countPending(event.userId);
+        if (pendingCount >= REMINDER_MAX_PENDING) {
+          reminderReplyText = `今${REMINDER_MAX_PENDING}件覚えているから、どれかキャンセルしてから登録してね。`;
+        } else {
+          const extracted = await extractReminderRequest(event.text, ai, Date.now());
+          if (!extracted.ok) {
+            reminderReplyText =
+              extracted.reason === 'too-soon'
+                ? '5分より先の時間を指定してね。'
+                : extracted.reason === 'too-far'
+                  ? '30日以内の日時を指定してね。'
+                  : 'いつ・何をリマインドしたいか、もう少しはっきり教えてくれる？';
+          } else {
+            reminderStore.create(
+              event.userId,
+              event.username ?? null,
+              event.userHost ?? null,
+              extracted.content,
+              extracted.remindAtMs,
+            );
+            const remindAtLabel = new Intl.DateTimeFormat('ja-JP', {
+              timeZone: 'Asia/Tokyo',
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            }).format(new Date(extracted.remindAtMs));
+            try {
+              const aiResult = await ai.chat(
+                [
+                  { role: 'system' as const, content: chatSystemPrompt },
+                  {
+                    role: 'user' as const,
+                    content:
+                      `リマインドを登録しました。\n内容: ${extracted.content}\n時刻: ${remindAtLabel}\n\n` +
+                      'ユーザーへの登録確認メッセージを30文字以内で生成してください。キャラクターとして自然に、' +
+                      `「${remindAtLabel}に声をかける」ことを伝えてください（台詞のみ）。`,
+                  },
+                ],
+                { maxTokens: 100, temperature: 0.9 },
+              );
+              reminderReplyText = aiResult.text.trim();
+            } catch (err) {
+              logger.error('AI reminder confirm error:', err);
+              reminderReplyText = `${remindAtLabel}に、ちゃんと声かけるね。`;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`Reminder handler error (intent: ${effectiveIntent}):`, err);
+      reminderReplyText = 'あれ、うまく処理できなかったみたい。もう一回試してみて？';
+    }
+
+    const reminderSpeechText = formatSpeech(activeCharacterNum, reminderReplyText);
+    try {
+      await misskeyClient.reply(reminderSpeechText, event.noteId);
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (${effectiveIntent}) to ${event.userId}`);
+
+      const reactionPool = MENTION_REACTION_MAP[effectiveIntent] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+        logger.warn('Failed to add reaction to reminder mention:', err);
+      });
+    } catch (err) {
+      logger.error('Failed to post reminder reply:', err);
     }
     return;
   }

@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'reminder-set' | 'reminder-list' | 'reminder-cancel' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -108,6 +108,27 @@ const REPEAT_PATTERNS: RegExp[] = [
   /もっと(?:回して|やって)/,
   /リプレイ/,
   /全部やりなおす/,
+];
+
+/** F-12 リマインダー: 一覧確認 */
+const REMINDER_LIST_PATTERNS: RegExp[] = [
+  /リマインダー(?:を)?(?:見せて|一覧|教えて)/,
+  /何を?覚えてくれてる/,
+  /覚えているもの(?:を)?(?:教えて|見せて)/,
+];
+
+/** F-12 リマインダー: 削除・キャンセル */
+const REMINDER_CANCEL_PATTERNS: RegExp[] = [
+  /リマインダー.{0,10}(キャンセル|削除|消して|取り消[しす])/,
+  /\d+\s*番.{0,10}(キャンセル|削除|消して|取り消[しす])/,
+];
+
+/** F-12 リマインダー: 新規登録（時間表現 × アクション動詞の組み合わせで判定） */
+const REMINDER_TIME_EXPR = '(?:\\d+\\s*(?:分|時間|日)後|明日|あさって|来週|\\d{1,2}月\\d{1,2}日|\\d{1,2}時(?:\\d{1,2}分)?)';
+const REMINDER_ACTION_VERB = '(?:リマインド|思い出させ|知らせ|教えて(?:ほしい|くれ)?)';
+const REMINDER_SET_PATTERNS: RegExp[] = [
+  new RegExp(`${REMINDER_TIME_EXPR}.*${REMINDER_ACTION_VERB}`),
+  new RegExp(`${REMINDER_ACTION_VERB}.*${REMINDER_TIME_EXPR}`),
 ];
 
 const DICE_PATTERNS: RegExp[] = [
@@ -238,6 +259,18 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of REPEAT_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-repeat' };
+  }
+
+  for (const pattern of REMINDER_LIST_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'reminder-list' };
+  }
+
+  for (const pattern of REMINDER_CANCEL_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'reminder-cancel' };
+  }
+
+  for (const pattern of REMINDER_SET_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'reminder-set' };
   }
 
   for (const pattern of DICE_PATTERNS) {

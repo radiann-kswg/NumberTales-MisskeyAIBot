@@ -230,6 +230,27 @@ export class MisskeyClient {
     );
   }
 
+  /**
+   * 指定ユーザーにのみ見えるノートを送信する（F-12 リマインダー配信用）。
+   *
+   * Misskey に DM は無いため、`visibility: 'specified'` + `visibleUserIds` で
+   * 実質的な個別通知として扱う。
+   * @param text 投稿本文
+   * @param userId 送信先ユーザー ID
+   * @param options.cw CW（ContentWarning）テキスト
+   */
+  async remindUser(text: string, userId: string, options?: { cw?: string }): Promise<void> {
+    await (this.apiClient.request as (endpoint: string, params: unknown) => Promise<unknown>)(
+      'notes/create',
+      {
+        text,
+        cw: options?.cw ?? undefined,
+        visibility: 'specified',
+        visibleUserIds: [userId],
+      },
+    );
+  }
+
   /** WebSocket 接続を閉じる */
   close(): void {
     this.stream.close();
