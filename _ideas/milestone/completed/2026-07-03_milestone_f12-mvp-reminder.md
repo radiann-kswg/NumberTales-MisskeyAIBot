@@ -1,9 +1,15 @@
 # F-12 MVP: シンプルリマインダー機能 — 実装仕様
 
 > 作成日: 2026-07-03
-> ステータス: **完了 ✅**（実装確認日: 2026-07-03・`npm run typecheck` / `npm run lint` / `npm run build` 通過・
-> モック AIProvider によるスモークテスト確認済み）
+> ステータス: **完了 ✅・その後 F-12/F-12B 本実装により置き換え済み 🔄**（実装確認日: 2026-07-03・
+> `npm run typecheck` / `npm run lint` / `npm run build` 通過・モック AIProvider によるスモークテスト確認済み）
 > 元アイデア: [`future-plan/confirmed-milestone/F-12-reminder.md`](../../future-plan/confirmed-milestone/F-12-reminder.md)（初版のシンプルな仕様）
+>
+> **2026-07-03 追記**: 本 MVP は同日中に [`2026-06-23_milestone_f12-reminder.md`](./2026-06-23_milestone_f12-reminder.md)
+> （タスク＆スケジュール管理＋信頼度システム）の Phase A 実装により**完全に置き換えられた**。
+> `reminders` テーブル・`storage/reminder.ts`・`features/reminder/index.ts`・`bot/scheduler/reminder-scheduler.ts`・
+> `reminder-set/list/cancel` インテントはすべて削除済みで、リポジトリには存在しない。本ドキュメントは
+> 実装当時の記録として保持する。
 
 ---
 

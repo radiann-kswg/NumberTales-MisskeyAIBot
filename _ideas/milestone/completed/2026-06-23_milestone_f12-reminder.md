@@ -2,16 +2,16 @@
 
 > 作成日: 2026-06-23
 > 更新日: 2026-07-03（bot-spec側の記述を本ドキュメントに合わせて更新・前提機能Aとの整合確認を追記）
-> ステータス: **設計中** 🔧（実装前の深堀り段階）
-> 元アイデア: [`future-plan/confirmed-milestone/F-12-reminder.md`](../future-plan/confirmed-milestone/F-12-reminder.md)
-> 安全設計参照: [`bot-spec/05_bot-safety-design.md`](../bot-spec/05_bot-safety-design.md)
+> ステータス: **完了 ✅**（実装確認日: 2026-07-03・Phase A・B とも実装済み。`npm run typecheck`/`lint`/`build`
+> 通過・モック AIProvider によるスモークテスト確認済み。Phase C は仕様書自身が「実装時期未定」としており対象外）
+> 元アイデア: [`future-plan/confirmed-milestone/F-12-reminder.md`](../../future-plan/confirmed-milestone/F-12-reminder.md)
+> 安全設計参照: [`bot-spec/05_bot-safety-design.md`](../../bot-spec/05_bot-safety-design.md)
 > **正式仕様**: 2026-07-03、`_ideas/bot-spec/01_feature-specs.md` のF-12節を本ドキュメント（拡張版）に合わせて更新済み。
 >
-> **⚠️ 2026-07-03 追記**: 本ドキュメントとは別に、元アイデア（上記リンク）のシンプルな仕様のまま
-> 「F-12 MVP」として `reminders` テーブル・`reminder-set/list/cancel` インテントを実装済み
-> （[`completed/2026-07-03_milestone_f12-mvp-reminder.md`](./completed/2026-07-03_milestone_f12-mvp-reminder.md) 参照）。
-> 本ドキュメントの `tasks` テーブル・`task-*` インテント・優先度/難易度/進捗%・F-12B 信頼度システムは
-> **未実装のまま**。今後実装する場合は MVP の `reminders` テーブルとの統合方針（置き換え or 共存）を検討すること。
+> **2026-07-03 追記**: 本ドキュメント策定前に実装していた F-12 MVP（`reminders` テーブル・
+> `reminder-set/list/cancel`）は、本ドキュメントの Phase A 実装により**完全に置き換えられ、削除済み**。
+> `reminders` テーブル・関連コードはリポジトリに残っていない（MVP は develop ブランチにのみ存在し
+> 本番未デプロイだったため、データ移行は不要だった）。
 
 ---
 
@@ -433,12 +433,22 @@ src/
 
 ---
 
-## 未解決の設計検討事項
+## 設計検討事項（解消済み・2026-07-03 実装時に決定）
 
-| 項目 | 状況 |
+| 項目 | 決定内容 |
 |-----|-----|
-| タスク特定の曖昧一致 | 「設計書」で複数件ヒットした場合の候補提示 UI |
-| 期日超過の重複通知防止 | 通知済み記録のフラグ管理方法 |
-| 会話ボーナスのカウント対象 | F-06・chat・greeting すべてか特定インテントのみか |
-| 信頼度の時間減衰 | 長期非活動時に緩やかに減少させるかどうか |
-| タスク一覧の上限表示 | CW 内 5 件上位表示で十分か |
+| タスク特定の曖昧一致 | 複数件ヒット時は番号付きで候補提示し、再指定を促す（`findCandidatesByTitle`/`formatCandidateList`）。 |
+| 期日超過の重複通知防止 | `remind_at` を流用せず、専用の `due_notified` フラグ列を新設（`remind_at` 本来の意味を破壊しないための安全側の逸脱）。 |
+| 会話ボーナスのカウント対象 | 意味のある交流（雑談・創作相談・ヌメロジー相談・F-06計算/ダイス/占い/うんちく・ミニゲーム全種・タスク操作）に限定。挨拶・フォーム切替・ハラスメント対応・キャラ切替は対象外。 |
+| 信頼度の時間減衰 | 今回は含めない（Phase B は基礎のみ）。将来検討。 |
+| タスク一覧の上限表示 | 仕様書どおり CW 内 5 件（期日近い順）で確定。 |
+
+## 実装時の逸脱事項
+
+- **ファイル配置**: 仕様書案の `features/f12/`・`storage/session.ts` 追記ではなく、リポジトリの既存流儀
+  （`storage/` に関心事ごとの専用ストアクラス、`features/<機能名>/` に抽出・整形ロジック）に合わせて
+  `storage/task.ts`（`TaskStore`）・`storage/trust.ts`（`TrustStore`）・`features/task/index.ts` として実装。
+- **時刻の単位**: 仕様書は Unix 秒だが、コードベース全体の慣習（`Date.now()`）に合わせ**ミリ秒**で統一。
+- **公開範囲**: `MisskeyClient.postToUser()`（旧 `remindUser`）で `visibility: 'home'` を実装（仕様書どおり）。
+- **信頼度言及の抑制**: `buildCharacterSystemPrompt()` の信頼度注入文言に「信頼度について直接言及したり
+  数値を口にしたりしないこと」という制約を追加（仕様書案には無いが、没入感を保つための安全側の追加）。

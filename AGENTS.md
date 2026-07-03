@@ -155,7 +155,7 @@ src/
     scheduler/
       index.ts                #   時間帯別自発投稿（週次担当キャラ連携済み）
       weekly-poll.ts          #   週次担当キャラクター選出（Poll 投稿・集計・就任）
-      reminder-scheduler.ts   #   F-12 リマインダー配信（5分間隔・期限切れ pending を配信）
+      task-scheduler.ts       #   F-12 タスク通知配信（5分間隔・remind_at/期日超過を配信、MAX_PROCESS_PER_RUN=5）
   characters/                 # ローカルキャラクター定義の配置先（プレースホルダ）
   features/f06/               # 数字・ヌメロジーコマンド（F-06）
     index.ts                  #   ハンドラ統合・ゲームディスパッチ
@@ -165,7 +165,7 @@ src/
     hitblow.ts                #   ヒット＆ブロウ（D3・回答ログ絵文字化 D3-6 含む）
     dice-color.ts             #   キャラ番号の桁根 → ダイス絵文字色（D3-6）
     responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
-  features/reminder/index.ts  # F-12: LLM日時抽出・一覧整形・キャンセル対象特定
+  features/task/index.ts      # F-12: LLM日時抽出・進捗%計算・一覧整形・対象特定
   features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ
   config/                     # 環境変数(env.ts)・定数(constants.ts)
   misskey/client.ts           # Misskey WebSocket クライアントラッパー
@@ -173,7 +173,8 @@ src/
     session.ts                #   SQLite セッションコンテキスト（会話履歴）
     bot-state.ts              #   Bot 状態の永続ストレージ（KV 形式・SQLite）
     game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）＋継続コマンド用 recent_games/game_repeat_log（D3-7）
-    reminder.ts               #   F-12 リマインダー永続化（上限3件・完了/キャンセル後7日で削除）
+    task.ts                   #   F-12 タスク永続化（同時10件まで・優先度/難易度/期日/通知種別）
+    trust.ts                  #   F-12B 信頼度永続化（タスク完了・会話ボーナスでポイント加算、レベル判定）
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
@@ -224,7 +225,7 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | F-06 D3-6  | 既存3ミニゲームの絵文字UX強化（ヒット＆ブロウ回答ログ絵文字化・ヨット丸数字UI＋出目ベース振り直し＋確認フロー・nDmダイス色付き絵文字表示） | ✅ 実装済み |
 | F-06 D3-7  | ゲーム終了後の継続コマンド対応（「もう一回」等 → `RecentGameStore` で直近ゲームを自動再開・10分間3回まで） | ✅ 実装済み |
 | —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
-| F-12 MVP   | シンプルリマインダー機能（LLM日時抽出・登録上限3件・5分〜30日・5分間隔配信スケジューラー・`visibility:specified`個別送信）。タスク管理（優先度/難易度/進捗%）・信頼度システム（F-12B）は未実装 | ✅ 実装済み |
+| F-12 / F-12B | タスク＆スケジュール管理（優先度/難易度・`todo/alert/schedule`・期日と通知の分離・重み付き進捗%・同時10件まで）＋信頼度システム（タスク完了/schedule通知/1日1回会話ボーナスでポイント加算、`buildCharacterSystemPrompt`へレベル反映）。F-12 MVP（シンプル版）を完全に置き換え | ✅ 実装済み |
 | F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
 | —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
 | —          | キャラプロンプト個性化（`Hobby`/`SpecialSkill`/`NumerospecAbout` 等を専門性セクションとして追加） | ✅ 実装済み |
@@ -247,8 +248,8 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 - **F-06 Stage D-4a 牌引き占い**: 麻雀牌絵文字登録後に着手可能（セッション管理不要）
 - **F-06 Stage D-5 ルーレット**: 麻雀牌絵文字 + CreationsDB 連携
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
-- **F-12 / F-12B 拡張（タスク＆スケジュール管理＋信頼度システム）**: F-12 MVP（シンプルリマインダー）は実装済みだが、
-  優先度/難易度/進捗%・信頼度システムを含む拡張版は設計中 🔧 → [`_ideas/milestone/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/2026-06-23_milestone_f12-reminder.md)
+- **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
+  → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
 
 ---
 
