@@ -6,6 +6,12 @@
 > 元アイデア: [`future-plan/confirmed-milestone/F-12-reminder.md`](../future-plan/confirmed-milestone/F-12-reminder.md)
 > 安全設計参照: [`bot-spec/05_bot-safety-design.md`](../bot-spec/05_bot-safety-design.md)
 > **正式仕様**: 2026-07-03、`_ideas/bot-spec/01_feature-specs.md` のF-12節を本ドキュメント（拡張版）に合わせて更新済み。
+>
+> **⚠️ 2026-07-03 追記**: 本ドキュメントとは別に、元アイデア（上記リンク）のシンプルな仕様のまま
+> 「F-12 MVP」として `reminders` テーブル・`reminder-set/list/cancel` インテントを実装済み
+> （[`completed/2026-07-03_milestone_f12-mvp-reminder.md`](./completed/2026-07-03_milestone_f12-mvp-reminder.md) 参照）。
+> 本ドキュメントの `tasks` テーブル・`task-*` インテント・優先度/難易度/進捗%・F-12B 信頼度システムは
+> **未実装のまま**。今後実装する場合は MVP の `reminders` テーブルとの統合方針（置き換え or 共存）を検討すること。
 
 ---
 

@@ -24,5 +24,6 @@
 | [2026-06-29_milestone_f06-d3-2c-mahjong.md](./2026-06-29_milestone_f06-d3-2c-mahjong.md)                                         | F-06 Stage D3-2c   | 麻雀配牌チャレンジ                                          |
 | [2026-07-03_milestone_f06-d3-6-emoji-ux.md](./2026-07-03_milestone_f06-d3-6-emoji-ux.md)                                         | F-06 Stage D3-6    | ミニゲーム Secvier 絵文字活用強化（ヒット＆ブロウ・ヨット・汎用ダイスロール） |
 | [2026-07-03_milestone_f06-d3-7-repeat-command.md](./2026-07-03_milestone_f06-d3-7-repeat-command.md)                             | F-06 Stage D3-7    | ゲーム終了後の継続コマンド対応「もう一回」                  |
+| [2026-07-03_milestone_f12-mvp-reminder.md](./2026-07-03_milestone_f12-mvp-reminder.md)                                           | F-12 MVP           | シンプルリマインダー機能（タスク管理/信頼度システムは未実装） |
 
 進行中・未着手のマイルストーンは [`_ideas/milestone/README.md`](../README.md) を参照してください。
