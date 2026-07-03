@@ -14,9 +14,14 @@
 
 | ファイル | 役割 |
 | --- | --- |
-| `AGENTS.md`（本ファイル） | **共通仕様の正典**。プロジェクト概要・構成・実装状況・ロールプレイ・運用・禁止事項などを集約 |
-| `CLAUDE.md` | Claude（Cowork / Claude Code）固有の薄い設定書。本ファイルを参照し、固有事項のみ記述 |
-| `.github/copilot-instructions.md` | GitHub Copilot 固有の薄い設定書。本ファイルを参照し、固有事項のみ記述 |
+| `AGENTS.md`（本ファイル） | **共通仕様の唯一の正典（SSOT）**。プロジェクト概要・構成・実装状況・ロールプレイ・運用・禁止事項などを集約 |
+| `CLAUDE.md` | Claude（Cowork / Claude Code）固有の**薄い設定書**。本ファイルを参照し、セッションルーティン・ツール固有事項・参照リンクのみ記述 |
+| `.github/copilot-instructions.md` | GitHub Copilot 固有の**薄い設定書**。本ファイルを参照し、セッションルーティン・ツール固有事項・参照リンクのみ記述 |
+
+> **SSOT 方針**: 薄い設定書（`CLAUDE.md` / `.github/copilot-instructions.md`）には、プロジェクト概要・
+> リポジトリ構成・実装済み機能テーブル・設計方針・Git ブランチ運用・VM 操作・禁止事項などの
+> **共通仕様を重複させない**。これらはすべて本ファイル（AGENTS.md）に集約し、薄い設定書からは参照リンクで
+> 繋ぐ。この SSOT 方針は姉妹リポジトリ [100BeautiesLab_GeneratorsAI](https://github.com/radiann-kswg/100BeautiesLab_GeneratorsAI) と共有している。
 
 **両エージェント設定を常に同内容に保つための手順:**
 
@@ -35,11 +40,42 @@
 | 更新対象 | 更新内容 |
 | -------- | -------- |
 | 本ファイル（AGENTS.md）| 「実装済み機能」テーブルに行を追加・ディレクトリ構成を反映 |
-| `.github/copilot-instructions.md` | 実装済み機能テーブル・ディレクトリ構成を AGENTS.md と同期 |
+| `.github/copilot-instructions.md` / `CLAUDE.md` | 薄い設定書のため実装済み機能・ディレクトリ構成は保持しない。ツール固有事項に変更が生じたときのみ更新 |
 | `README.md` | ユーザー向け機能説明セクションに追記・ディレクトリ構成・今後の予定を更新 |
-| `_ideas/milestone/` | 完了したマイルストーンに `ステータス: 完了 ✅` を記録 |
+| `_ideas/milestone/` | 完了したマイルストーンに `ステータス: 完了 ✅` を記録し、[進捗ログの棚卸ルール](#進捗ログの棚卸ルール重要)に従い `completed/` へ整理 |
 
 **エージェントへの指示**: 機能追加・変更を行うタスクが完了したら、上記 4 点の更新をタスクの一部として実施すること。ユーザーから別途依頼されなくても自発的に行うこと。
+
+### 進捗ログの棚卸ルール（重要）
+
+`_ideas/milestone/` と `_ideas/future-plan/` は、進捗状況に応じて棚卸し用サブフォルダへ整理する。
+着手中・未昇進のものだけを親フォルダ直下に残し、完了・昇進済みのものはサブフォルダへ退避して見通しを保つこと。
+
+**1. 完了マイルストーンの棚卸（`_ideas/milestone/completed/`）**
+
+- マイルストーンの実装が完了したら、そのファイルを `_ideas/milestone/completed/` へ移動する。
+- ファイル冒頭に `> ステータス: 完了 ✅`（完了根拠: typecheck・実装確認日等）を記録する。
+- `_ideas/milestone/completed/README.md` の「一覧」テーブルに行を追加する。
+- 移動元 `_ideas/milestone/README.md` では「マイルストーン一覧（進行中・未着手）」から当該行を削除し、
+  「機能進捗表」の参照リンクを `completed/...` 配下のパスへ更新する。
+
+**2. 昇進済みアイデアの棚卸（`_ideas/future-plan/confirmed-milestone/`）**
+
+- `_ideas/future-plan/` のアイデアメモが `_ideas/milestone/` の正式な実装仕様（milestone ドキュメント）へ
+  昇進したら、元アイデアファイルを `_ideas/future-plan/confirmed-milestone/` へ移動する。
+- 昇進後は元アイデアファイルではなく、**対応する milestone ドキュメントが正式仕様**となる。
+- `_ideas/future-plan/confirmed-milestone/README.md` の「一覧」テーブルに、昇進先 milestone ドキュメントへの
+  リンクを含めて行を追加する。
+- 一部の項目だけ昇進した／全体が未昇進のファイルは `_ideas/future-plan/` 直下に残置し、
+  `confirmed-milestone/README.md` の「対象外（部分昇進・未昇進）」節に残置理由を記載する。
+
+**3. インデックスの同期**
+
+- 各サブフォルダの `README.md`（インデックス）と、移動したファイル本体・移動元 README の記述が
+  矛盾しないよう常に同期する。参照リンクの相対パスがずれていないか必ず確認すること。
+
+**エージェントへの指示**: マイルストーンの完了、またはアイデアの昇進が発生したら、上記の移動・記録・
+インデックス更新をタスクの一部として自発的に実施すること。ユーザーから別途依頼されなくても行うこと。
 
 ---
 
@@ -125,7 +161,8 @@ src/
     slot.ts                   #   数字スロット（D1）
     poker.ts                  #   ポーカー5枚ドロー（D2a）
     yacht.ts                  #   ヨット5d6（D2b）
-    hitblow.ts                #   ヒット＆ブロウ（D3）
+    hitblow.ts                #   ヒット＆ブロウ（D3・回答ログ絵文字化 D3-6 含む）
+    dice-color.ts             #   キャラ番号の桁根 → ダイス絵文字色（D3-6）
     responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
   features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ
   config/                     # 環境変数(env.ts)・定数(constants.ts)
@@ -133,7 +170,7 @@ src/
   storage/
     session.ts                #   SQLite セッションコンテキスト（会話履歴）
     bot-state.ts              #   Bot 状態の永続ストレージ（KV 形式・SQLite）
-    game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）
+    game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）＋継続コマンド用 recent_games/game_repeat_log（D3-7）
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
@@ -181,6 +218,8 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | F-06 D2a   | ポーカー（5枚ドロー・Secvier トランプ絵文字・10段階役判定）                                      | ✅ 実装済み |
 | F-06 D2b   | ヨット（5d6 最大3回振り直し・Secvier ダイス絵文字・キープ色分け演出）                            | ✅ 実装済み |
 | F-06 D3    | ヒット＆ブロウ（4桁/3桁・最大10回・`crypto.randomInt` 使用）                                     | ✅ 実装済み |
+| F-06 D3-6  | 既存3ミニゲームの絵文字UX強化（ヒット＆ブロウ回答ログ絵文字化・ヨット丸数字UI＋出目ベース振り直し＋確認フロー・nDmダイス色付き絵文字表示） | ✅ 実装済み |
+| F-06 D3-7  | ゲーム終了後の継続コマンド対応（「もう一回」等 → `RecentGameStore` で直近ゲームを自動再開・10分間3回まで） | ✅ 実装済み |
 | —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
 | F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
 | —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
@@ -203,8 +242,8 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 - **F-06 Stage B/C**: 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星 → [`_ideas/future-plan/F-06_stage-b-c.md`](./_ideas/future-plan/F-06_stage-b-c.md)
 - **F-06 Stage D-4a 牌引き占い**: 麻雀牌絵文字登録後に着手可能（セッション管理不要）
 - **F-06 Stage D-5 ルーレット**: 麻雀牌絵文字 + CreationsDB 連携
-- **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/future-plan/F-10-angel-number-fortune.md`](./_ideas/future-plan/F-10-angel-number-fortune.md)
-- **F-12 リマインダー機能**: milestone 仕様策定済み → [`_ideas/future-plan/F-12-reminder.md`](./_ideas/future-plan/F-12-reminder.md)
+- **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
+- **F-12 リマインダー機能**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/2026-06-23_milestone_f12-reminder.md)
 
 ---
 

@@ -17,6 +17,8 @@ export interface HitBlowState {
   maxGuesses: number;
   /** 桁数（3 or 4） */
   digits: number;
+  /** ターンごとの予想ログ（CW 表示用） */
+  guessHistory: { guess: string; hits: number; blows: number }[];
 }
 
 /**
@@ -71,4 +73,81 @@ export function parseGuess(text: string, digits: number): number[] | null {
   const guessDigits = numStr.split('').map(Number);
   if (new Set(guessDigits).size !== digits) return null; // 重複あり
   return guessDigits;
+}
+
+// ----------------------------------------------------------------
+// 回答ログの絵文字化（D3-6）
+// ----------------------------------------------------------------
+
+/**
+ * 数字タイル絵文字（白磁・中立色で統一）。
+ * `SLOT_DIGIT_EMOJIS`（数字ごと固定色）とは別セットとして完全に切り離す。
+ */
+export const HITBLOW_DIGIT_EMOJIS: Record<number, string> = {
+  0: 'sv_hakuji_0',
+  1: 'sv_hakuji_1',
+  2: 'sv_hakuji_2',
+  3: 'sv_hakuji_3',
+  4: 'sv_hakuji_4',
+  5: 'sv_hakuji_5',
+  6: 'sv_hakuji_6',
+  7: 'sv_hakuji_7',
+  8: 'sv_hakuji_8',
+  9: 'sv_hakuji_9',
+};
+
+export type DigitMark = 'hit' | 'blow' | 'miss';
+
+/** 状態マーカー絵文字（ヒット=赤／ブロウ=青／非該当=白） */
+export const HITBLOW_MARKER_EMOJIS: Record<DigitMark, string> = {
+  hit: 'sv_suit_heart_red',
+  blow: 'sv_suit_spade_blue',
+  miss: 'sv_suit_heart_white',
+};
+
+/** 予想の各桁がヒット/ブロウ/非該当のどれかを位置ごとに判定する */
+export function markGuessDigits(secret: number[], guess: number[]): DigitMark[] {
+  return guess.map((g, i) => {
+    if (secret[i] === g) return 'hit';
+    if (secret.includes(g)) return 'blow';
+    return 'miss';
+  });
+}
+
+/** 1ターン分のログ行（マーカー付き数字タイル＋ヒット/ブロウ要約）を生成する */
+export function hitBlowLogLine(
+  secret: number[],
+  guess: number[],
+  hits: number,
+  blows: number,
+): string {
+  const marks = markGuessDigits(secret, guess);
+  const tiles = guess
+    .map((g, i) => `:${HITBLOW_MARKER_EMOJIS[marks[i]!]}::${HITBLOW_DIGIT_EMOJIS[g]!}:`)
+    .join(' ');
+
+  let summary: string;
+  if (hits === secret.length) {
+    summary = `${hits}ヒット！正解！`;
+  } else if (hits > 0 && blows > 0) {
+    summary = `${hits}ヒット${blows}ブロウ`;
+  } else if (hits > 0) {
+    summary = `${hits}ヒット`;
+  } else if (blows > 0) {
+    summary = `${blows}ブロウ`;
+  } else {
+    summary = '0ヒット0ブロウ';
+  }
+
+  return `${tiles} ： ${summary}`;
+}
+
+/** ここまでの全予想ログを CW 本文用にまとめる */
+export function hitBlowCwBody(
+  secret: number[],
+  guessHistory: { guess: string; hits: number; blows: number }[],
+): string {
+  return guessHistory
+    .map(({ guess, hits, blows }) => hitBlowLogLine(secret, guess.split('').map(Number), hits, blows))
+    .join('\n');
 }

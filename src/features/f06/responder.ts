@@ -2,6 +2,7 @@
 
 import type { NumerologyType } from './index.js';
 import { TAROT_MAP } from './numerology.js';
+import type { DiceColor } from './dice-color.js';
 
 // ----------------------------------------------------------------
 // 数式計算
@@ -170,6 +171,45 @@ export function rangeRollResponse(min: number, max: number, result: number): str
  */
 export function diceErrorResponse(): string {
   return 'ダイスの書き方がわからなかった。「2d6」「d20」「1から100」のように書いてみてくれる？';
+}
+
+// ----------------------------------------------------------------
+// 汎用ダイスロール（nDm）: 出目の絵文字表示（D3-6）
+// ----------------------------------------------------------------
+
+/** 出目絵文字が登録済みの面数（5色すべて対応） */
+export const SUPPORTED_DICE_SIDES = [4, 6, 8, 10, 12, 20] as const;
+export type SupportedDiceSides = (typeof SUPPORTED_DICE_SIDES)[number];
+
+export function isSupportedDiceSides(sides: number): sides is SupportedDiceSides {
+  return (SUPPORTED_DICE_SIDES as readonly number[]).includes(sides);
+}
+
+/** 1個のダイスの出目絵文字名（`:` なし） */
+export function diceFaceEmoji(color: DiceColor, sides: SupportedDiceSides, face: number): string {
+  return `sv_dice_${color}_d${sides}_${face}`;
+}
+
+/** ダイス種別アイコン（面数ラベル用、`:` なし） */
+export function diceTypeEmoji(color: DiceColor, sides: number | '10p'): string {
+  return `sv_dice_${color}_type_d${sides}`;
+}
+
+/** d100 を「十の位(d10p) + 一の位(d10)」の2ダイスとしてロールする */
+export function rollD100(): { tensDigit: number; onesDigit: number; total: number } {
+  const tensDigit = Math.floor(Math.random() * 10) * 10; // 0,10,...,90
+  const onesDigit = Math.floor(Math.random() * 10); // 0-9
+  const total = tensDigit + onesDigit === 0 ? 100 : tensDigit + onesDigit;
+  return { tensDigit, onesDigit, total };
+}
+
+/**
+ * d100 の連結表示絵文字（例: `:sv_dice_hakuji_d10p_70::sv_dice_hakuji_d10_3:`）。
+ * 十の位が 0 のときは登録名に合わせて `00` にゼロパディングする。
+ */
+export function d100PairEmoji(color: DiceColor, tensDigit: number, onesDigit: number): string {
+  const tensLabel = String(tensDigit).padStart(2, '0');
+  return `:sv_dice_${color}_d10p_${tensLabel}::sv_dice_${color}_d10_${onesDigit}:`;
 }
 
 // ----------------------------------------------------------------

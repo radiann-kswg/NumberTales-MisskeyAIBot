@@ -18,8 +18,15 @@ import {
   diceErrorResponse,
   slotResultText,
   NUMEROLOGY_CW_LABEL,
+  SLOT_DIGIT_EMOJIS,
+  diceFaceEmoji,
+  diceTypeEmoji,
+  isSupportedDiceSides,
+  rollD100,
+  d100PairEmoji,
   type SlotRole,
 } from './responder.js';
+import { characterDiceColor } from './dice-color.js';
 import { dealPokerHand, evaluatePokerHand, pokerResultText } from './poker.js';
 import { dealHand, evaluateHand, mahjongResultText } from './mahjong.js';
 import {
@@ -30,7 +37,13 @@ import {
   yachtFinalMessage,
   type YachtState,
 } from './yacht.js';
-import { generateSecret, calculateHitBlow, parseGuess, type HitBlowState } from './hitblow.js';
+import {
+  generateSecret,
+  calculateHitBlow,
+  parseGuess,
+  hitBlowCwBody,
+  type HitBlowState,
+} from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 
 export type { YachtState, HitBlowState };
@@ -179,7 +192,7 @@ export function handleKyusei(text: string): F06Result {
 }
 
 /** ダイスロール / 範囲乱数を処理する */
-export function handleDice(text: string): F06Result {
+export function handleDice(text: string, characterNum: string | number): F06Result {
   // nDm 記法 (例: 2d6, D20, d100)
   const diceMatch = /^.*?(\d*)([dD])(\d+).*$/.exec(text);
   if (diceMatch) {
@@ -188,11 +201,47 @@ export function handleDice(text: string): F06Result {
     if (count > 100 || sides < 2 || sides > 10000) {
       return { text: 'そのダイスは対応範囲外だよ。ダイス数は1〜100、面数は2〜10000で指定してね' };
     }
+    const dieStr = `${count === 1 ? '' : count}D${sides}`;
+
+    // 個数が多い場合は絵文字表示を省略し、テキストのみにフォールバックする
+    if (count > 10) {
+      const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+      const total = rolls.reduce((a, b) => a + b, 0);
+      return { text: diceRollResponse(dieStr, `[${rolls.join(', ')}] = ${total}`) };
+    }
+
+    const color = characterDiceColor(characterNum);
+
+    // d100: d10p（十の位）+ d10（一の位）の2ダイス連結表示
+    if (sides === 100) {
+      const rolls = Array.from({ length: count }, () => rollD100());
+      const total = rolls.reduce((a, b) => a + b.total, 0);
+      const emojiLine = rolls.map((r) => d100PairEmoji(color, r.tensDigit, r.onesDigit)).join(' ');
+      const typeLine = `:${diceTypeEmoji(color, '10p')}:`;
+      return { text: diceRollResponse(dieStr, `${typeLine}\n${emojiLine} = ${total}`) };
+    }
+
+    // 対応面数（4/6/8/10/12/20）: 出目絵文字をそのまま表示
+    if (isSupportedDiceSides(sides)) {
+      const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+      const total = rolls.reduce((a, b) => a + b, 0);
+      const emojiLine = rolls.map((r) => `:${diceFaceEmoji(color, sides, r)}:`).join(' ');
+      const typeLine = `:${diceTypeEmoji(color, sides)}:`;
+      return { text: diceRollResponse(dieStr, `${typeLine}\n${emojiLine} = ${total}`) };
+    }
+
+    // 対応外面数: 数字図柄絵文字（SLOT_DIGIT_EMOJIS）によるスコアボード風フォールバック
     const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
     const total = rolls.reduce((a, b) => a + b, 0);
-    const dieStr = `${count === 1 ? '' : count}D${sides}`;
-    const rollStr = count === 1 ? String(total) : `[${rolls.join(', ')}] = ${total}`;
-    return { text: diceRollResponse(dieStr, rollStr) };
+    const emojiLine = rolls
+      .map((r) =>
+        String(r)
+          .split('')
+          .map((d) => `:${SLOT_DIGIT_EMOJIS[Number(d)]!}:`)
+          .join(''),
+      )
+      .join(' ');
+    return { text: diceRollResponse(dieStr, `${emojiLine} = ${total}`) };
   }
 
   // 範囲指定乱数 (例: 1から100、0〜9)
@@ -304,7 +353,7 @@ export function handlePoker(): F06Result {
 /** ヨットゲームを開始する（5d6 初回ロール）。既存セッションは上書き。 */
 export function handleYachtStart(userId: string, store: GameSessionStore): F06Result {
   const dice = rollDice();
-  const state: YachtState = { dice, rerollCount: 0, keptIndices: [] };
+  const state: YachtState = { dice, rerollCount: 0, keptIndices: [], pendingReroll: null };
   store.setSession(userId, 'yacht', state);
   return { text: yachtInitialMessage(state) };
 }
@@ -323,7 +372,12 @@ export function handleYachtReroll(
   const keptIndices = [0, 1, 2, 3, 4].filter((i) => !rerollIndices.includes(i));
   const newDice = rerollDice(state.dice, rerollIndices);
   const newRerollCount = state.rerollCount + 1;
-  const newState: YachtState = { dice: newDice, rerollCount: newRerollCount, keptIndices };
+  const newState: YachtState = {
+    dice: newDice,
+    rerollCount: newRerollCount,
+    keptIndices,
+    pendingReroll: null,
+  };
 
   if (newRerollCount >= 2) {
     // 2 回振り直し完了 → ゲーム自動終了
@@ -355,7 +409,7 @@ export function handleYachtAbandon(store: GameSessionStore, userId: string): F06
 export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
   const digits: 3 | 4 = /3桁|3ケタ|3けた/.test(text) ? 3 : 4;
   const secret = generateSecret(digits);
-  const state: HitBlowState = { secret, guessCount: 0, maxGuesses: 10, digits };
+  const state: HitBlowState = { secret, guessCount: 0, maxGuesses: 10, digits, guessHistory: [] };
   store.setSession(userId, 'hitblow', state);
   return {
     text: `${digits}桁の数字を設定したよ（重複なし）。最大${state.maxGuesses}回で当ててね！\n数字を送って予想してみよう`,
@@ -376,20 +430,35 @@ export function handleHitBlowGuess(
   const newGuessCount = state.guessCount + 1;
   const guessStr = guess.join('');
   const remaining = state.maxGuesses - newGuessCount;
+  const guessHistory = [...state.guessHistory, { guess: guessStr, hits, blows }];
+  const cwLabel = `${newGuessCount}回目の予想`;
+  const cwBody = hitBlowCwBody(state.secret, guessHistory);
 
   if (hits === state.digits) {
     store.deleteSession(userId, 'hitblow');
-    return { text: `「${guessStr}」→ ${hits}ヒット！\n正解！${newGuessCount}回でクリア！` };
+    return {
+      text: `「${guessStr}」→ ${hits}ヒット！\n正解！${newGuessCount}回でクリア！`,
+      cwBody,
+      cwLabel,
+    };
   }
 
   if (remaining <= 0) {
     store.deleteSession(userId, 'hitblow');
     const secretStr = state.secret.join('');
-    return { text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ\n残念……正解は「${secretStr}」だったよ` };
+    return {
+      text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ\n残念……正解は「${secretStr}」だったよ`,
+      cwBody,
+      cwLabel,
+    };
   }
 
-  store.setSession(userId, 'hitblow', { ...state, guessCount: newGuessCount });
-  return { text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ（残り${remaining}回）` };
+  store.setSession(userId, 'hitblow', { ...state, guessCount: newGuessCount, guessHistory });
+  return {
+    text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ（残り${remaining}回）`,
+    cwBody,
+    cwLabel,
+  };
 }
 
 /** ゲームを中断・放棄する（正解を明かす） */

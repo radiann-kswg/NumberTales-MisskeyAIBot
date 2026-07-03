@@ -10,7 +10,7 @@
 本ファイルは Phase 3 後続機能の計画をまとめたもの。すべての機能が実装済みであることを確認した。
 
 前提機能（A・B）とハラスメント仲介（機能③）の計画は
-[\_ideas/milestone/2026-05-27_milestone_phase3-prerequisites-harassment.md](../milestone/2026-05-27_milestone_phase3-prerequisites-harassment.md) を参照。
+[\_ideas/milestone/completed/2026-05-27_milestone_phase3-prerequisites-harassment.md](../../milestone/completed/2026-05-27_milestone_phase3-prerequisites-harassment.md) を参照。
 
 | 機能  | 名称                                      | 前提                  | ステータス  |
 | ----- | ----------------------------------------- | --------------------- | ----------- |

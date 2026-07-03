@@ -14,7 +14,12 @@ export interface YachtState {
   rerollCount: number;
   /** 前回のロールでキープしたインデックス（0-indexed）。初回は空。 */
   keptIndices: number[];
+  /** 確認待ちの振り直し対象インデックス（確認不要な指定のときは null） */
+  pendingReroll: number[] | null;
 }
+
+/** ダイス位置ラベル（1〜5番目、丸数字） */
+export const CIRCLE_NUMS = ['①', '②', '③', '④', '⑤'] as const;
 
 export type YachtHand =
   | 'yahtzee'
@@ -45,9 +50,11 @@ export function diceEmoji(value: number, kept: boolean): string {
   return `sv_dice_${color}_d6_${value}`;
 }
 
-/** 5 個のダイスを絵文字 1 行で表示する */
+/** 5 個のダイスを絵文字 1 行で表示する（位置を示す丸数字付き） */
 export function diceEmojiLine(dice: number[], keptIndices: number[]): string {
-  return dice.map((d, i) => `:${diceEmoji(d, keptIndices.includes(i))}:`).join(' ');
+  return dice
+    .map((d, i) => `${CIRCLE_NUMS[i]}:${diceEmoji(d, keptIndices.includes(i))}:`)
+    .join(' ');
 }
 
 /** 5d6 をロールする */
@@ -96,45 +103,110 @@ export function evaluateYacht(dice: number[]): YachtHand {
   return 'chance';
 }
 
+/** 振り直し解析結果。`requiresConfirm` が true の場合は即実行せず確認を挟む */
+export interface RerollParseResult {
+  indices: number[];
+  requiresConfirm: boolean;
+}
+
+/**
+ * 出目ベースの振り直し指定を解析する。
+ * - 「Nの目を振り直し」: 出目Nのダイスを対象にする
+ * - 「Nの目以外を振り直し」: 出目Nをキープし、残りを対象にする
+ * 該当なしなら null。
+ */
+export function parseRerollByFaceValue(text: string, dice: number[]): number[] | null {
+  const normalized = text.trim();
+
+  const exceptMatch = /([1-6])の目以外を?(?:振り直し|ふりなおし|reroll)/i.exec(normalized);
+  if (exceptMatch?.[1]) {
+    const value = parseInt(exceptMatch[1], 10);
+    return dice.reduce<number[]>((acc, d, i) => (d !== value ? [...acc, i] : acc), []);
+  }
+
+  const valueMatches = [...normalized.matchAll(/([1-6])の目を?(?:振り直し|ふりなおし|reroll)/gi)];
+  if (valueMatches.length > 0) {
+    const values = new Set(valueMatches.map((m) => parseInt(m[1]!, 10)));
+    return dice.reduce<number[]>((acc, d, i) => (values.has(d) ? [...acc, i] : acc), []);
+  }
+
+  return null;
+}
+
 /**
  * 振り直しコマンドを解析する。
  * - 'keep': ゲームをそのまま確定する
- * - number[]: 振り直すダイスの 0-indexed インデックスリスト
+ * - RerollParseResult: 振り直すダイスの 0-indexed インデックスと確認要否
  * - null: 振り直しコマンドとして認識できなかった
+ *
+ * 確認要否ルール（D3-6 仕様）:
+ * - 位置指定の明示コマンド（「振り直し 1 3」等）のみ: 即実行
+ * - 「全部/全て」一括指定、出目ベース指定、キーワードなしの数字のみ入力: 確認必須
+ * - 位置指定と出目指定が同一文に混在した場合は和集合（OR）にした上で確認必須
  */
-export function parseRerollCommand(text: string): number[] | 'keep' | null {
+export function parseRerollCommand(text: string, dice: number[]): RerollParseResult | 'keep' | null {
   const normalized = text.trim();
 
   // キープ / 確定 コマンド
   if (/このまま|キープ|確定|keep/i.test(normalized)) return 'keep';
 
-  // 全振り直し
-  if (/全部|全て|すべて|全部振り直し|全振り直し|all/i.test(normalized)) {
-    return [0, 1, 2, 3, 4];
+  // 全振り直し（一括指定 → 確認必須）
+  if (/全部|全て|すべて|all/i.test(normalized)) {
+    return { indices: [0, 1, 2, 3, 4], requiresConfirm: true };
   }
 
-  // 「振り直し 1 3 5」「1 3 を振り直し」など 1-indexed で指定
+  // 「振り直し 1 3 5」「1 3 を振り直し」など 1-indexed の位置指定（明示 → 即実行）
   const prefixMatch =
     /(?:振り直し|ふりなおし|reroll)[\s　]*([1-5](?:[\s　,、]+[1-5])*)/i.exec(normalized);
-  if (prefixMatch?.[1]) {
-    const indices = [...prefixMatch[1].matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1);
-    return [...new Set(indices)];
-  }
-
   const suffixMatch =
     /([1-5](?:[\s　,、]+[1-5])*)[\s　]を?(?:振り直し|ふりなおし|reroll)/i.exec(normalized);
-  if (suffixMatch?.[1]) {
-    const indices = [...suffixMatch[1].matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1);
-    return [...new Set(indices)];
+  const positionMatch = prefixMatch?.[1] ?? suffixMatch?.[1];
+  const positionIndices = positionMatch
+    ? [...new Set([...positionMatch.matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1))]
+    : [];
+
+  // 出目ベース指定（新規 → 確認必須）
+  const faceIndices = parseRerollByFaceValue(normalized, dice) ?? [];
+
+  if (positionIndices.length > 0 && faceIndices.length > 0) {
+    // 位置指定・出目指定が混在 → 和集合（OR）にした上で確認必須
+    return { indices: [...new Set([...positionIndices, ...faceIndices])], requiresConfirm: true };
   }
 
-  // 数字のみ（1〜5）のテキストも振り直し指定として許容する
+  if (positionIndices.length > 0) {
+    return { indices: positionIndices, requiresConfirm: false };
+  }
+
+  if (faceIndices.length > 0) {
+    return { indices: faceIndices, requiresConfirm: true };
+  }
+
+  // 数字のみ（1〜5）のテキストも振り直し指定として許容する（キーワードなし → 曖昧指定・確認必須）
   const numbersOnly = /^[\s　]*([1-5](?:[\s　,、]+[1-5])*)[\s　]*$/.exec(normalized);
   if (numbersOnly?.[1]) {
-    const indices = [...numbersOnly[1].matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1);
-    return [...new Set(indices)];
+    const indices = [
+      ...new Set([...numbersOnly[1].matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1)),
+    ];
+    return { indices, requiresConfirm: true };
   }
 
+  return null;
+}
+
+/** 振り直し確認メッセージ（位置指定の明示以外の解釈を伴う振り直し前に挟む） */
+export function yachtConfirmPrompt(indices: number[]): string {
+  const labels = [...indices]
+    .sort((a, b) => a - b)
+    .map((i) => CIRCLE_NUMS[i])
+    .join('');
+  return `${labels}のダイスを振り直すね。いい？`;
+}
+
+/** 振り直し確認への返答（肯定/否定）を解析する */
+export function parseConfirmResponse(text: string): 'yes' | 'no' | null {
+  const normalized = text.trim();
+  if (/いいよ|はい|OK|おっけ|うん|お願い|それで/i.test(normalized)) return 'yes';
+  if (/やめとく|待って|やめて|いや|ちがう|違う/i.test(normalized)) return 'no';
   return null;
 }
 
@@ -154,6 +226,7 @@ export function yachtInitialMessage(state: YachtState): string {
   const hand = evaluateYacht(dice);
   const label = yachtHandLabel(hand, dice);
   return (
+    `:sv_dice_hakuji_type_d6: 5d6のヨットだよ\n` +
     `${emojiLine}\n現在: ${label}\n` +
     `振り直し可能: あと${2 - state.rerollCount}回\n` +
     `「振り直し 1 3」で 1・3 番を振り直せる（1始まり）\n` +

@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -98,6 +98,16 @@ const HITBLOW_PATTERNS: RegExp[] = [
   /(?:数字|数)(?:の)?(?:ゲーム)?(?:しよう|やって|して)/,
   /\/hitblow\b/i,
   /\/hb\b/i,
+];
+
+/** ゲーム終了後の継続コマンド（D3-7）: 「もう一回」等 */
+const REPEAT_PATTERNS: RegExp[] = [
+  /もう一回/,
+  /もう一度/,
+  /またやって/,
+  /もっと(?:回して|やって)/,
+  /リプレイ/,
+  /全部やりなおす/,
 ];
 
 const DICE_PATTERNS: RegExp[] = [
@@ -224,6 +234,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of MAHJONG_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-mahjong' };
+  }
+
+  for (const pattern of REPEAT_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-repeat' };
   }
 
   for (const pattern of DICE_PATTERNS) {

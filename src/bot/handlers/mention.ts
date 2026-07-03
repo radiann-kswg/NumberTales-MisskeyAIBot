@@ -6,7 +6,7 @@ import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
-import { classifyIntent, detectFormTarget, type FormTarget } from '../classifier/intent.js';
+import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
 import { getDefaultCharacterProfile, getReleasedCharacterByNum } from '../character/loader.js';
@@ -30,7 +30,7 @@ import {
   extractTriviaNumber,
   type F06Result, type YachtState, type HitBlowState,
 } from '../../features/f06/index.js';
-import { parseRerollCommand } from '../../features/f06/yacht.js';
+import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
 import { parseGuess } from '../../features/f06/hitblow.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
@@ -533,15 +533,10 @@ export async function handleMention(
   // 4-pre. アクティブなゲームセッションを確認し、進行中コマンドを優先処理する
   const activeYachtState = gameSessionStore.getSession<YachtState>(event.userId, 'yacht');
   if (activeYachtState) {
-    const rerollCmd = parseRerollCommand(event.text);
-    if (rerollCmd !== null) {
-      const isKeep = rerollCmd === 'keep' || activeYachtState.rerollCount >= 2;
-      let yachtResult: F06Result = isKeep
-        ? handleYachtKeep(activeYachtState, gameSessionStore, event.userId)
-        : handleYachtReroll(activeYachtState, rerollCmd as number[], gameSessionStore, event.userId);
-      const yachtFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-yacht', yachtResult.text);
-      if (yachtFraming) yachtResult = { ...yachtResult, text: `${yachtFraming}\n${yachtResult.text}` };
-      const yachtNoteText = formatSpeech(activeCharacterNum, yachtResult.text);
+    const postYachtResult = async (result: F06Result): Promise<void> => {
+      const yachtFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-yacht', result.text);
+      const finalText = yachtFraming ? `${yachtFraming}\n${result.text}` : result.text;
+      const yachtNoteText = formatSpeech(activeCharacterNum, finalText);
       try {
         await misskeyClient.reply(yachtNoteText, event.noteId);
         rateLimiter.recordReply(event.userId);
@@ -551,8 +546,8 @@ export async function handleMention(
       } catch (err) {
         logger.error('Failed to post yacht action reply:', err);
       }
-      return;
-    }
+    };
+
     if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
       const abandonResult = handleYachtAbandon(gameSessionStore, event.userId);
       try {
@@ -561,6 +556,60 @@ export async function handleMention(
       } catch (err) {
         logger.error('Failed to post yacht abandon reply:', err);
       }
+      return;
+    }
+
+    // 確認待ちの振り直し指定があれば、まず肯定/否定の返答として解釈する
+    if (activeYachtState.pendingReroll !== null) {
+      const confirm = parseConfirmResponse(event.text);
+      if (confirm === 'yes') {
+        const yachtResult = handleYachtReroll(
+          activeYachtState,
+          activeYachtState.pendingReroll,
+          gameSessionStore,
+          event.userId,
+        );
+        await postYachtResult(yachtResult);
+        return;
+      }
+      if (confirm === 'no') {
+        gameSessionStore.setSession(event.userId, 'yacht', { ...activeYachtState, pendingReroll: null });
+        try {
+          await misskeyClient.reply(formatSpeech(activeCharacterNum, 'じゃあどれを振り直す？'), event.noteId);
+          rateLimiter.recordReply(event.userId);
+        } catch (err) {
+          logger.error('Failed to post yacht confirm-cancel reply:', err);
+        }
+        return;
+      }
+      // 確認への返答と解釈できなければ、新規の振り直し指定として下で再解析する
+    }
+
+    const rerollCmd = parseRerollCommand(event.text, activeYachtState.dice);
+    if (rerollCmd !== null) {
+      if (rerollCmd === 'keep' || activeYachtState.rerollCount >= 2) {
+        const yachtResult = handleYachtKeep(activeYachtState, gameSessionStore, event.userId);
+        await postYachtResult(yachtResult);
+        return;
+      }
+      if (rerollCmd.requiresConfirm) {
+        gameSessionStore.setSession(event.userId, 'yacht', {
+          ...activeYachtState,
+          pendingReroll: rerollCmd.indices,
+        });
+        try {
+          await misskeyClient.reply(
+            formatSpeech(activeCharacterNum, yachtConfirmPrompt(rerollCmd.indices)),
+            event.noteId,
+          );
+          rateLimiter.recordReply(event.userId);
+        } catch (err) {
+          logger.error('Failed to post yacht confirm prompt:', err);
+        }
+        return;
+      }
+      const yachtResult = handleYachtReroll(activeYachtState, rerollCmd.indices, gameSessionStore, event.userId);
+      await postYachtResult(yachtResult);
       return;
     }
   }
@@ -572,9 +621,11 @@ export async function handleMention(
       let hbResult = handleHitBlowGuess(activeHitBlowState, guess, gameSessionStore, event.userId);
       const hbFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-hitblow', hbResult.text);
       if (hbFraming) hbResult = { ...hbResult, text: `${hbFraming}\n${hbResult.text}` };
-      const hbNoteText = formatSpeech(activeCharacterNum, hbResult.text);
+      const hbNoteText =
+        formatSpeech(activeCharacterNum, hbResult.text) +
+        (hbResult.cwBody ? '\n\n' + hbResult.cwBody : '');
       try {
-        await misskeyClient.reply(hbNoteText, event.noteId);
+        await misskeyClient.reply(hbNoteText, event.noteId, { cw: hbResult.cwLabel });
         rateLimiter.recordReply(event.userId);
         logger.info(`Replied (hitblow-guess) to ${event.userId}`);
         const reactionPool = MENTION_REACTION_MAP['game-hitblow'] ?? MENTION_REACTION_MAP['chat']!;
@@ -598,10 +649,23 @@ export async function handleMention(
 
   // 4. 意図分類
   const { intent, formTarget, numerologyType, harassmentLevel } = classifyIntent(event.text);
-  const effectiveIntent =
+  let effectiveIntent: Intent =
     intent === 'form-switch' && formTarget !== undefined && activeFormTarget === formTarget
       ? 'chat'
       : intent;
+
+  // 4a-pre. 継続コマンド（「もう一回」等、D3-7）: 直近プレイしたゲームの intent にリマップする。
+  // リマップ後は通常の game-* intent として扱われるため、以降の並行ゲーム禁止チェック・
+  // 投稿・リアクションロジックをそのまま再利用できる。
+  if (effectiveIntent === 'game-repeat') {
+    const target = gameSessionStore.getRepeatTarget(event.userId);
+    if (target && gameSessionStore.canRepeat(event.userId)) {
+      gameSessionStore.recordRepeatTrigger(event.userId);
+      effectiveIntent = `game-${target}` as Intent;
+    } else {
+      effectiveIntent = 'chat';
+    }
+  }
 
   // 4b. ハラスメント検知 → 仲介ロジック（F-07）
   if (effectiveIntent === 'harassment') {
@@ -678,18 +742,25 @@ export async function handleMention(
     } else {
       if (effectiveIntent === 'game-mahjong') {
         f06Result = handleMahjong();
+        gameSessionStore.recordPlayed(event.userId, 'mahjong');
       } else if (effectiveIntent === 'game-poker') {
         f06Result = handlePoker();
+        gameSessionStore.recordPlayed(event.userId, 'poker');
       } else if (effectiveIntent === 'game-yacht') {
         f06Result = handleYachtStart(event.userId, gameSessionStore);
+        gameSessionStore.recordPlayed(event.userId, 'yacht');
       } else if (effectiveIntent === 'game-hitblow') {
         f06Result = handleHitBlowStart(event.userId, gameSessionStore, event.text);
+        gameSessionStore.recordPlayed(event.userId, 'hitblow');
       } else {
+        if (effectiveIntent === 'game-slot') {
+          gameSessionStore.recordPlayed(event.userId, 'slot');
+        }
         f06Result =
           effectiveIntent === 'calculate'
             ? handleCalculate(event.text)
             : effectiveIntent === 'dice'
-              ? handleDice(event.text)
+              ? handleDice(event.text, activeCharacterNum)
               : effectiveIntent === 'game-slot'
                 ? handleSlot()
                 : numerologyType === 'life-path'

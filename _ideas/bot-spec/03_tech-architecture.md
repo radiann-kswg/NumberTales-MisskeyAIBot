@@ -121,7 +121,7 @@ LLM呼び出し時は常に以下を含む:
 | `pkg/nodejs` クライアント経由 | 予定（改修 A） | `_creations-db/pkg/nodejs/index.mjs` の `CreationsDBClient` を使用 |
 
 `pkg/nodejs` クライアントへの移行により、DB スキーマ更新時のアダプター変更コストを削減できる。
-詳細: [milestone/2026-06-03_milestone_db-client-migration.md](../milestone/2026-06-03_milestone_db-client-migration.md)
+詳細: [milestone/completed/2026-06-03_milestone_db-client-migration.md](../milestone/completed/2026-06-03_milestone_db-client-migration.md)
 
 ---
 
@@ -237,7 +237,7 @@ LLM呼び出し時は常に以下を含む:
 - [x] **入力方式**: 自然文（「計算して」「ライフパスを教えて」等）とスラッシュコマンド（`/calc` / `/numerology lp` / `/kyusei`）の両対応
 - [x] **応答書式**: 現時点は 000(チトセ) の固定テンプレート。マルチキャラクター実装後にキャラクター別テンプレートへ拡張
 
-詳細仕様: [`_ideas/milestone/F-06_stage-a-spec.md`](../milestone/F-06_stage-a-spec.md)
+詳細仕様: [`_ideas/milestone/completed/F-06_stage-a-spec.md`](../milestone/completed/F-06_stage-a-spec.md)
 
 ## 未決定事項（要追加要件定義）
 
