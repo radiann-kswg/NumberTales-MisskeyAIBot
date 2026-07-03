@@ -92,7 +92,8 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   'game-yacht':   ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
   'game-hitblow': ['tensaika_aphrnts8', 'omoshiroi_i_aphrnts65'],
   'game-mahjong': ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65', 'ee_ooo_aphrnts89'],
-  'reminder-set':    ['iine_aphrnts42', 'okay_aphrnts25', 'wakatta_aphrnts52'],
-  'reminder-list':   ['naruhodo_aphrnts24', 'wakatta_aphrnts52'],
-  'reminder-cancel': ['wakatta_aphrnts52', 'okay_aphrnts25'],
+  'task-add':    ['iine_aphrnts42', 'okay_aphrnts25', 'wakatta_aphrnts52'],
+  'task-list':   ['naruhodo_aphrnts24', 'wakatta_aphrnts52'],
+  'task-done':   ['yattaze_aphrnts41', 'sugoi_aphrnts57', 'sasuga_aphrnts61'],
+  'task-cancel': ['wakatta_aphrnts52', 'okay_aphrnts25'],
 };

@@ -7,7 +7,8 @@ import { ActiveCharacterStore } from './bot/character/store.js';
 import { SessionStore } from './storage/session.js';
 import { GameSessionStore } from './storage/game-session.js';
 import { BotStateStore } from './storage/bot-state.js';
-import { ReminderStore } from './storage/reminder.js';
+import { TaskStore } from './storage/task.js';
+import { TrustStore } from './storage/trust.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createGlobalTLHandler } from './bot/handlers/global-tl.js';
@@ -84,10 +85,13 @@ async function main(): Promise<void> {
   const botState = new BotStateStore(config.storage.dbPath);
   logger.info('Bot state store ready');
 
-  // リマインダーストア初期化（F-12）
-  const reminderStore = new ReminderStore(config.storage.dbPath);
-  reminderStore.pruneOld();
-  logger.info('Reminder store ready');
+  // タスクストア初期化（F-12）
+  const taskStore = new TaskStore(config.storage.dbPath);
+  logger.info('Task store ready');
+
+  // 信頼度ストア初期化（F-12B）
+  const trustStore = new TrustStore(config.storage.dbPath);
+  logger.info('Trust store ready');
 
   // ユーザーごとのアクティブキャラクター状態（Phase A 基盤）
   const activeCharacterStore = new ActiveCharacterStore(
@@ -119,7 +123,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, reminderStore });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -141,7 +145,7 @@ async function main(): Promise<void> {
   misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
-  const scheduler = new PostScheduler({ ai, misskeyClient, botState, reminderStore });
+  const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore });
   scheduler.start();
 
   // プロセス終了時のクリーンアップ
@@ -153,7 +157,8 @@ async function main(): Promise<void> {
     sessionStore.close();
     gameSessionStore.close();
     botState.close();
-    reminderStore.close();
+    taskStore.close();
+    trustStore.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
