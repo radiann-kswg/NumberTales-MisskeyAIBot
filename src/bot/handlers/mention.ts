@@ -694,7 +694,7 @@ export async function handleMention(
 
   /** アクティブなヒット＆ブロウセッションへのターン操作を処理する。処理して返信済みなら true、対象外なら false。 */
   async function handleActiveHitBlowTurn(activeHitBlowState: HitBlowState): Promise<boolean> {
-    const guess = parseGuess(event.text, activeHitBlowState.digits);
+    const guess = parseGuess(event.text, activeHitBlowState.digits, activeHitBlowState.allowDuplicates);
     if (guess !== null) {
       let hbResult = handleHitBlowGuess(activeHitBlowState, guess, gameSessionStore, event.userId);
       const hbFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-hitblow', hbResult.text);

@@ -42,6 +42,8 @@ import {
   calculateHitBlow,
   parseGuess,
   hitBlowCwBody,
+  HITBLOW_MIN_DIGITS,
+  HITBLOW_MAX_DIGITS,
   type HitBlowState,
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
@@ -407,12 +409,30 @@ export function handleYachtAbandon(store: GameSessionStore, userId: string): F06
 
 /** ヒット＆ブロウゲームを開始する。既存セッションは上書き。 */
 export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
-  const digits: 3 | 4 = /3桁|3ケタ|3けた/.test(text) ? 3 : 4;
-  const secret = generateSecret(digits);
-  const state: HitBlowState = { secret, guessCount: 0, maxGuesses: 10, digits, guessHistory: [] };
+  const digitsMatch = /(\d+)\s*(?:桁|ケタ|けた)/.exec(text);
+  const digits = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
+  if (digits < HITBLOW_MIN_DIGITS || digits > HITBLOW_MAX_DIGITS) {
+    return {
+      text: `桁数は${HITBLOW_MIN_DIGITS}〜${HITBLOW_MAX_DIGITS}桁で指定してね`,
+    };
+  }
+  const allowDuplicates = /重複(?:あり|OK|可|して|して?いい)/i.test(text);
+
+  const secret = generateSecret(digits, allowDuplicates);
+  const maxGuesses = Math.max(10, digits * 2);
+  const state: HitBlowState = {
+    secret,
+    guessCount: 0,
+    maxGuesses,
+    digits,
+    allowDuplicates,
+    guessHistory: [],
+  };
   store.setSession(userId, 'hitblow', state);
   return {
-    text: `${digits}桁の数字を設定したよ（重複なし）。最大${state.maxGuesses}回で当ててね！\n数字を送って予想してみよう`,
+    text:
+      `${digits}桁の数字を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
+      `最大${maxGuesses}回で当ててね！\n数字を送って予想してみよう`,
   };
 }
 
