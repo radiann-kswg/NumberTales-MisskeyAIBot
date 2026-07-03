@@ -1,35 +1,49 @@
 /**
- * ヒット＆ブロウゲームロジック（D3-3）
+ * ヒット＆ブロウゲームロジック（D3-3、桁数/重複可変対応 D3-6追加提案分）
  *
- * Bot が重複なし 3〜4 桁の数字を設定し、ユーザーが予想する数当てゲーム。
+ * Bot が可変桁数（デフォルト4桁）の数字を設定し、ユーザーが予想する数当てゲーム。
  * - Hit: 桁・位置ともに一致
  * - Blow: 数字は一致するが位置が異なる
+ * - デフォルトは重複なしだが、「重複あり」指定で重複を許容するモードにも対応する。
  */
 import { randomInt } from 'node:crypto';
 
+/** 対応する桁数の範囲 */
+export const HITBLOW_MIN_DIGITS = 2;
+export const HITBLOW_MAX_DIGITS = 8;
+
 /** ゲームセッション保持用の状態 */
 export interface HitBlowState {
-  /** 正解の数列（重複なし） */
+  /** 正解の数列 */
   secret: number[];
   /** 予想回数 */
   guessCount: number;
   /** 最大予想回数 */
   maxGuesses: number;
-  /** 桁数（3 or 4） */
+  /** 桁数 */
   digits: number;
+  /** 重複を許容するモードかどうか */
+  allowDuplicates: boolean;
   /** ターンごとの予想ログ（CW 表示用） */
   guessHistory: { guess: string; hits: number; blows: number }[];
 }
 
 /**
- * 重複なし digits 桁の数列を生成する。
- * 先頭が 0 にならないよう 1〜9 から先頭を選ぶ。
+ * digits 桁の数列を生成する。先頭が 0 にならないよう 1〜9 から先頭を選ぶ。
+ * allowDuplicates が false の場合は残り桁も重複なしで選出する（digits は 10 以下であること）。
  */
-export function generateSecret(digits: 3 | 4): number[] {
-  // 先頭は 1〜9
+export function generateSecret(digits: number, allowDuplicates: boolean): number[] {
   const firstDigit = randomInt(1, 10); // [1, 10) = 1〜9
-  const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== firstDigit);
   const result = [firstDigit];
+
+  if (allowDuplicates) {
+    for (let i = 1; i < digits; i++) {
+      result.push(randomInt(0, 10)); // 0〜9、重複可
+    }
+    return result;
+  }
+
+  const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== firstDigit);
   for (let i = 1; i < digits; i++) {
     const idx = randomInt(pool.length);
     result.push(pool[idx]!);
@@ -38,29 +52,48 @@ export function generateSecret(digits: 3 | 4): number[] {
   return result;
 }
 
-/** ヒット数とブロウ数を計算する */
+/**
+ * ヒット数とブロウ数を計算する。
+ * 重複ありモードでも正しく数えられるよう、ヒット確定後に残った桁だけを
+ * 多重集合（出現数カウント）として突き合わせる標準的な Mastermind 方式で判定する。
+ */
 export function calculateHitBlow(
   secret: number[],
   guess: number[],
 ): { hits: number; blows: number } {
   let hits = 0;
-  let blows = 0;
+  const secretRemaining: number[] = [];
+  const guessRemaining: number[] = [];
+
   for (let i = 0; i < secret.length; i++) {
     if (secret[i] === guess[i]) {
       hits++;
-    } else if (secret.includes(guess[i]!)) {
-      blows++;
+    } else {
+      secretRemaining.push(secret[i]!);
+      guessRemaining.push(guess[i]!);
     }
   }
+
+  const secretCounts = new Map<number, number>();
+  for (const d of secretRemaining) secretCounts.set(d, (secretCounts.get(d) ?? 0) + 1);
+
+  let blows = 0;
+  for (const d of guessRemaining) {
+    const remaining = secretCounts.get(d) ?? 0;
+    if (remaining > 0) {
+      blows++;
+      secretCounts.set(d, remaining - 1);
+    }
+  }
+
   return { hits, blows };
 }
 
 /**
  * テキストから digits 桁の数字予想を解析する。
- * - 数字が digits 桁で重複なし: 解析成功
- * - 重複あり・桁数不一致・数字なし: null を返す
+ * allowDuplicates が false の場合、重複ありの入力は null を返す。
  */
-export function parseGuess(text: string, digits: number): number[] | null {
+export function parseGuess(text: string, digits: number, allowDuplicates: boolean): number[] | null {
   // テキストから連続した数字の塊を抽出（最初の一致を使用）
   const allNums = text.replace(/\D/g, '');
   if (allNums.length === 0) return null;
@@ -71,50 +104,57 @@ export function parseGuess(text: string, digits: number): number[] | null {
   if (!numStr) return null;
 
   const guessDigits = numStr.split('').map(Number);
-  if (new Set(guessDigits).size !== digits) return null; // 重複あり
+  if (!allowDuplicates && new Set(guessDigits).size !== digits) return null; // 重複あり
   return guessDigits;
 }
 
 // ----------------------------------------------------------------
-// 回答ログの絵文字化（D3-6）
+// 回答ログの絵文字化（D3-6、色分け表示への改訂）
 // ----------------------------------------------------------------
-
-/**
- * 数字タイル絵文字（白磁・中立色で統一）。
- * `SLOT_DIGIT_EMOJIS`（数字ごと固定色）とは別セットとして完全に切り離す。
- */
-export const HITBLOW_DIGIT_EMOJIS: Record<number, string> = {
-  0: 'sv_hakuji_0',
-  1: 'sv_hakuji_1',
-  2: 'sv_hakuji_2',
-  3: 'sv_hakuji_3',
-  4: 'sv_hakuji_4',
-  5: 'sv_hakuji_5',
-  6: 'sv_hakuji_6',
-  7: 'sv_hakuji_7',
-  8: 'sv_hakuji_8',
-  9: 'sv_hakuji_9',
-};
 
 export type DigitMark = 'hit' | 'blow' | 'miss';
 
-/** 状態マーカー絵文字（ヒット=赤／ブロウ=青／非該当=白） */
-export const HITBLOW_MARKER_EMOJIS: Record<DigitMark, string> = {
-  hit: 'sv_suit_heart_red',
-  blow: 'sv_suit_spade_blue',
-  miss: 'sv_suit_heart_white',
+/** 状態ごとの数字タイル色（ヒット=赤／ブロウ=青／非該当=白） */
+const DIGIT_MARK_COLOR: Record<DigitMark, string> = {
+  hit: 'kougyoku',
+  blow: 'seiyuu',
+  miss: 'hakuji',
 };
 
-/** 予想の各桁がヒット/ブロウ/非該当のどれかを位置ごとに判定する */
-export function markGuessDigits(secret: number[], guess: number[]): DigitMark[] {
-  return guess.map((g, i) => {
-    if (secret[i] === g) return 'hit';
-    if (secret.includes(g)) return 'blow';
-    return 'miss';
-  });
+/** 状態に応じた色付き数字タイル絵文字名を返す（`:` なし） */
+export function coloredDigitEmoji(digit: number, mark: DigitMark): string {
+  return `sv_${DIGIT_MARK_COLOR[mark]}_${digit}`;
 }
 
-/** 1ターン分のログ行（マーカー付き数字タイル＋ヒット/ブロウ要約）を生成する */
+/**
+ * 予想の各桁がヒット/ブロウ/非該当のどれかを位置ごとに判定する。
+ * `calculateHitBlow` と同じ多重集合方式で、重複ありモードでも正しく判定する。
+ */
+export function markGuessDigits(secret: number[], guess: number[]): DigitMark[] {
+  const marks: DigitMark[] = new Array(guess.length).fill('miss') as DigitMark[];
+  const secretCounts = new Map<number, number>();
+
+  for (let i = 0; i < secret.length; i++) {
+    if (secret[i] === guess[i]) {
+      marks[i] = 'hit';
+    } else {
+      secretCounts.set(secret[i]!, (secretCounts.get(secret[i]!) ?? 0) + 1);
+    }
+  }
+
+  for (let i = 0; i < guess.length; i++) {
+    if (marks[i] === 'hit') continue;
+    const remaining = secretCounts.get(guess[i]!) ?? 0;
+    if (remaining > 0) {
+      marks[i] = 'blow';
+      secretCounts.set(guess[i]!, remaining - 1);
+    }
+  }
+
+  return marks;
+}
+
+/** 1ターン分のログ行（色分け数字タイル＋ヒット/ブロウ要約）を生成する */
 export function hitBlowLogLine(
   secret: number[],
   guess: number[],
@@ -122,9 +162,7 @@ export function hitBlowLogLine(
   blows: number,
 ): string {
   const marks = markGuessDigits(secret, guess);
-  const tiles = guess
-    .map((g, i) => `:${HITBLOW_MARKER_EMOJIS[marks[i]!]}::${HITBLOW_DIGIT_EMOJIS[g]!}:`)
-    .join(' ');
+  const tiles = guess.map((g, i) => `:${coloredDigitEmoji(g, marks[i]!)}:`).join(' ');
 
   let summary: string;
   if (hits === secret.length) {
