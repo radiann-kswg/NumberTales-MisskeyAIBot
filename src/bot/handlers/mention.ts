@@ -6,6 +6,17 @@ import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import { type TaskStore, TASK_MAX_ACTIVE } from '../../storage/task.js';
+import { type TrustStore, type TrustContext } from '../../storage/trust.js';
+import {
+  extractTaskRequest,
+  calculateProgress,
+  formatTaskList,
+  formatCandidateList,
+  extractTaskTarget,
+  DONE_ACTION_PATTERN,
+  CANCEL_ACTION_PATTERN,
+} from '../../features/task/index.js';
 import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
@@ -41,6 +52,23 @@ import { BOT_CONSTANTS } from '../../config/constants.js';
 import { config } from '../../config/env.js';
 import { IncidentLogger } from '../../utils/incident-logger.js';
 
+/** F-12B 会話ボーナス（1日1回+3pt）の対象となる「意味のある交流」インテント */
+const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
+  'chat', 'creative-consultation', 'numerology-consultation',
+  'calculate', 'numerology', 'dice', 'trivia',
+  'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong',
+  'task-add', 'task-list', 'task-done', 'task-cancel',
+]);
+
+/** 現在時刻（ms）を JST の 'YYYY-MM-DD' 文字列に変換する（会話ボーナスの1日1回判定用） */
+function getJstDateString(nowMs: number): string {
+  const jst = new Date(nowMs + 9 * 60 * 60 * 1000);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(jst.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export interface MentionEvent {
   /** メンションが付いたノートの ID */
   noteId: string;
@@ -68,6 +96,8 @@ export interface MentionHandlerDeps {
   activeCharacterStore: ActiveCharacterStore;
   incidentLogger: IncidentLogger;
   botState: BotStateStore;
+  taskStore: TaskStore;
+  trustStore: TrustStore;
 }
 
 /**
@@ -222,11 +252,12 @@ async function generateNumerologyConsultationReply(
   character: CharacterRecord,
   formTarget: FormTarget,
   userText: string,
+  trust?: TrustContext,
 ): Promise<string> {
   const lpResult = handleLifePath(userText);
   const hasNumerology = lpResult.cwBody !== undefined;
 
-  const systemPrompt = buildCharacterSystemPrompt(character, 'chat', formTarget);
+  const systemPrompt = buildCharacterSystemPrompt(character, 'chat', formTarget, trust);
   const consultConstraint = `
 【ヌメロジー相談モードの制約】
 - 押しつけがましくならず、寄り添うトーンで話す
@@ -300,7 +331,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -311,8 +342,10 @@ export async function handleMention(
     getReleasedCharacterByNum(activeCharacterStore.getDefault()) ??
     getDefaultCharacterProfile();
   const defaultCharacterNum = String(defaultCharacter.Num);
-  const chatSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget);
-  const creativeSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'creative-consultation', activeFormTarget);
+  // F-12B: 信頼度コンテキスト（chat/creative-consultation/numerology-consultation・タスク登録確認に反映）
+  const trustContext: TrustContext = trustStore.getLevel(trustStore.getPoints(event.userId));
+  const chatSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget, trustContext);
+  const creativeSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'creative-consultation', activeFormTarget, trustContext);
   const requestedFormTarget = detectFormTarget(event.text);
   const isAdminUser = config.bot.adminUserIds.includes(event.userId);
 
@@ -713,6 +746,12 @@ export async function handleMention(
     }
   }
 
+  // 4a-post. F-12B 会話ボーナス（1日1回+3pt）: 意味のある交流インテントのみ対象。
+  // 挨拶・フォーム切替・ハラスメント対応・キャラ切替は対象外。
+  if (TRUST_BONUS_INTENTS.has(effectiveIntent)) {
+    trustStore.maybeAddDailyChatBonus(event.userId, getJstDateString(Date.now()));
+  }
+
   // 4b. ハラスメント検知 → 仲介ロジック（F-07）
   if (effectiveIntent === 'harassment') {
     // インシデントログ記録
@@ -866,7 +905,7 @@ export async function handleMention(
 
   // 4c. ヌメロジー相談モード（F-06 拡張）
   if (effectiveIntent === 'numerology-consultation') {
-    const consultReply = await generateNumerologyConsultationReply(ai, activeCharacter, activeFormTarget, event.text);
+    const consultReply = await generateNumerologyConsultationReply(ai, activeCharacter, activeFormTarget, event.text, trustContext);
     const speechText = formatSpeech(activeCharacterNum, consultReply);
     const { text, cw } = formatForNote(speechText, activeCharacterNum);
 
@@ -884,6 +923,158 @@ export async function handleMention(
       logger.error('Failed to post numerology-consultation reply:', err);
     }
     return;
+  }
+
+  // 4d. タスク＆スケジュール管理（F-12）
+  if (
+    effectiveIntent === 'task-add' ||
+    effectiveIntent === 'task-list' ||
+    effectiveIntent === 'task-done' ||
+    effectiveIntent === 'task-cancel'
+  ) {
+    const priorityLabel: Record<number, string> = { 1: '高', 2: '中', 3: '低' };
+    const difficultyLabel: Record<number, string> = { 1: '易', 2: '普通', 3: '難' };
+
+    let taskReplyText: string;
+    try {
+      if (effectiveIntent === 'task-list') {
+        const active = taskStore.listActive(event.userId);
+        if (active.length === 0) {
+          taskReplyText = '今のところタスクはないよ。';
+        } else {
+          const progress = calculateProgress(taskStore.listAllNonCancelled(event.userId));
+          taskReplyText =
+            `今抱えているタスクを教えるね。\n${formatTaskList(active)}\n` +
+            `（全${progress.totalCount}件中${progress.doneCount}件完了・進捗${progress.percent}%）`;
+        }
+      } else if (effectiveIntent === 'task-done' || effectiveIntent === 'task-cancel') {
+        const isDone = effectiveIntent === 'task-done';
+        const target = extractTaskTarget(event.text, isDone ? DONE_ACTION_PATTERN : CANCEL_ACTION_PATTERN);
+
+        const resolved =
+          target.type === 'index'
+            ? taskStore.findByIndex(event.userId, target.value)
+            : null;
+        const candidates =
+          target.type === 'query' ? taskStore.findCandidatesByTitle(event.userId, target.value) : [];
+
+        if (target.type === 'index') {
+          if (!resolved) {
+            taskReplyText = 'その番号のタスクが見つからなかった。「タスク一覧」で確認してみて？';
+          } else if (isDone) {
+            taskStore.markDone(resolved.id, Date.now());
+            trustStore.recordTaskCompletion(event.userId, resolved.priority, resolved.difficulty);
+            taskReplyText = `「${resolved.title}」、おつかれ！ちゃんと終わったんだね。`;
+          } else {
+            taskStore.markCancelled(resolved.id);
+            taskReplyText = `「${resolved.title}」のタスク、キャンセルしたよ。`;
+          }
+        } else if (candidates.length === 1) {
+          const t = candidates[0]!;
+          if (isDone) {
+            taskStore.markDone(t.id, Date.now());
+            trustStore.recordTaskCompletion(event.userId, t.priority, t.difficulty);
+            taskReplyText = `「${t.title}」、おつかれ！ちゃんと終わったんだね。`;
+          } else {
+            taskStore.markCancelled(t.id);
+            taskReplyText = `「${t.title}」のタスク、キャンセルしたよ。`;
+          }
+        } else if (candidates.length > 1) {
+          taskReplyText = `複数見つかったよ。番号で教えてくれる？\n${formatCandidateList(candidates)}`;
+        } else if (isDone) {
+          // task-done の広めのパターンは雑談中の「〇〇できた」等にも反応しうるため、
+          // 該当タスクが1件も無ければ通常の雑談として処理する（4d ブロックの外へ抜ける）。
+          taskReplyText = '';
+        } else {
+          taskReplyText = '該当するタスクが見つからなかった。「タスク一覧」で確認してみて？';
+        }
+      } else {
+        // task-add
+        if (taskStore.countActive(event.userId) >= TASK_MAX_ACTIVE) {
+          taskReplyText = `今${TASK_MAX_ACTIVE}件抱えてるから、どれか終わらせるかキャンセルしてから追加してね。`;
+        } else {
+          const extracted = await extractTaskRequest(event.text, ai, Date.now());
+          if (!extracted.ok) {
+            taskReplyText =
+              extracted.reason === 'too_short'
+                ? '1分より先の時間を指定してね。'
+                : extracted.reason === 'too_far'
+                  ? '365日以内の日時を指定してね。'
+                  : '何をいつまでにやりたいか、もう少しはっきり教えてくれる？';
+          } else {
+            taskStore.create({
+              userId: event.userId,
+              username: event.username ?? null,
+              userHost: event.userHost ?? null,
+              title: extracted.title,
+              dueAt: extracted.dueAtMs,
+              remindAt: extracted.remindAtMs,
+              remindType: extracted.remindType,
+              priority: extracted.priority,
+              difficulty: extracted.difficulty,
+            });
+            const dueLabel = extracted.dueAtMs
+              ? new Intl.DateTimeFormat('ja-JP', {
+                  timeZone: 'Asia/Tokyo',
+                  month: 'numeric',
+                  day: 'numeric',
+                }).format(new Date(extracted.dueAtMs))
+              : 'なし';
+            const remindLabel = extracted.remindAtMs
+              ? new Intl.DateTimeFormat('ja-JP', {
+                  timeZone: 'Asia/Tokyo',
+                  month: 'numeric',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                }).format(new Date(extracted.remindAtMs))
+              : 'なし';
+            try {
+              const aiResult = await ai.chat(
+                [
+                  { role: 'system' as const, content: chatSystemPrompt },
+                  {
+                    role: 'user' as const,
+                    content:
+                      `タスク登録の確認メッセージを40文字以内で返してください（台詞のみ）。\n` +
+                      `タスク: ${extracted.title}、優先度: ${priorityLabel[extracted.priority]}、` +
+                      `難易度: ${difficultyLabel[extracted.difficulty]}\n期日: ${dueLabel}、通知: ${remindLabel}`,
+                  },
+                ],
+                { maxTokens: 100, temperature: 0.9 },
+              );
+              taskReplyText = aiResult.text.trim();
+            } catch (err) {
+              logger.error('AI task confirm error:', err);
+              taskReplyText = `了解、「${extracted.title}」のタスクを追加したよ。`;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`Task handler error (intent: ${effectiveIntent}):`, err);
+      taskReplyText = 'あれ、うまく処理できなかったみたい。もう一回試してみて？';
+    }
+
+    if (taskReplyText !== '') {
+      const taskSpeechText = formatSpeech(activeCharacterNum, taskReplyText);
+      try {
+        await misskeyClient.reply(taskSpeechText, event.noteId);
+        rateLimiter.recordReply(event.userId);
+        logger.info(`Replied (${effectiveIntent}) to ${event.userId}`);
+
+        const reactionPool = MENTION_REACTION_MAP[effectiveIntent] ?? MENTION_REACTION_MAP['chat']!;
+        const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+        misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+          logger.warn('Failed to add reaction to task mention:', err);
+        });
+      } catch (err) {
+        logger.error('Failed to post task reply:', err);
+      }
+      return;
+    }
+    // taskReplyText === '' の場合（task-done で該当タスクなし）は通常の雑談応答へフォールスルーする
   }
 
   // 5. 応答生成 → 000(チトセ) 発言書式に整形

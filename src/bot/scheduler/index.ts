@@ -5,7 +5,10 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import { getReleasedCharacterByNum, getDefaultCharacterProfile } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import type { TaskStore } from '../../storage/task.js';
+import type { TrustStore } from '../../storage/trust.js';
 import { WeeklyPollScheduler } from './weekly-poll.js';
+import { TaskScheduler } from './task-scheduler.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
@@ -118,6 +121,8 @@ export interface SchedulerDeps {
   ai: AIProvider;
   misskeyClient: MisskeyClient;
   botState: BotStateStore;
+  taskStore: TaskStore;
+  trustStore: TrustStore;
 }
 
 /**
@@ -134,6 +139,7 @@ export class PostScheduler {
   private nextCooldownMs: number;
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private readonly weeklyPoll: WeeklyPollScheduler;
+  private readonly taskScheduler: TaskScheduler;
 
   constructor(private readonly deps: SchedulerDeps) {
     this.nextCooldownMs = randomCooldownMs();
@@ -141,6 +147,13 @@ export class PostScheduler {
       ai: deps.ai,
       misskeyClient: deps.misskeyClient,
       botState: deps.botState,
+    });
+    this.taskScheduler = new TaskScheduler({
+      ai: deps.ai,
+      misskeyClient: deps.misskeyClient,
+      botState: deps.botState,
+      taskStore: deps.taskStore,
+      trustStore: deps.trustStore,
     });
   }
 
@@ -150,6 +163,7 @@ export class PostScheduler {
       BOT_CONSTANTS.SCHEDULER_CHECK_INTERVAL_MS,
     );
     this.weeklyPoll.start();
+    this.taskScheduler.start();
     logger.info('Post scheduler started');
   }
 
@@ -159,6 +173,7 @@ export class PostScheduler {
       this.intervalHandle = null;
     }
     this.weeklyPoll.stop();
+    this.taskScheduler.stop();
   }
 
   private isOnCooldown(): boolean {

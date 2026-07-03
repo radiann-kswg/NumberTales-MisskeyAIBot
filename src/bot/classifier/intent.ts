@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -108,6 +108,44 @@ const REPEAT_PATTERNS: RegExp[] = [
   /もっと(?:回して|やって)/,
   /リプレイ/,
   /全部やりなおす/,
+];
+
+/** F-12 タスク管理: 一覧・進捗確認 */
+const TASK_LIST_PATTERNS: RegExp[] = [
+  /タスク(?:を?見せて|一覧|確認|リスト)/,
+  /残り(?:のタスク|やること|どれくらい)/,
+  /進捗(?:は?|を教えて|確認)/,
+  // 「どのくらい終わってる？」等の進捗“質問”のみ対象（「終わった」等の完了報告と衝突しないよう
+  // 数量詞プレフィックスを必須にする。仕様書の元パターンは prefix が任意になっており
+  // task-done と衝突するため、ここでは必須化して修正している）
+  /(?:何%|何割|どのくらい).*(?:終わ|完了|でき)/,
+  /\/task\s+list\b/i,
+];
+
+/** F-12 タスク管理: 完了報告 */
+const TASK_DONE_PATTERNS: RegExp[] = [
+  /(.+)(?:が?|を?)(?:終わ|完了|でき|やり終え)(?:った|た|ました)/,
+  // 「タスク3番完了」「3番のタスク完了」等、語順の違いを両方許容する
+  /(?:タスク)?\s*(\d+)\s*番(?:の)?(?:タスク)?を?(?:完了|done|終わり|終わった)/i,
+  /\/task\s+done\b/i,
+];
+
+/** F-12 タスク管理: 削除・キャンセル */
+const TASK_CANCEL_PATTERNS: RegExp[] = [
+  /タスク?.*(?:キャンセル|消して|削除|なくして)/,
+  /(.+)のタスクを?(?:消して|キャンセル|削除)/,
+  /タスク?\s*(\d+)\s*(?:番)?を?(?:消して|キャンセル|削除)/,
+  /\/task\s+cancel\b/i,
+];
+
+/** F-12 タスク管理: 新規登録 */
+const TASK_ADD_PATTERNS: RegExp[] = [
+  /(?:\d+)\s*(?:時間|分|日)後に.*(?:教えて|知らせて|リマインド|やること)/,
+  /(?:明日|あさって|今日).*(?:に|の)\s*\d+時.*(?:教えて|リマインド|予定|がある)/,
+  /(.+)を?(?:やらないと|忘れ(?:そう|ないで)|タスクに?追加|登録して|覚えておいて)/,
+  /(.+)(?:の?予定|がある|打ち合わせ|会議|イベント).*(?:登録|追加|覚えて)/,
+  /\/task\s+add\b/i,
+  /\/remind\b/i,
 ];
 
 const DICE_PATTERNS: RegExp[] = [
@@ -238,6 +276,22 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of REPEAT_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-repeat' };
+  }
+
+  for (const pattern of TASK_LIST_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-list' };
+  }
+
+  for (const pattern of TASK_DONE_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-done' };
+  }
+
+  for (const pattern of TASK_CANCEL_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-cancel' };
+  }
+
+  for (const pattern of TASK_ADD_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-add' };
   }
 
   for (const pattern of DICE_PATTERNS) {

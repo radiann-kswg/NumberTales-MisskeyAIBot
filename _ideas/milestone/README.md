@@ -15,7 +15,6 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | ファイル                                                                                                | フェーズ         | 概要                                                                                        | ステータス |
 | --------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ---------- |
 | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md)    | F-10             | 今日のエンジェルナンバー占い（実装仕様）                                                      | 着手 🔧    |
-| [2026-06-23_milestone_f12-reminder.md](./2026-06-23_milestone_f12-reminder.md)                             | F-12             | リマインダー機能（実装仕様）                                                                   | 設計中 🔧  |
 
 ## フェーズ概要
 
@@ -54,7 +53,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [completed/2026-06-03_milestone_db-client-migration.md](./completed/2026-06-03_milestone_db-client-migration.md)           |
 | DB参照改修②               | CreationsDB Cloudflare API HTTP フォールバック追加         | 完了 ✅   | [completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
 | F-10                       | 今日のエンジェルナンバー占い                               | 着手 🔧   | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md) |
-| F-12                       | リマインダー機能                                           | 着手 🔧   | [2026-06-23_milestone_f12-reminder.md](./2026-06-23_milestone_f12-reminder.md)                         |
+| F-12 MVP                   | シンプルリマインダー（後日 F-12/F-12B 本実装により置き換え・削除済み） | 完了 ✅ | [completed/2026-07-03_milestone_f12-mvp-reminder.md](./completed/2026-07-03_milestone_f12-mvp-reminder.md) |
+| F-12 / F-12B               | タスク＆スケジュール管理（優先度/難易度/進捗%）＋信頼度システム   | 完了 ✅   | [completed/2026-06-23_milestone_f12-reminder.md](./completed/2026-06-23_milestone_f12-reminder.md)     |
 
 ## bot-spec 残タスク
 

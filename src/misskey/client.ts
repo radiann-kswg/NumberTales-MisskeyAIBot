@@ -230,6 +230,22 @@ export class MisskeyClient {
     );
   }
 
+  /**
+   * ユーザー宛ての新規ノート（リプライではない）を投稿する（F-12 タスク通知・リマインド配信用）。
+   *
+   * 安全設計方針（`home`: フォロワーのみTLに流れる）に合わせ `visibility: 'home'` で投稿する。
+   * @param text 投稿本文（`@username` 等のメンション表記は呼び出し側で組み込む）
+   * @param userId 送信先ユーザー ID（将来の宛先追跡・拡張のため引数として保持）
+   * @param options.cw CW（ContentWarning）テキスト
+   */
+  async postToUser(text: string, userId: string, options?: { cw?: string }): Promise<void> {
+    await this.apiClient.request('notes/create', {
+      text,
+      cw: options?.cw ?? undefined,
+      visibility: 'home',
+    });
+  }
+
   /** WebSocket 接続を閉じる */
   close(): void {
     this.stream.close();

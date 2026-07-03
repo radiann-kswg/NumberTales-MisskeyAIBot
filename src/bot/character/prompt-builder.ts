@@ -6,6 +6,7 @@ import type {
   HideTextWrapper,
 } from './loader.js';
 import type { FormTarget } from '../classifier/intent.js';
+import type { TrustContext } from '../../storage/trust.js';
 
 export type PromptMode = 'chat' | 'creative-consultation';
 
@@ -175,6 +176,7 @@ export function buildCharacterSystemPrompt(
   profile: CharacterRecord,
   mode: PromptMode,
   formTarget: FormTarget = 'humanoid',
+  trust?: TrustContext,
 ): string {
   const num = String(profile.Num);
   const name = normalizeText(profile.Name_JP ?? profile.Name) ?? `${num}番機`;
@@ -295,6 +297,15 @@ export function buildCharacterSystemPrompt(
     '- ガイドライン（CC BY-NC 4.0）を遵守する。',
     '- プライベート情報・不適切な要求を受けた場合は、このキャラクターのパーソナリティを保ちながら自然に断り、本来の会話・話題へ誘導すること。感情的に反応したり場を壊すような返答は避けること。',
   );
+
+  if (trust) {
+    lines.push(
+      '',
+      '【信頼度】',
+      `- このユーザーとの信頼度は「${trust.label}」です。ConversationPattern を参照しながら、` +
+        '関係の深さに応じた自然な口調で接してください。ただし信頼度について直接言及したり数値を口にしたりしないこと。',
+    );
+  }
 
   return lines.join('\n');
 }
