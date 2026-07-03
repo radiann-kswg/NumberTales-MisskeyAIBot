@@ -1,10 +1,22 @@
 # F-12 / F-12B: タスク＆スケジュール管理 + 信頼度システム — 設計仕様
 
 > 作成日: 2026-06-23
-> 更新日: 2026-06-23（F-12B・タスク管理拡張を統合）
+> 更新日: 2026-07-03（bot-spec側の記述を本ドキュメントに合わせて更新・前提機能Aとの整合確認を追記）
 > ステータス: **設計中** 🔧（実装前の深堀り段階）
-> 元アイデア: [`future-plan/F-12-reminder.md`](../future-plan/F-12-reminder.md)
+> 元アイデア: [`future-plan/confirmed-milestone/F-12-reminder.md`](../future-plan/confirmed-milestone/F-12-reminder.md)
 > 安全設計参照: [`bot-spec/05_bot-safety-design.md`](../bot-spec/05_bot-safety-design.md)
+> **正式仕様**: 2026-07-03、`_ideas/bot-spec/01_feature-specs.md` のF-12節を本ドキュメント（拡張版）に合わせて更新済み。
+
+---
+
+## 既存機能との整合確認（2026-07-03）
+
+- **前提機能A（キャラクタープロンプト個性化強化）**: 下記 F-12B「将来の機能アンロック」で参照している
+  `Numerospec.Kabbalah`・趣味/特技フィールドは、既に実装済みの `CharacterRecord`（`Hobby`/`SpecialSkill`/`NumerospecAbout`等、
+  [`2026-06-16_milestone_character-specialization-and-numerology-consultation.md`](./2026-06-16_milestone_character-specialization-and-numerology-consultation.md) 参照）と整合している。
+  Phase C（将来拡張）着手時にあらためてフィールド名を突き合わせる。
+- Phase B の `TrustContext` を `buildCharacterSystemPrompt()` に注入する設計は、前提機能Aの専門性セクションと
+  並列で機能する想定（互いに競合しない）。
 
 ---
 

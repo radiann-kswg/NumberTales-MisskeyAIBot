@@ -8,7 +8,7 @@
 ## 概要
 
 Phase 3 後続機能のうち、前提機能 A・機能①・機能② がすべて実装済みであることを確認した。
-[`_ideas/future-plan/phase3-followup-features.md`](../future-plan/phase3-followup-features.md) の仕様に準拠している。
+[`_ideas/future-plan/confirmed-milestone/phase3-followup-features.md`](../../future-plan/confirmed-milestone/phase3-followup-features.md) の仕様に準拠している。
 
 ---
 

@@ -1,8 +1,9 @@
 # F-10: 今日のエンジェルナンバー占い — 実装仕様
 
 > 作成日: 2026-06-23
+> 更新日: 2026-07-03（絵文字演出・前提機能A/D3-6-7との整合確認を追記）
 > ステータス: **着手** 🔧
-> 元アイデア: [`future-plan/F-10-angel-number-fortune.md`](../future-plan/F-10-angel-number-fortune.md)
+> 元アイデア: [`future-plan/confirmed-milestone/F-10-angel-number-fortune.md`](../future-plan/confirmed-milestone/F-10-angel-number-fortune.md)
 > 安全設計参照: [`bot-spec/05_bot-safety-design.md`](../bot-spec/05_bot-safety-design.md)
 
 ---
@@ -11,6 +12,18 @@
 
 毎日 1 回、ユーザーがメンションすることで「今日のエンジェルナンバー」をランダムに引く占い機能。
 数字・ヌメロジーの世界観を「毎日の習慣」として定着させる。
+
+---
+
+## 既存機能との整合確認（2026-07-03）
+
+- **前提機能A（キャラクタープロンプト個性化強化）**: 下記ステップ[5]の `buildCharacterSystemPrompt()` 呼び出しにより、
+  `NumerospecAbout`（ヌメロジー上の役割・特性）を含む専門性セクションは自動的にシステムプロンプトへ組み込まれる。
+  F-10 側で追加対応は不要（[`_ideas/milestone/completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md`](./completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md) 参照）。
+- **D3-6（Secvier絵文字活用強化案）**: 下記「絵文字演出」節で、[`F-06_stage-d-minigames.md`](../future-plan/F-06_stage-d-minigames.md) の
+  「Secvier 絵文字アセット 全量棚卸し」で判明した英数字絵文字（6色×36文字）を用いた表示を追加検討する。
+- **D3-7（継続コマンド対応）**: F-10の「1日1回制限」時の断り方（下記チェックリスト）は、D3-7で確立した
+  「キャラクターの口調で自然に誘導する」という方針と一貫しており、追加のルール変更は不要。
 
 ---
 
@@ -134,11 +147,31 @@ CREATE TABLE IF NOT EXISTS user_fortune (
 
 ---
 
+## 絵文字演出（2026-07-03 追加検討・仕様未確定）
+
+D3-6の棚卸しで判明した英数字絵文字（`sv_{色}_{0〜9,A〜Z}`、6色×36文字）を使い、
+エンジェルナンバーの桁数・レア度に応じて色を変えて表示する案。
+
+| プール区分 | weight | 表示色（案） |
+| --- | --- | --- |
+| 1桁（基本エネルギー） | 4 | `hakuji`（白磁・日常的） |
+| マスターナンバー（11/22/33） | 3 / 2 | `suigyoku`（翠玉） |
+| 2桁ゾロ目（44〜99） | 2 | `suigyoku`（翠玉、マスターナンバーと共通） |
+| 3桁ゾロ目（111〜999） | 1 | `kougyoku`（紅玉・レア） |
+| 4桁ゾロ目（1111/7777/8888） | 0.5 | `seiyuu`（星幽・超レア） |
+
+- 表示例: 77 なら `:sv_suigyoku_7::sv_suigyoku_7:` のように桁ごとに絵文字を並べる。
+- `kokuji`（黒磁）は今回未使用のまま据え置き（将来の特別演出用に温存する案もあり）。
+- 本文中に絵文字を並べ、CW内はテキストのみで詳細を補足する形を想定（麻雀配牌チャレンジと同様の構成）。
+- 仕様は未確定。実装時にユーザー確認を挟む。
+
+---
+
 ## 出力フォーマット
 
 ```
 【本文（100文字以内目安）】
-今日の数字は「77」だよ。精神の豊かさと内なる知恵が輝く日…。CW に詳しいこと書いたよ。
+今日の数字は :sv_suigyoku_7::sv_suigyoku_7: だよ。精神の豊かさと内なる知恵が輝く日…。CW に詳しいこと書いたよ。
 
 【CW ラベル】
 「今日のエンジェルナンバー」

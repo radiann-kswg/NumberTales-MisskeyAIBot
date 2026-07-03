@@ -101,7 +101,7 @@
 
 - 許可アカウントの管理方法・権限付与コマンドの仕様は別途定義する
 - 全体監視の実装: `globalTimeline` チャンネル購読 + LLM 二次フィルタリング（`respect` / `neutral` / `disrespect`）
-  → 実装詳細: [milestone/2026-06-03_milestone_global-tl-tag-detection.md](../milestone/2026-06-03_milestone_global-tl-tag-detection.md)
+  → 実装詳細: [milestone/completed/2026-06-03_milestone_global-tl-tag-detection.md](../milestone/completed/2026-06-03_milestone_global-tl-tag-detection.md)
 
 ---
 
@@ -118,7 +118,7 @@ TLのノートを観測し、感情文脈を読み取ってカスタム絵文字
   - 挨拶系（おはよう・おやすみ・ただいまなど）は正規表現で先行判定してリアクション送信
   - それ以外は LLM に投稿テキストを渡してカテゴリを 1 単語で返させる
   - 判定に迷う投稿・否定的文脈は `skip` を返させてリアクションしない
-  - 詳細: [milestone/2026-06-03_milestone_f04-llm-reaction.md](../milestone/2026-06-03_milestone_f04-llm-reaction.md)
+  - 詳細: [milestone/completed/2026-06-03_milestone_f04-llm-reaction.md](../milestone/completed/2026-06-03_milestone_f04-llm-reaction.md)
 - **リプライ**はカテゴリ別の短文テンプレートを用いる（LLM不使用）
 - 同一ユーザーへの連続リアクションは **1時間以内に1回** 上限
 
@@ -358,40 +358,53 @@ F-06 のヌメロジー世界観を「毎日の習慣」として定着させる
 
 - 返信は `home`（フォロワーのHTLに流す・パブリックTLに大量投稿しない）
 
-詳細仕様: [_ideas/future-plan/F-10-angel-number-fortune.md](../future-plan/F-10-angel-number-fortune.md)
+詳細仕様: [_ideas/future-plan/confirmed-milestone/F-10-angel-number-fortune.md](../future-plan/confirmed-milestone/F-10-angel-number-fortune.md)
 
 ---
 
-## F-12: リマインダー
+## F-12 / F-12B: タスク＆スケジュール管理 + 信頼度システム
+
+> **2026-07-03 更新**: 元々「〇時間後に〇〇を教えて」の単純リマインダーとして計画していたが、
+> `_ideas/milestone/2026-06-23_milestone_f12-reminder.md` にて期日・優先度・難易度を持つ
+> タスク管理（F-12）と、タスク完了・会話で貯まる信頼度によるキャラクター演出変化（F-12B）
+> へ設計を拡張済み。**以下は拡張後の仕様概要であり、milestone側が正式仕様。**
 
 ### 概要
 
-「〇時間後に〇〇を教えて」でユーザーが依頼したリマインドを担当キャラクターが時間通りに知らせる機能。
+**F-12（タスク＆スケジュール管理）**: ユーザーが ToDo・スケジュール・リマインダーをメンション経由で
+登録・管理できる機能。単純な「〇時間後に教えて」に留まらず、期日・優先度・難易度を持つタスクとして
+管理する。ナンバーテールズの「主従契約」世界観のもと、担当キャラクターが主人のタスクを管理・進捗報告する。
+
+**F-12B（信頼度システム）**: タスク完了・日々の会話を通じてユーザーごとの信頼度が蓄積し、
+信頼度レベル（Lv.0〜4）に応じてキャラクターの口調・演出が変化するシステム（`ConversationPattern` ベース）。
 
 ### なぜ優先度が高いか
 
 ナンバーテールズは **「主人との主従契約により生活をサポートする存在」** という重要な世界観設定を持つ。
-リマインダーは単なるユーティリティではなく、キャラクターがその契約を果たす演出として機能する。
-Fediverseで人気の `@remindme@mstdn.social` との差別化は、この「キャラクターが承けて知らせに来る」体験にある。
+タスク管理は単なるユーティリティではなく、キャラクターがその契約を果たし、関係性を深めていく演出として機能する。
+Fediverseで人気の `@remindme@mstdn.social` との差別化は、この「キャラクターが承けて知らせに来る・信頼を積み重ねる」体験にある。
 
-### 仕様概要
+### 仕様概要（拡張版）
 
 | 項目 | 仕様 |
-|-----|------|
-| 同時登録上限 | 1ユーザー3件まで |
-| 最短リマインド間隔 | 5分後以上 |
-| 最長設定可能期間 | 30日以内 |
-| スケジューラー確認間隔 | 5分 |
-| 時間解析 | LLMで自然文から日時・内容を抽出 |
+|-----|-----|
+| タスク種別 | `todo`（期日なしToDo）／`alert`（通知あり、完了は明示のみ）／`schedule`（予定、通知時に自動完了） |
+| 同時登録上限 | 1ユーザー10件まで |
+| 最短リマインド間隔 | 1分後以上 |
+| 最長設定可能期間 | 365日以内 |
+| スケジューラー確認間隔 | 5分（`MAX_PROCESS_PER_RUN = 5`） |
+| 優先度・難易度 | 各3段階（高/中/低・難/普通/易）。進捗%は重み付き計算 |
+| 時間解析 | LLMで自然文から日時・タイトル・種別・優先度・難易度を抽出 |
+| 信頼度システム（F-12B） | タスク完了・1日1回会話ボーナスでポイント加算 → Lv.0〜4で口調・演出が変化 |
 
-### 実装ステップ（最優先・近日着手）
+### 実装フェーズ
 
-1. DBに `reminders` テーブル追加
-2. `classifyIntent()` に `reminder-set` / `reminder-list` / `reminder-cancel` 追加
-3. スケジューラーに5分間隔チェック追加
-4. キャラクター別の登録確認・リマインド本文をLLMで生成
+- **Phase A**: 基本タスク管理（F-12コア。`tasks` テーブル・4インテント・スケジューラー連動）
+- **Phase B**: 信頼度演出（F-12B基礎。`user_trust` テーブル・`TrustContext` を `buildCharacterSystemPrompt()` に注入）
+- **Phase C**: 将来拡張（未定。Numerospecカバラ加護・キャラクター趣味特技連携・Lv.4固有演出）
 
-詳細仕様: [_ideas/future-plan/F-12-reminder.md](../future-plan/F-12-reminder.md)
+詳細仕様（正式）: [_ideas/milestone/2026-06-23_milestone_f12-reminder.md](../milestone/2026-06-23_milestone_f12-reminder.md)
+元アイデア（簡易版・拡張前の初期構想）: [_ideas/future-plan/confirmed-milestone/F-12-reminder.md](../future-plan/confirmed-milestone/F-12-reminder.md)
 
 ---
 
