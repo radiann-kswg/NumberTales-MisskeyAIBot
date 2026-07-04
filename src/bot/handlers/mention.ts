@@ -42,7 +42,7 @@ import {
   type F06Result, type YachtState, type HitBlowState,
 } from '../../features/f06/index.js';
 import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
-import { parseGuess } from '../../features/f06/hitblow.js';
+import { parseGuess, HITBLOW_DIGITS_PATTERN, HITBLOW_DUPLICATE_PATTERN } from '../../features/f06/hitblow.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -710,6 +710,19 @@ export async function handleMention(
         misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
       } catch (err) {
         logger.error('Failed to post hitblow guess reply:', err);
+      }
+      return true;
+    }
+    if (HITBLOW_DIGITS_PATTERN.test(event.text) || HITBLOW_DUPLICATE_PATTERN.test(event.text)) {
+      // 予想としては解釈できず、桁数・重複ありの指定が含まれている: 条件変更の指示とみなし新条件で再スタートする
+      const restartResult = handleHitBlowStart(event.userId, gameSessionStore, event.text);
+      const restartText = `条件を変えて、ゲームをやり直すね。\n${restartResult.text}`;
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, restartText), event.noteId);
+        rateLimiter.recordReply(event.userId);
+        logger.info(`Replied (hitblow-restart) to ${event.userId}`);
+      } catch (err) {
+        logger.error('Failed to post hitblow restart reply:', err);
       }
       return true;
     }

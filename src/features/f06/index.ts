@@ -44,6 +44,8 @@ import {
   hitBlowCwBody,
   HITBLOW_MIN_DIGITS,
   HITBLOW_MAX_DIGITS,
+  HITBLOW_DIGITS_PATTERN,
+  HITBLOW_DUPLICATE_PATTERN,
   type HitBlowState,
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
@@ -409,14 +411,14 @@ export function handleYachtAbandon(store: GameSessionStore, userId: string): F06
 
 /** ヒット＆ブロウゲームを開始する。既存セッションは上書き。 */
 export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
-  const digitsMatch = /(\d+)\s*(?:桁|ケタ|けた)/.exec(text);
+  const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(text);
   const digits = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
   if (digits < HITBLOW_MIN_DIGITS || digits > HITBLOW_MAX_DIGITS) {
     return {
       text: `桁数は${HITBLOW_MIN_DIGITS}〜${HITBLOW_MAX_DIGITS}桁で指定してね`,
     };
   }
-  const allowDuplicates = /重複(?:あり|OK|可|して|して?いい)/i.test(text);
+  const allowDuplicates = HITBLOW_DUPLICATE_PATTERN.test(text);
 
   const secret = generateSecret(digits, allowDuplicates);
   const maxGuesses = Math.max(10, digits * 2);

@@ -12,6 +12,11 @@ import { randomInt } from 'node:crypto';
 export const HITBLOW_MIN_DIGITS = 2;
 export const HITBLOW_MAX_DIGITS = 8;
 
+/** 開始・条件変更コマンドから桁数指定を検出するパターン */
+export const HITBLOW_DIGITS_PATTERN = /(\d+)\s*(?:桁|ケタ|けた)/;
+/** 開始・条件変更コマンドから「重複あり」指定を検出するパターン */
+export const HITBLOW_DUPLICATE_PATTERN = /重複(?:あり|OK|可|して|して?いい)/i;
+
 /** ゲームセッション保持用の状態 */
 export interface HitBlowState {
   /** 正解の数列 */
