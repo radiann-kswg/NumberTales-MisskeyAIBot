@@ -3,6 +3,7 @@
  */
 import type { AIProvider } from '../../ai/index.js';
 import type { TaskRecord, TaskRemindType, TaskPriority, TaskDifficulty } from '../../storage/task.js';
+import { matchCircledDigit, toHalfWidthDigits } from '../../utils/text.js';
 
 /** remind_at 指定時の許容幅: 最短1分後 */
 const MIN_LEAD_MS = 60 * 1000;
@@ -206,7 +207,7 @@ export const PROGRESS_ACTION_PATTERN =
 
 /** 発話から進捗％の指定値（0-100）を抽出する。見つからなければ null */
 export function extractProgressPercent(text: string): number | null {
-  const match = /(\d{1,3})\s*[%％]/.exec(text);
+  const match = /(\d{1,3})\s*[%％]/.exec(toHalfWidthDigits(text));
   if (!match) return null;
   const value = parseInt(match[1]!, 10);
   if (Number.isNaN(value)) return null;
@@ -215,10 +216,15 @@ export function extractProgressPercent(text: string): number | null {
 
 /**
  * タスク特定対象を解析する。
- * 「○番」の番号指定を優先し、なければアクション語句を除いた残りを内容検索クエリとする。
+ * 一覧・候補表示の丸数字（①等）による参照、「○番」「１番」（全角可）の番号指定を優先し、
+ * どれにも一致しなければアクション語句を除いた残りを内容検索クエリとする。
  */
 export function extractTaskTarget(text: string, actionPattern: RegExp): TaskTarget {
-  const indexMatch = /(\d+)\s*番/.exec(text);
+  const circledIndex = matchCircledDigit(text);
+  if (circledIndex !== null) {
+    return { type: 'index', value: circledIndex };
+  }
+  const indexMatch = /(\d+)\s*番/.exec(toHalfWidthDigits(text));
   if (indexMatch?.[1]) {
     return { type: 'index', value: parseInt(indexMatch[1], 10) };
   }

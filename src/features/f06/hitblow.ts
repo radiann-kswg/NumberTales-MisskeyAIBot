@@ -7,6 +7,7 @@
  * - デフォルトは重複なしだが、「重複あり」指定で重複を許容するモードにも対応する。
  */
 import { randomInt } from 'node:crypto';
+import { toHalfWidthDigits } from '../../utils/text.js';
 
 /** 対応する桁数の範囲 */
 export const HITBLOW_MIN_DIGITS = 2;
@@ -99,12 +100,13 @@ export function calculateHitBlow(
  * allowDuplicates が false の場合、重複ありの入力は null を返す。
  */
 export function parseGuess(text: string, digits: number, allowDuplicates: boolean): number[] | null {
+  const normalized = toHalfWidthDigits(text);
   // テキストから連続した数字の塊を抽出（最初の一致を使用）
-  const allNums = text.replace(/\D/g, '');
+  const allNums = normalized.replace(/\D/g, '');
   if (allNums.length === 0) return null;
 
   // digits 桁にぴったり一致する数字列を探す
-  const match = new RegExp(`(?:^|\\D)(\\d{${digits}})(?:\\D|$)`).exec(text);
+  const match = new RegExp(`(?:^|\\D)(\\d{${digits}})(?:\\D|$)`).exec(normalized);
   const numStr = match?.[1] ?? (allNums.length === digits ? allNums : null);
   if (!numStr) return null;
 

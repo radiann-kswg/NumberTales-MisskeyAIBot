@@ -1,6 +1,7 @@
 import type { CharacterRecord } from './loader.js';
 import { getReleasedCharacterByNum, getReleasedCharacters } from './loader.js';
 import type { FormTarget } from '../classifier/intent.js';
+import { toHalfWidthDigits } from '../../utils/text.js';
 
 const SWITCH_KEYWORD_PATTERN = /話したい|話して|お願い|呼んで|切り替え|チェンジ|交代|にして|で頼む|来て|来てもら|出てきて|担当|相手して|会話したい|頼みたい|頼む/;
 const DEFAULT_SWITCH_KEYWORD_PATTERN = /デフォルト|既定|標準|全体|みんな|通常担当|基本担当/;
@@ -66,7 +67,7 @@ export function resolveCharacterSwitchTarget(text: string): CharacterRecord | nu
     return null;
   }
 
-  const numMatch = text.match(/(?:#\s*(0*\d{1,3}))|(?:\b(0*\d{1,3})\s*番機)/);
+  const numMatch = toHalfWidthDigits(text).match(/(?:#\s*(0*\d{1,3}))|(?:\b(0*\d{1,3})\s*番機)/);
   const num = numMatch?.[1] ?? numMatch?.[2];
   if (num) {
     return getReleasedCharacterByNum(num);
@@ -122,7 +123,7 @@ export function resolveSchedulerCharTarget(text: string): CharacterRecord | null
   if (bySwitch) return bySwitch;
 
   // スケジューラーコマンド専用: 単純番号指定（例: 「29にして」「を36に」）
-  const numMatch = text.match(/[をにへ「」]?\s*(0*\d{1,3})\s*(?:番機|にして|へ変更|に変更|に切り替え|を担当)/);
+  const numMatch = toHalfWidthDigits(text).match(/[をにへ「」]?\s*(0*\d{1,3})\s*(?:番機|にして|へ変更|に変更|に切り替え|を担当)/);
   if (numMatch?.[1]) {
     return getReleasedCharacterByNum(numMatch[1]);
   }

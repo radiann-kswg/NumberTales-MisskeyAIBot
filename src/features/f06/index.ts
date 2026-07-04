@@ -49,6 +49,7 @@ import {
   type HitBlowState,
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
+import { toHalfWidthDigits } from '../../utils/text.js';
 
 export type { YachtState, HitBlowState };
 
@@ -86,8 +87,9 @@ const SLASH_CMD_PATTERN = /^\/(\w+)(?:\s+(\w+))?(?:\s+(.+))?$/;
 
 /** 数式計算を処理する */
 export function handleCalculate(text: string): F06Result {
+  const halfWidthText = toHalfWidthDigits(text);
   // スラッシュコマンド形式を優先
-  const slashMatch = SLASH_CMD_PATTERN.exec(text.trim());
+  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let expr: string | undefined;
 
   if (slashMatch?.[1] === 'calc' && slashMatch[3]) {
@@ -95,7 +97,7 @@ export function handleCalculate(text: string): F06Result {
   } else {
     // 自然文から数式を抽出
     // 全角記号を半角に変換してから抽出
-    const normalized = text
+    const normalized = halfWidthText
       .replace(/[＋]/g, '+')
       .replace(/[－]/g, '-')
       .replace(/[×]/g, '*')
@@ -122,8 +124,9 @@ export function handleCalculate(text: string): F06Result {
 
 /** ライフパスナンバーを処理する */
 export function handleLifePath(text: string): F06Result {
+  const halfWidthText = toHalfWidthDigits(text);
   // スラッシュコマンド形式
-  const slashMatch = SLASH_CMD_PATTERN.exec(text.trim());
+  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let year: number | undefined, month: number | undefined, day: number | undefined;
 
   if (
@@ -139,7 +142,7 @@ export function handleLifePath(text: string): F06Result {
     }
   } else {
     // 自然文から日付を抽出
-    const dateMatch = DATE_PATTERN.exec(text);
+    const dateMatch = DATE_PATTERN.exec(halfWidthText);
     if (dateMatch) {
       if (dateMatch[4]) {
         // YYYYMMDD パターン
@@ -169,15 +172,16 @@ export function handleLifePath(text: string): F06Result {
 
 /** 九星気学（本命星）を処理する */
 export function handleKyusei(text: string): F06Result {
+  const halfWidthText = toHalfWidthDigits(text);
   // スラッシュコマンド形式
-  const slashMatch = SLASH_CMD_PATTERN.exec(text.trim());
+  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let year: number | undefined;
 
   if (slashMatch?.[1] === 'kyusei' && (slashMatch[2] ?? slashMatch[3])) {
     year = Number(slashMatch[2] ?? slashMatch[3]);
   } else {
     // 自然文から年を抽出
-    const yearMatch = YEAR_PATTERN.exec(text);
+    const yearMatch = YEAR_PATTERN.exec(halfWidthText);
     if (yearMatch?.[1]) {
       year = Number(yearMatch[1]);
     }
@@ -197,8 +201,9 @@ export function handleKyusei(text: string): F06Result {
 
 /** ダイスロール / 範囲乱数を処理する */
 export function handleDice(text: string, characterNum: string | number): F06Result {
+  const halfWidthText = toHalfWidthDigits(text);
   // nDm 記法 (例: 2d6, D20, d100)
-  const diceMatch = /^.*?(\d*)([dD])(\d+).*$/.exec(text);
+  const diceMatch = /^.*?(\d*)([dD])(\d+).*$/.exec(halfWidthText);
   if (diceMatch) {
     const count = Math.max(1, parseInt(diceMatch[1] || '1', 10));
     const sides = parseInt(diceMatch[3]!, 10);
@@ -249,7 +254,7 @@ export function handleDice(text: string, characterNum: string | number): F06Resu
   }
 
   // 範囲指定乱数 (例: 1から100、0〜9)
-  const rangeMatch = /(\d+)\s*(?:から|〜|~)\s*(\d+)/.exec(text);
+  const rangeMatch = /(\d+)\s*(?:から|〜|~)\s*(\d+)/.exec(halfWidthText);
   if (rangeMatch) {
     const min = parseInt(rangeMatch[1]!, 10);
     const max = parseInt(rangeMatch[2]!, 10);
@@ -265,7 +270,8 @@ export function handleDice(text: string, characterNum: string | number): F06Resu
 
 /** 月命星を処理する */
 export function handleTsukimeisei(text: string): F06Result {
-  const slashMatch = SLASH_CMD_PATTERN.exec(text.trim());
+  const halfWidthText = toHalfWidthDigits(text);
+  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let year: number | undefined, month: number | undefined, day: number | undefined;
 
   if (slashMatch?.[1] === 'tsukimei' && slashMatch[3]) {
@@ -276,7 +282,7 @@ export function handleTsukimeisei(text: string): F06Result {
       day   = Number(raw.slice(6, 8));
     }
   } else {
-    const dateMatch = DATE_PATTERN.exec(text);
+    const dateMatch = DATE_PATTERN.exec(halfWidthText);
     if (dateMatch) {
       if (dateMatch[4]) {
         const raw = dateMatch[4];
@@ -411,7 +417,7 @@ export function handleYachtAbandon(store: GameSessionStore, userId: string): F06
 
 /** ヒット＆ブロウゲームを開始する。既存セッションは上書き。 */
 export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
-  const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(text);
+  const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(toHalfWidthDigits(text));
   const digits = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
   if (digits < HITBLOW_MIN_DIGITS || digits > HITBLOW_MAX_DIGITS) {
     return {
