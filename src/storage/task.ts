@@ -29,6 +29,7 @@ export interface TaskRecord {
   createdAt: number;
   completedAt: number | null;
   noteId: string | null;
+  lastNudgedAt: number | null;
 }
 
 /** 同時アクティブ（status='todo'）上限 */
@@ -50,6 +51,7 @@ interface TaskRow {
   created_at: number;
   completed_at: number | null;
   note_id: string | null;
+  last_nudged_at: number | null;
 }
 
 function toRecord(row: TaskRow): TaskRecord {
@@ -69,6 +71,7 @@ function toRecord(row: TaskRow): TaskRecord {
     createdAt: row.created_at,
     completedAt: row.completed_at,
     noteId: row.note_id,
+    lastNudgedAt: row.last_nudged_at,
   };
 }
 
@@ -105,6 +108,15 @@ export class TaskStore {
       CREATE INDEX IF NOT EXISTS idx_tasks_remind ON tasks (remind_at, status);
       CREATE INDEX IF NOT EXISTS idx_tasks_due    ON tasks (due_at, status);
     `);
+    this.migrateAddLastNudgedAt();
+  }
+
+  /** 既存DBに last_nudged_at カラムが無ければ追加する（定期リマインド機能用） */
+  private migrateAddLastNudgedAt(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
+    if (!columns.some((c) => c.name === 'last_nudged_at')) {
+      this.db.exec(`ALTER TABLE tasks ADD COLUMN last_nudged_at INTEGER`);
+    }
   }
 
   /** 指定ユーザーの status='todo' 件数を返す（上限チェック用） */
@@ -177,9 +189,15 @@ export class TaskStore {
     return active[index1based - 1] ?? null;
   }
 
-  /** title の部分一致でアクティブタスクを検索する（複数ヒット可） */
+  /**
+   * title の部分一致でアクティブタスクを検索する（複数ヒット可）。
+   * query は発話からアクション語句等を除いた残り全文（title より長いことが多い）なので、
+   * title が query を含む場合だけでなく、query が title を含む場合も一致とみなす。
+   */
   findCandidatesByTitle(userId: string, query: string): TaskRecord[] {
-    return this.listActive(userId).filter((t) => t.title.includes(query));
+    const q = query.trim();
+    if (!q) return [];
+    return this.listActive(userId).filter((t) => t.title.includes(q) || q.includes(t.title));
   }
 
   /** タスクを完了にする */
@@ -223,6 +241,32 @@ export class TaskStore {
   /** 期日超過通知済みフラグを立てる（重複通知防止） */
   markDueNotified(id: number): void {
     this.db.prepare(`UPDATE tasks SET due_notified = 1 WHERE id = ?`).run(id);
+  }
+
+  /** remind_at 通知（alertタイプ）配信後に remind_at をクリアする（無限再送防止） */
+  clearRemindAt(id: number): void {
+    this.db.prepare(`UPDATE tasks SET remind_at = NULL WHERE id = ?`).run(id);
+  }
+
+  /**
+   * 期日・remind_atの有無に関係なく、一定間隔ごとに催促対象となる todo タスクを取得する。
+   * last_nudged_at が未設定、または intervalMs 以上経過しているものが対象。
+   */
+  getForPeriodicNudge(nowMs: number, intervalMs: number, limit: number): TaskRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM tasks
+         WHERE status = 'todo'
+           AND (last_nudged_at IS NULL OR ? - last_nudged_at >= ?)
+         ORDER BY priority ASC, created_at ASC LIMIT ?`,
+      )
+      .all(nowMs, intervalMs, limit) as TaskRow[];
+    return rows.map(toRecord);
+  }
+
+  /** 定期催促の送信時刻を記録する */
+  markNudged(id: number, nowMs: number): void {
+    this.db.prepare(`UPDATE tasks SET last_nudged_at = ? WHERE id = ?`).run(nowMs, id);
   }
 
   close(): void {

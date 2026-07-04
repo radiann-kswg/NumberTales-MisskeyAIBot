@@ -1,9 +1,10 @@
 /**
  * F-12 タスク＆スケジュール通知スケジューラー
  *
- * 5分ごとに以下2種類の通知を確認する:
+ * 5分ごとに以下3種類の通知を確認する:
  *   1. remind_at 経過分（alert/schedule）の配信
  *   2. due_at 経過・未通知の alert タスクの期日超過通知
+ *   3. 期日・remind_atの有無に関係なく、todoタスクが残っている間 PERIODIC_NUDGE_INTERVAL_MS ごとに送る定期催促
  *
  * 安全設計: 1回の tick で処理する件数は MAX_PROCESS_PER_RUN で上限を設ける。
  */
@@ -24,6 +25,9 @@ const TASK_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 /** 1回の tick で処理する件数の安全上限 */
 const MAX_PROCESS_PER_RUN = 5;
+
+/** 期日・remind_atに関係のない定期催促の間隔（12時間） */
+const PERIODIC_NUDGE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 export interface TaskSchedulerDeps {
   ai: AIProvider;
@@ -96,6 +100,32 @@ async function generateOverdueMessage(
   }
 }
 
+/** 定期催促メッセージをキャラクターの口調で LLM 生成する。失敗時はテンプレートにフォールバックする。 */
+async function generateNudgeMessage(
+  ai: AIProvider,
+  systemPrompt: string,
+  task: TaskRecord,
+): Promise<string> {
+  try {
+    const result = await ai.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content:
+            `残っているタスクを気にかける定期的な声かけメッセージを40文字以内で生成してください（台詞のみ）。\n` +
+            `タスク: ${task.title}`,
+        },
+      ],
+      { maxTokens: 100, temperature: 0.9 },
+    );
+    return result.text.trim();
+  } catch (err) {
+    logger.error('[TaskScheduler] LLM nudge message generation failed, falling back:', err);
+    return `「${task.title}」、まだ残ってるよ。無理しない範囲で進めてね。`;
+  }
+}
+
 export class TaskScheduler {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -130,6 +160,15 @@ export class TaskScheduler {
     for (const task of overdue) {
       await this.deliverOverdue(task, charNum, systemPrompt);
     }
+
+    const forNudge = this.deps.taskStore.getForPeriodicNudge(
+      Date.now(),
+      PERIODIC_NUDGE_INTERVAL_MS,
+      MAX_PROCESS_PER_RUN,
+    );
+    for (const task of forNudge) {
+      await this.deliverNudge(task, charNum, systemPrompt);
+    }
   }
 
   private async deliverReminder(task: TaskRecord, charNum: string, systemPrompt: string): Promise<void> {
@@ -141,6 +180,9 @@ export class TaskScheduler {
       if (task.remindType === 'schedule') {
         this.deps.taskStore.markDone(task.id, Date.now());
         this.deps.trustStore.recordScheduleNotification(task.userId);
+      } else if (task.remindType === 'alert') {
+        // remind_at を残したままだと次tick以降も getDueForRemind に該当し続け、無限に再送されてしまう
+        this.deps.taskStore.clearRemindAt(task.id);
       }
       logger.info(`[TaskScheduler] Delivered reminder for task #${task.id} to ${task.userId}`);
     } catch (err) {
@@ -157,6 +199,18 @@ export class TaskScheduler {
       logger.info(`[TaskScheduler] Delivered overdue notice for task #${task.id} to ${task.userId}`);
     } catch (err) {
       logger.error(`[TaskScheduler] Failed to deliver overdue notice for task #${task.id}:`, err);
+    }
+  }
+
+  private async deliverNudge(task: TaskRecord, charNum: string, systemPrompt: string): Promise<void> {
+    try {
+      const messageText = await generateNudgeMessage(this.deps.ai, systemPrompt, task);
+      const speechText = formatSpeech(charNum, `${mentionPrefix(task)}${messageText}`);
+      await this.deps.misskeyClient.postToUser(speechText, task.userId);
+      this.deps.taskStore.markNudged(task.id, Date.now());
+      logger.info(`[TaskScheduler] Delivered periodic nudge for task #${task.id} to ${task.userId}`);
+    } catch (err) {
+      logger.error(`[TaskScheduler] Failed to deliver periodic nudge for task #${task.id}:`, err);
     }
   }
 }
