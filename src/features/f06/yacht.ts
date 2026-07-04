@@ -222,8 +222,8 @@ export function yachtConfirmPrompt(indices: number[]): string {
 /** 振り直し確認への返答（肯定/否定）を解析する */
 export function parseConfirmResponse(text: string): 'yes' | 'no' | null {
   const normalized = text.trim();
-  if (/いいよ|はい|OK|おっけ|うん|お願い|それで/i.test(normalized)) return 'yes';
-  if (/やめとく|待って|やめて|いや|ちがう|違う/i.test(normalized)) return 'no';
+  if (/いいよ|はい|OK|おっけ|うん|お願い|それで|^する$|する[!！。.]?$/i.test(normalized)) return 'yes';
+  if (/やめとく|待って|やめて|いや|ちがう|違う|^しない$|しない[!！。.]?$/i.test(normalized)) return 'no';
   return null;
 }
 

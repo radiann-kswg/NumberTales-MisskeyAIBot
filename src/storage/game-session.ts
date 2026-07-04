@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export type GameType = 'yacht' | 'hitblow';
+export type GameType = 'yacht' | 'hitblow' | 'hitblow-pending';
 
 /** 「もう一回」継続コマンド（D3-7）の対象となる5ゲーム */
 export type RecentGameType = 'yacht' | 'hitblow' | 'slot' | 'poker' | 'mahjong';
