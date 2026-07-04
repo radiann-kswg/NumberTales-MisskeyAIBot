@@ -803,7 +803,7 @@ export async function handleMention(
     ) {
       // 予想としては解釈できず、桁数・重複あり・モード・色ヒント設定の指定が含まれている: 条件変更の指示とみなし新条件で再スタートする
       if (needsRevealConfirmation(event.text)) {
-        const pending = buildPendingStartFromText(event.text);
+        const pending = buildPendingStartFromText(event.text, activeHitBlowState.mode);
         if (pending) {
           gameSessionStore.deleteSession(event.userId, 'hitblow');
           gameSessionStore.setSession(event.userId, 'hitblow-pending', pending);
@@ -820,7 +820,7 @@ export async function handleMention(
           return true;
         }
       }
-      const restartResult = handleHitBlowStart(event.userId, gameSessionStore, event.text);
+      const restartResult = handleHitBlowStart(event.userId, gameSessionStore, event.text, activeHitBlowState.mode);
       const restartText = `条件を変えて、ゲームをやり直すね。\n${restartResult.text}`;
       try {
         await misskeyClient.reply(formatSpeech(activeCharacterNum, restartText), event.noteId);

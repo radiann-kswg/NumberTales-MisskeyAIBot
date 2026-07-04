@@ -19,8 +19,8 @@ export const HITBLOW_MAX_DIGITS = 8;
 /** 対応する文字数の範囲（アルファベットモード／ワードウルフ風。英単語バンクの最長に合わせる） */
 export const HITBLOW_ALPHABET_MAX_DIGITS = 15;
 
-/** 開始・条件変更コマンドから桁数指定を検出するパターン */
-export const HITBLOW_DIGITS_PATTERN = /(\d+)\s*(?:桁|ケタ|けた)/;
+/** 開始・条件変更コマンドから桁数指定を検出するパターン（アルファベットモードは「文字」表記も使うため両対応） */
+export const HITBLOW_DIGITS_PATTERN = /(\d+)\s*(?:桁|ケタ|けた|文字)/;
 /** 開始・条件変更コマンドから「重複あり」指定を検出するパターン */
 export const HITBLOW_DUPLICATE_PATTERN = /重複(?:あり|OK|可|して|して?いい)/i;
 /**
