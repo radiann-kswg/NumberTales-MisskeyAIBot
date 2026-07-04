@@ -45,10 +45,12 @@ import {
   symbolLabel,
   HITBLOW_MIN_DIGITS,
   HITBLOW_MAX_DIGITS,
+  HITBLOW_ALPHABET_MAX_DIGITS,
   HITBLOW_DIGITS_PATTERN,
   HITBLOW_DUPLICATE_PATTERN,
   HITBLOW_ALPHABET_PATTERN,
   HITBLOW_REVEAL_ON_END_PATTERN,
+  HITBLOW_REVEAL_AMBIGUOUS_PATTERN,
   type HitBlowState,
   type HitBlowMode,
 } from './hitblow.js';
@@ -419,19 +421,52 @@ export function handleYachtAbandon(store: GameSessionStore, userId: string): F06
 // ヒット＆ブロウ（D3-3）
 // ----------------------------------------------------------------
 
-/** ヒット＆ブロウゲームを開始する。既存セッションは上書き。 */
-export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
-  const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(toHalfWidthDigits(text));
-  const digits = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
-  if (digits < HITBLOW_MIN_DIGITS || digits > HITBLOW_MAX_DIGITS) {
-    return {
-      text: `桁数は${HITBLOW_MIN_DIGITS}〜${HITBLOW_MAX_DIGITS}桁で指定してね`,
-    };
-  }
-  const allowDuplicates = HITBLOW_DUPLICATE_PATTERN.test(text);
-  const mode: HitBlowMode = HITBLOW_ALPHABET_PATTERN.test(text) ? 'alphabet' : 'digit';
-  const revealOnEnd = HITBLOW_REVEAL_ON_END_PATTERN.test(text);
+/** 事前確認を挟んで開始する際に、確認が解決するまで保持しておくオプション */
+export interface HitBlowPendingStart {
+  digits: number;
+  allowDuplicates: boolean;
+  mode: HitBlowMode;
+}
 
+/**
+ * テキストから桁数・重複あり・モードを解析する。
+ * アルファベットモードは単語当て（ワードウルフ風）になるため、常に重複ありで行う。
+ * 桁数が範囲外の場合 digits は null。
+ */
+function parseHitBlowOptions(text: string): { digits: number | null; allowDuplicates: boolean; mode: HitBlowMode } {
+  const mode: HitBlowMode = HITBLOW_ALPHABET_PATTERN.test(text) ? 'alphabet' : 'digit';
+  const maxDigits = mode === 'alphabet' ? HITBLOW_ALPHABET_MAX_DIGITS : HITBLOW_MAX_DIGITS;
+  const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(toHalfWidthDigits(text));
+  const digitsRaw = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
+  const digits = digitsRaw < HITBLOW_MIN_DIGITS || digitsRaw > maxDigits ? null : digitsRaw;
+  const allowDuplicates = mode === 'alphabet' ? true : HITBLOW_DUPLICATE_PATTERN.test(text);
+  return { digits, allowDuplicates, mode };
+}
+
+/**
+ * 色ヒントの扱いについて、事前確認を挟むべき曖昧な言及かどうかを判定する。
+ * 「文字色ヒント無しで」等の確信度が高い言い回しは HITBLOW_REVEAL_ON_END_PATTERN で直接判定できるため、
+ * ここでは「色」「ヒント」等の話題には触れているがそれには一致しない曖昧なケースのみを対象にする。
+ */
+export function needsRevealConfirmation(text: string): boolean {
+  return HITBLOW_REVEAL_AMBIGUOUS_PATTERN.test(text) && !HITBLOW_REVEAL_ON_END_PATTERN.test(text);
+}
+
+/** 色ヒントの事前確認セッション用に、テキストから桁数・重複あり・モードを解析する。桁数が範囲外なら null */
+export function buildPendingStartFromText(text: string): HitBlowPendingStart | null {
+  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text);
+  if (digits === null) return null;
+  return { digits, allowDuplicates, mode };
+}
+
+function startHitBlowGame(
+  userId: string,
+  store: GameSessionStore,
+  digits: number,
+  allowDuplicates: boolean,
+  mode: HitBlowMode,
+  revealOnEnd: boolean,
+): F06Result {
   const secret = generateSecret(digits, allowDuplicates, mode);
   const maxGuesses = Math.max(10, digits * 2);
   const state: HitBlowState = {
@@ -447,11 +482,38 @@ export function handleHitBlowStart(userId: string, store: GameSessionStore, text
   store.setSession(userId, 'hitblow', state);
   const symbolSetLabel = mode === 'alphabet' ? 'アルファベット(A〜Z)' : '数字';
   const revealNote = revealOnEnd ? '\n（色ヒントは結果発表のときだけ出すね）' : '';
+  const dupNote = mode === 'alphabet' ? '\n（アルファベットモードは単語当てだから、重複ありに固定してるよ）' : '';
   return {
     text:
       `${digits}桁の${symbolSetLabel}を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
-      `最大${maxGuesses}回で当ててね！\n${symbolSetLabel}を送って予想してみよう${revealNote}`,
+      `最大${maxGuesses}回で当ててね！\n${symbolSetLabel}を送って予想してみよう${revealNote}${dupNote}`,
   };
+}
+
+/**
+ * ヒット＆ブロウゲームを開始する。既存セッションは上書き。
+ * 色ヒントの扱いが曖昧なテキストでもここでは確定させて直接開始する
+ * （事前確認を挟みたい呼び出し元は、先に needsRevealConfirmation() で判定して分岐すること）。
+ */
+export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
+  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text);
+  if (digits === null) {
+    const maxDigits = mode === 'alphabet' ? HITBLOW_ALPHABET_MAX_DIGITS : HITBLOW_MAX_DIGITS;
+    const unit = mode === 'alphabet' ? '文字' : '桁';
+    return { text: `${unit}数は${HITBLOW_MIN_DIGITS}〜${maxDigits}${unit}で指定してね` };
+  }
+  const revealOnEnd = HITBLOW_REVEAL_ON_END_PATTERN.test(text);
+  return startHitBlowGame(userId, store, digits, allowDuplicates, mode, revealOnEnd);
+}
+
+/** 色ヒントの事前確認が解決した後にゲームを開始する */
+export function handleHitBlowStartWithReveal(
+  userId: string,
+  store: GameSessionStore,
+  pending: HitBlowPendingStart,
+  revealOnEnd: boolean,
+): F06Result {
+  return startHitBlowGame(userId, store, pending.digits, pending.allowDuplicates, pending.mode, revealOnEnd);
 }
 
 /**

@@ -11,20 +11,33 @@
  */
 import { randomInt } from 'node:crypto';
 import { toHalfWidthDigits } from '../../utils/text.js';
+import { wordsOfLength } from './hitblow-words.js';
 
-/** 対応する桁数の範囲 */
+/** 対応する桁数の範囲（数字モード） */
 export const HITBLOW_MIN_DIGITS = 2;
 export const HITBLOW_MAX_DIGITS = 8;
+/** 対応する文字数の範囲（アルファベットモード／ワードウルフ風。英単語バンクの最長に合わせる） */
+export const HITBLOW_ALPHABET_MAX_DIGITS = 15;
 
 /** 開始・条件変更コマンドから桁数指定を検出するパターン */
 export const HITBLOW_DIGITS_PATTERN = /(\d+)\s*(?:桁|ケタ|けた)/;
 /** 開始・条件変更コマンドから「重複あり」指定を検出するパターン */
 export const HITBLOW_DUPLICATE_PATTERN = /重複(?:あり|OK|可|して|して?いい)/i;
-/** 開始・条件変更コマンドから「アルファベットモード」指定を検出するパターン */
-export const HITBLOW_ALPHABET_PATTERN = /アルファベット|エービーシー|A\s*[〜~-]\s*Z/i;
-/** 開始・条件変更コマンドから「結果発表のみ色ヒント」指定を検出するパターン */
+/**
+ * 開始・条件変更コマンドから「アルファベットモード」指定を検出するパターン。
+ * 「ワードウルフ」は本機能（ヒット＆ブロウのアルファベットモード）の別名として扱う。
+ */
+export const HITBLOW_ALPHABET_PATTERN = /アルファベット|エービーシー|A\s*[〜~-]\s*Z|ワードウルフ/i;
+/** 開始・条件変更コマンドから「結果発表のみ色ヒント」指定を検出するパターン（確信度が高い言い回し） */
 export const HITBLOW_REVEAL_ON_END_PATTERN =
-  /結果発表(?:の?時)?(?:のみ|だけ)(?:色|色ヒント)?|色ヒント(?:なし|オフ|OFF)|白(?:固定|ヒント)|ヒントを?隠/i;
+  /結果発表(?:の?時)?(?:のみ|だけ)(?:色|色ヒント)?|(?:文字)?色ヒント(?:な[しく]|無し|オフ|OFF|要らない|いらない|抜き)|白(?:固定|ヒント)|ヒントを?隠/i;
+/**
+ * 色ヒント関連の話題には触れているが、上記の確信度の高いパターンには一致しない曖昧な言及。
+ * 「文字色ヒント無しで」のような表記ゆれを取りこぼした場合の保険として、
+ * この場合は判定を確定させず、事前確認を挟む（HITBLOW_REVEAL_ON_END_PATTERN と併用する）。
+ */
+export const HITBLOW_REVEAL_AMBIGUOUS_PATTERN =
+  /色.*ヒント|ヒント.*色|ネタバレ|色.*(?:わか|ばれ|バレ)|(?:わか|ばれ|バレ).*色/i;
 
 /** ヒット＆ブロウのシンボル種別（数字10種 / アルファベット26種） */
 export type HitBlowMode = 'digit' | 'alphabet';
@@ -72,10 +85,20 @@ export interface HitBlowState {
 
 /**
  * digits 桁のシンボル列を生成する。
+ * アルファベットモードでは、桁数に対応する実在の英単語（`hitblow-words.ts` の安全性確認済みリスト）が
+ * あればそれを正解にする（ワードウルフ風）。該当する単語が無い場合のみランダムな文字列にフォールバックする。
  * 数字モードは先頭が 0 にならないよう 1〜9 から先頭を選ぶ（アルファベットモードは制約なし）。
  * allowDuplicates が false の場合は残り桁も重複なしで選出する（digits はプールサイズ以下であること）。
  */
 export function generateSecret(digits: number, allowDuplicates: boolean, mode: HitBlowMode = 'digit'): number[] {
+  if (mode === 'alphabet') {
+    const candidates = wordsOfLength(digits);
+    if (candidates.length > 0) {
+      const word = candidates[randomInt(candidates.length)]!;
+      return word.split('').map((ch) => ALPHABET.indexOf(ch));
+    }
+  }
+
   const size = poolSize(mode);
   const firstDigit = mode === 'digit' ? randomInt(1, 10) : randomInt(0, size); // 数字は[1,10)=1〜9、それ以外は[0,size)
   const result = [firstDigit];
@@ -183,6 +206,10 @@ export type DigitMark = 'hit' | 'blow' | 'miss' | 'hit-dup' | 'blow-dup';
  * ヒット=赤／ブロウ=青／非該当=白。
  * 重複ありモードで同一シンボルにヒットとブロウが同時に発生している場合は、
  * 赤・青と紛らわしいため hit-dup=黄／blow-dup=緑の別色で識別する。
+ *
+ * ワードウルフ（アルファベットモード）は本機能のサブモードという位置づけのため、
+ * 色分けはこのマップと `coloredDigitEmoji`/`markGuessDigits` をそのまま共用する。
+ * モード固有の色分けを新設しないこと（数字モードとの見た目の一貫性を保つため）。
  */
 const DIGIT_MARK_COLOR: Record<DigitMark, string> = {
   hit: 'kougyoku',

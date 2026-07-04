@@ -40,17 +40,20 @@ import {
   handlePoker, handleMahjong,
   handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
+  needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
   extractTriviaNumber,
-  type F06Result, type YachtState, type HitBlowState,
+  type F06Result, type YachtState, type HitBlowState, type HitBlowPendingStart,
 } from '../../features/f06/index.js';
 import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
 import {
   parseGuess,
+  symbolLabel,
   HITBLOW_DIGITS_PATTERN,
   HITBLOW_DUPLICATE_PATTERN,
   HITBLOW_ALPHABET_PATTERN,
   HITBLOW_REVEAL_ON_END_PATTERN,
 } from '../../features/f06/hitblow.js';
+import { containsFlaggedWord } from '../../features/f06/hitblow-words.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -517,7 +520,8 @@ export async function handleMention(
   // 上限のチェックからは除外する（同一ユーザーへのクールダウンはそのまま適用する）。
   const hasActiveGameSession =
     gameSessionStore.getSession<YachtState>(event.userId, 'yacht') !== null ||
-    gameSessionStore.getSession<HitBlowState>(event.userId, 'hitblow') !== null;
+    gameSessionStore.getSession<HitBlowState>(event.userId, 'hitblow') !== null ||
+    gameSessionStore.getSession<HitBlowPendingStart>(event.userId, 'hitblow-pending') !== null;
   const canReplyNow = hasActiveGameSession
     ? rateLimiter.canReplyIgnoringGlobalCap(event.userId)
     : rateLimiter.canReply(event.userId);
@@ -578,6 +582,46 @@ export async function handleMention(
       }
       return;
     }
+  }
+
+  // 4-pre-a. ヒット＆ブロウ開始前の「色ヒント」事前確認待ちがあれば、まず y/n として解釈する
+  const pendingHitBlowStart = gameSessionStore.getSession<HitBlowPendingStart>(event.userId, 'hitblow-pending');
+  if (pendingHitBlowStart) {
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      gameSessionStore.deleteSession(event.userId, 'hitblow-pending');
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, 'ヒット＆ブロウの準備をやめたよ。また気が向いたら誘ってね'), event.noteId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post hitblow pending-start cancel reply:', err);
+      }
+      return;
+    }
+    const confirm = parseConfirmResponse(event.text);
+    if (confirm === 'yes' || confirm === 'no') {
+      gameSessionStore.deleteSession(event.userId, 'hitblow-pending');
+      const startResult = handleHitBlowStartWithReveal(event.userId, gameSessionStore, pendingHitBlowStart, confirm === 'yes');
+      gameSessionStore.recordPlayed(event.userId, 'hitblow');
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, startResult.text), event.noteId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+        logger.info(`Replied (hitblow-start-confirmed) to ${event.userId}`);
+      } catch (err) {
+        logger.error('Failed to post hitblow confirmed-start reply:', err);
+      }
+      return;
+    }
+    // y/n として解釈できなければ再度確認する
+    try {
+      await misskeyClient.reply(
+        formatSpeech(activeCharacterNum, '色ヒントは結果発表の時だけにする？「する」か「しない」で教えてね'),
+        event.noteId,
+      );
+      rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+    } catch (err) {
+      logger.error('Failed to post hitblow reveal re-confirm reply:', err);
+    }
+    return;
   }
 
   // 4-pre. アクティブなゲームセッションを確認し、進行中コマンドを優先処理する
@@ -718,6 +762,22 @@ export async function handleMention(
       activeHitBlowState.mode,
     );
     if (guess !== null) {
+      if (activeHitBlowState.mode === 'alphabet') {
+        const guessWord = guess.map((g) => symbolLabel('alphabet', g)).join('');
+        if (containsFlaggedWord(guessWord)) {
+          // 放送事故的な表現を含む予想: ゲームは中断せず、手番を消費させずにやんわり注意する
+          try {
+            await misskeyClient.reply(
+              formatSpeech(activeCharacterNum, 'うーん、その文字列はちょっと聞こえがよくないかも……別の単語で予想してみてくれる？'),
+              event.noteId,
+            );
+            rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+          } catch (err) {
+            logger.error('Failed to post hitblow flagged-word reply:', err);
+          }
+          return true;
+        }
+      }
       let hbResult = handleHitBlowGuess(activeHitBlowState, guess, gameSessionStore, event.userId);
       const hbFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-hitblow', hbResult.text);
       if (hbFraming) hbResult = { ...hbResult, text: `${hbFraming}\n${hbResult.text}` };
@@ -742,6 +802,24 @@ export async function handleMention(
       HITBLOW_REVEAL_ON_END_PATTERN.test(event.text)
     ) {
       // 予想としては解釈できず、桁数・重複あり・モード・色ヒント設定の指定が含まれている: 条件変更の指示とみなし新条件で再スタートする
+      if (needsRevealConfirmation(event.text)) {
+        const pending = buildPendingStartFromText(event.text);
+        if (pending) {
+          gameSessionStore.deleteSession(event.userId, 'hitblow');
+          gameSessionStore.setSession(event.userId, 'hitblow-pending', pending);
+          try {
+            await misskeyClient.reply(
+              formatSpeech(activeCharacterNum, '条件を変えるね。色ヒントは結果発表の時だけにする？「する」か「しない」で教えてね'),
+              event.noteId,
+            );
+            rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+            logger.info(`Replied (hitblow-restart-needs-confirm) to ${event.userId}`);
+          } catch (err) {
+            logger.error('Failed to post hitblow restart confirm-prompt reply:', err);
+          }
+          return true;
+        }
+      }
       const restartResult = handleHitBlowStart(event.userId, gameSessionStore, event.text);
       const restartText = `条件を変えて、ゲームをやり直すね。\n${restartResult.text}`;
       try {
@@ -841,6 +919,25 @@ export async function handleMention(
           rateLimiter.recordReply(event.userId);
         } catch (err) {
           logger.error('Failed to post busy-game reply:', err);
+        }
+        return;
+      }
+    }
+
+    // ヒット＆ブロウ新規開始時、色ヒントの扱いが曖昧な言及なら、開始前に事前確認を挟む
+    if (effectiveIntent === 'game-hitblow' && needsRevealConfirmation(event.text)) {
+      const pending = buildPendingStartFromText(event.text);
+      if (pending) {
+        gameSessionStore.setSession(event.userId, 'hitblow-pending', pending);
+        try {
+          await misskeyClient.reply(
+            formatSpeech(activeCharacterNum, '色ヒントは結果発表の時だけにする？（今はヒットのたびに色で分かるようになってるよ）「する」か「しない」で教えてね'),
+            event.noteId,
+          );
+          rateLimiter.recordReply(event.userId);
+          logger.info(`Replied (hitblow-start-needs-confirm) to ${event.userId}`);
+        } catch (err) {
+          logger.error('Failed to post hitblow start confirm-prompt reply:', err);
         }
         return;
       }
