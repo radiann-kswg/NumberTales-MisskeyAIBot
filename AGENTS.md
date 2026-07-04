@@ -376,6 +376,24 @@ grep -vE "TOKEN|KEY|SECRET" .env | grep RATE_LIMIT
 pm2 logs numbertales-bot --lines 20
 ```
 
+### ローカル開発機から VM のログを確認する（Claude Code 等）
+
+VM に SSH 済みでない場合、`.env` の `GCP_SSH_HOST` / `GCP_SSH_USER` とローカルの
+`~/.ssh/deploy_key_gha`（GitHub Actions デプロイと共用の鍵）を使って以下のスクリプトでログを取得できる。
+**`.env` の中身（トークン等）をそのまま `cat` や `grep` で全出力しない**こと。このスクリプトは
+`GCP_SSH_HOST` / `GCP_SSH_USER` の値を内部で使うだけで、接続先の `user@host` 以外は標準出力に出さない。
+
+```bash
+# pm2 のステータス + 直近ログ（デフォルト）
+node tools/fetch-vm-logs.mjs
+
+# 行数・対象ログを指定（pm2 / error / incident / all）
+node tools/fetch-vm-logs.mjs --lines 100 --target all
+
+# 特定文字列だけ抽出（例: エラーレベルのみ）
+node tools/fetch-vm-logs.mjs --target error --grep '"level":"error"'
+```
+
 ### 実機動作確認
 
 Bot の実機アカウント: **@APHR_NTs@radiann6631.net**（https://radiann6631.net/@APHR_NTs）
