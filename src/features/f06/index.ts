@@ -432,9 +432,14 @@ export interface HitBlowPendingStart {
  * テキストから桁数・重複あり・モードを解析する。
  * アルファベットモードは単語当て（ワードウルフ風）になるため、常に重複ありで行う。
  * 桁数が範囲外の場合 digits は null。
+ * fallbackMode: 進行中セッションの条件変更時、テキストにモード指定（「アルファベット」等）が
+ * 含まれない場合に引き継ぐ現在のモード。新規開始時は指定せず、常定の 'digit' のままでよい。
  */
-function parseHitBlowOptions(text: string): { digits: number | null; allowDuplicates: boolean; mode: HitBlowMode } {
-  const mode: HitBlowMode = HITBLOW_ALPHABET_PATTERN.test(text) ? 'alphabet' : 'digit';
+function parseHitBlowOptions(
+  text: string,
+  fallbackMode: HitBlowMode = 'digit',
+): { digits: number | null; allowDuplicates: boolean; mode: HitBlowMode } {
+  const mode: HitBlowMode = HITBLOW_ALPHABET_PATTERN.test(text) ? 'alphabet' : fallbackMode;
   const maxDigits = mode === 'alphabet' ? HITBLOW_ALPHABET_MAX_DIGITS : HITBLOW_MAX_DIGITS;
   const digitsMatch = HITBLOW_DIGITS_PATTERN.exec(toHalfWidthDigits(text));
   const digitsRaw = digitsMatch ? parseInt(digitsMatch[1]!, 10) : 4;
@@ -453,8 +458,11 @@ export function needsRevealConfirmation(text: string): boolean {
 }
 
 /** 色ヒントの事前確認セッション用に、テキストから桁数・重複あり・モードを解析する。桁数が範囲外なら null */
-export function buildPendingStartFromText(text: string): HitBlowPendingStart | null {
-  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text);
+export function buildPendingStartFromText(
+  text: string,
+  fallbackMode: HitBlowMode = 'digit',
+): HitBlowPendingStart | null {
+  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text, fallbackMode);
   if (digits === null) return null;
   return { digits, allowDuplicates, mode };
 }
@@ -481,11 +489,12 @@ function startHitBlowGame(
   };
   store.setSession(userId, 'hitblow', state);
   const symbolSetLabel = mode === 'alphabet' ? 'アルファベット(A〜Z)' : '数字';
+  const unit = mode === 'alphabet' ? '文字' : '桁';
   const revealNote = revealOnEnd ? '\n（色ヒントは結果発表のときだけ出すね）' : '';
   const dupNote = mode === 'alphabet' ? '\n（アルファベットモードは単語当てだから、重複ありに固定してるよ）' : '';
   return {
     text:
-      `${digits}桁の${symbolSetLabel}を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
+      `${digits}${unit}の${symbolSetLabel}を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
       `最大${maxGuesses}回で当ててね！\n${symbolSetLabel}を送って予想してみよう${revealNote}${dupNote}`,
   };
 }
@@ -495,8 +504,13 @@ function startHitBlowGame(
  * 色ヒントの扱いが曖昧なテキストでもここでは確定させて直接開始する
  * （事前確認を挟みたい呼び出し元は、先に needsRevealConfirmation() で判定して分岐すること）。
  */
-export function handleHitBlowStart(userId: string, store: GameSessionStore, text: string): F06Result {
-  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text);
+export function handleHitBlowStart(
+  userId: string,
+  store: GameSessionStore,
+  text: string,
+  fallbackMode: HitBlowMode = 'digit',
+): F06Result {
+  const { digits, allowDuplicates, mode } = parseHitBlowOptions(text, fallbackMode);
   if (digits === null) {
     const maxDigits = mode === 'alphabet' ? HITBLOW_ALPHABET_MAX_DIGITS : HITBLOW_MAX_DIGITS;
     const unit = mode === 'alphabet' ? '文字' : '桁';
