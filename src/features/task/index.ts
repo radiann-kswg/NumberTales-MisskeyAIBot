@@ -143,7 +143,10 @@ export interface TaskProgress {
   totalCount: number;
 }
 
-/** 重み付き進捗％を計算する（キャンセル除外済みの todo+done タスク一覧を渡す） */
+/**
+ * 重み付き進捗％を計算する（キャンセル除外済みの todo+done タスク一覧を渡す）。
+ * done は常に100%扱い、todo はタスクごとの progressPercent（未更新なら0）をそのまま使う。
+ */
 export function calculateProgress(tasks: TaskRecord[]): TaskProgress {
   if (tasks.length === 0) return { percent: 0, doneCount: 0, totalCount: 0 };
 
@@ -152,9 +155,10 @@ export function calculateProgress(tasks: TaskRecord[]): TaskProgress {
   let doneCount = 0;
   for (const t of tasks) {
     const weight = PRIORITY_WEIGHT[t.priority] * DIFFICULTY_WEIGHT[t.difficulty];
+    const effectivePercent = t.status === 'done' ? 100 : t.progressPercent;
     totalWeight += weight;
+    doneWeight += weight * (effectivePercent / 100);
     if (t.status === 'done') {
-      doneWeight += weight;
       doneCount++;
     }
   }
@@ -183,17 +187,31 @@ export function formatTaskList(tasks: TaskRecord[]): string {
     .map((t, i) => {
       const label = `[${PRIORITY_LABEL[t.priority]}・${DIFFICULTY_LABEL[t.difficulty]}]`;
       const dueLabel = t.dueAt !== null ? `（期日: ${formatter.format(new Date(t.dueAt))}）` : '';
-      return `${CIRCLE_NUMS[i] ?? `${i + 1}.`} ${label} ${t.title}${dueLabel}`;
+      const progressLabel = t.progressPercent > 0 ? `（進捗${t.progressPercent}%）` : '';
+      return `${CIRCLE_NUMS[i] ?? `${i + 1}.`} ${label} ${t.title}${dueLabel}${progressLabel}`;
     })
     .join('\n');
 }
 
 export type TaskTarget = { type: 'index'; value: number } | { type: 'query'; value: string };
 
-/** タスク完了トリガーの語句除去用パターン */
-export const DONE_ACTION_PATTERN = /(が?|を?)(終わ|完了|でき|やり終え)(った|た|ました)/g;
+/** タスク完了トリガーの語句除去用パターン（意図分類側の TASK_DONE_PATTERNS と活用形を揃えること） */
+export const DONE_ACTION_PATTERN =
+  /(が|を)?(終わ(った|り(ました|ます)?|って(る|います)?)|完了(した|しました|してる|しています)?|でき(た|ました|てる|ています)|やり終え(た|ました))/g;
 /** タスクキャンセルトリガーの語句除去用パターン */
 export const CANCEL_ACTION_PATTERN = /を?(キャンセル|削除|消して|取り消[しす])(して)?/g;
+/** 進捗更新トリガーの語句除去用パターン（対象タスクのタイトル検索クエリを作るために剥がすノイズ） */
+export const PROGRESS_ACTION_PATTERN =
+  /(の)?進捗を?|(\d{1,3}\s*[%％])|に(?:して|する)|まで進(?:んだ|めた)|くらい|ぐらい/g;
+
+/** 発話から進捗％の指定値（0-100）を抽出する。見つからなければ null */
+export function extractProgressPercent(text: string): number | null {
+  const match = /(\d{1,3})\s*[%％]/.exec(text);
+  if (!match) return null;
+  const value = parseInt(match[1]!, 10);
+  if (Number.isNaN(value)) return null;
+  return Math.max(0, Math.min(100, value));
+}
 
 /**
  * タスク特定対象を解析する。

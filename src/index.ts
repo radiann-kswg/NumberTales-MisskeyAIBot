@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
-  const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore });
+  const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore });
   scheduler.start();
 
   // プロセス終了時のクリーンアップ

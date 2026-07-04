@@ -96,4 +96,5 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   'task-list':   ['naruhodo_aphrnts24', 'wakatta_aphrnts52'],
   'task-done':   ['yattaze_aphrnts41', 'sugoi_aphrnts57', 'sasuga_aphrnts61'],
   'task-cancel': ['wakatta_aphrnts52', 'okay_aphrnts25'],
+  'task-progress-update': ['naruhodo_aphrnts24', 'wakatta_aphrnts52', 'okay_aphrnts25'],
 };

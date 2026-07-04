@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -110,6 +110,15 @@ const REPEAT_PATTERNS: RegExp[] = [
   /全部やりなおす/,
 ];
 
+/**
+ * F-12 タスク管理: 進捗％の更新指定。
+ * 「進捗/タスク/◯番」のいずれかと「数字%」が本文中のどこかに共に現れることを要求する（順序は問わない）。
+ * TASK_LIST_PATTERNS の「進捗」パターンは空マッチしうるため、必ずそちらより先に判定すること。
+ */
+const TASK_PROGRESS_PATTERNS: RegExp[] = [
+  /(?=.*(?:進捗|タスク|\d+\s*番))(?=.*\d{1,3}\s*[%％]).+/s,
+];
+
 /** F-12 タスク管理: 一覧・進捗確認 */
 const TASK_LIST_PATTERNS: RegExp[] = [
   /タスク(?:を?見せて|一覧|確認|リスト)/,
@@ -124,7 +133,9 @@ const TASK_LIST_PATTERNS: RegExp[] = [
 
 /** F-12 タスク管理: 完了報告 */
 const TASK_DONE_PATTERNS: RegExp[] = [
-  /(.+)(?:が?|を?)(?:終わ|完了|でき|やり終え)(?:った|た|ました)/,
+  // 「終わった/終わりました/終わってる」「完了(した/しました/してる)」「できた/できました/できてる」
+  // 「やり終えた/やり終えました」等、丁寧形・サ変動詞の活用形も拾えるようにする
+  /(.+)(?:が?|を?)(?:終わ(?:った|り(?:ました|ます)?|って(?:る|います)?)|完了(?:した|しました|してる|しています)?|でき(?:た|ました|てる|ています)|やり終え(?:た|ました))/,
   // 「タスク3番完了」「3番のタスク完了」等、語順の違いを両方許容する
   /(?:タスク)?\s*(\d+)\s*番(?:の)?(?:タスク)?を?(?:完了|done|終わり|終わった)/i,
   /\/task\s+done\b/i,
@@ -276,6 +287,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of REPEAT_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-repeat' };
+  }
+
+  for (const pattern of TASK_PROGRESS_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-progress-update' };
   }
 
   for (const pattern of TASK_LIST_PATTERNS) {

@@ -30,6 +30,8 @@ export interface TaskRecord {
   completedAt: number | null;
   noteId: string | null;
   lastNudgedAt: number | null;
+  /** タスク単位の進捗（0-100）。done状態は常に100扱い、todoはユーザー更新値をそのまま使う */
+  progressPercent: number;
 }
 
 /** 同時アクティブ（status='todo'）上限 */
@@ -52,6 +54,12 @@ interface TaskRow {
   completed_at: number | null;
   note_id: string | null;
   last_nudged_at: number | null;
+  progress_percent: number;
+}
+
+/** タイトル部分一致の比較用に、助詞・句読点・空白を除去して緩く正規化する */
+function normalizeForTitleMatch(s: string): string {
+  return s.trim().replace(/[をがのにへはも、。！？!?\s]/g, '');
 }
 
 function toRecord(row: TaskRow): TaskRecord {
@@ -72,6 +80,7 @@ function toRecord(row: TaskRow): TaskRecord {
     completedAt: row.completed_at,
     noteId: row.note_id,
     lastNudgedAt: row.last_nudged_at,
+    progressPercent: row.progress_percent,
   };
 }
 
@@ -109,6 +118,7 @@ export class TaskStore {
       CREATE INDEX IF NOT EXISTS idx_tasks_due    ON tasks (due_at, status);
     `);
     this.migrateAddLastNudgedAt();
+    this.migrateAddProgressPercent();
   }
 
   /** 既存DBに last_nudged_at カラムが無ければ追加する（定期リマインド機能用） */
@@ -116,6 +126,14 @@ export class TaskStore {
     const columns = this.db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
     if (!columns.some((c) => c.name === 'last_nudged_at')) {
       this.db.exec(`ALTER TABLE tasks ADD COLUMN last_nudged_at INTEGER`);
+    }
+  }
+
+  /** 既存DBに progress_percent カラムが無ければ追加する（タスク別進捗％機能用） */
+  private migrateAddProgressPercent(): void {
+    const columns = this.db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
+    if (!columns.some((c) => c.name === 'progress_percent')) {
+      this.db.exec(`ALTER TABLE tasks ADD COLUMN progress_percent INTEGER NOT NULL DEFAULT 0`);
     }
   }
 
@@ -193,18 +211,28 @@ export class TaskStore {
    * title の部分一致でアクティブタスクを検索する（複数ヒット可）。
    * query は発話からアクション語句等を除いた残り全文（title より長いことが多い）なので、
    * title が query を含む場合だけでなく、query が title を含む場合も一致とみなす。
+   * 助詞の有無（「資料をまとめる」⇔発話「資料まとめ」）を吸収するため、比較前に軽く正規化する。
    */
   findCandidatesByTitle(userId: string, query: string): TaskRecord[] {
-    const q = query.trim();
+    const q = normalizeForTitleMatch(query);
     if (!q) return [];
-    return this.listActive(userId).filter((t) => t.title.includes(q) || q.includes(t.title));
+    return this.listActive(userId).filter((t) => {
+      const nt = normalizeForTitleMatch(t.title);
+      return nt.includes(q) || q.includes(nt);
+    });
   }
 
-  /** タスクを完了にする */
+  /** タスクを完了にする（進捗も100に揃える） */
   markDone(id: number, completedAtMs: number): void {
     this.db
-      .prepare(`UPDATE tasks SET status = 'done', completed_at = ? WHERE id = ?`)
+      .prepare(`UPDATE tasks SET status = 'done', completed_at = ?, progress_percent = 100 WHERE id = ?`)
       .run(completedAtMs, id);
+  }
+
+  /** タスクの進捗（0-100）を更新する */
+  updateProgress(id: number, percent: number): void {
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    this.db.prepare(`UPDATE tasks SET progress_percent = ? WHERE id = ?`).run(clamped, id);
   }
 
   /** タスクをキャンセルする */

@@ -14,8 +14,10 @@ import {
   formatTaskList,
   formatCandidateList,
   extractTaskTarget,
+  extractProgressPercent,
   DONE_ACTION_PATTERN,
   CANCEL_ACTION_PATTERN,
+  PROGRESS_ACTION_PATTERN,
 } from '../../features/task/index.js';
 import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
@@ -57,7 +59,7 @@ const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
   'chat', 'creative-consultation', 'numerology-consultation',
   'calculate', 'numerology', 'dice', 'trivia',
   'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong',
-  'task-add', 'task-list', 'task-done', 'task-cancel',
+  'task-add', 'task-list', 'task-done', 'task-cancel', 'task-progress-update',
 ]);
 
 /** 現在時刻（ms）を JST の 'YYYY-MM-DD' 文字列に変換する（会話ボーナスの1日1回判定用） */
@@ -943,7 +945,8 @@ export async function handleMention(
     effectiveIntent === 'task-add' ||
     effectiveIntent === 'task-list' ||
     effectiveIntent === 'task-done' ||
-    effectiveIntent === 'task-cancel'
+    effectiveIntent === 'task-cancel' ||
+    effectiveIntent === 'task-progress-update'
   ) {
     const priorityLabel: Record<number, string> = { 1: '高', 2: '中', 3: '低' };
     const difficultyLabel: Record<number, string> = { 1: '易', 2: '普通', 3: '難' };
@@ -1000,6 +1003,36 @@ export async function handleMention(
           taskReplyText = '';
         } else {
           taskReplyText = '該当するタスクが見つからなかった。「タスク一覧」で確認してみて？';
+        }
+      } else if (effectiveIntent === 'task-progress-update') {
+        const percent = extractProgressPercent(event.text);
+        if (percent === null) {
+          taskReplyText = '';
+        } else {
+          const target = extractTaskTarget(event.text, PROGRESS_ACTION_PATTERN);
+          const resolved =
+            target.type === 'index' ? taskStore.findByIndex(event.userId, target.value) : null;
+          const candidates =
+            target.type === 'query' ? taskStore.findCandidatesByTitle(event.userId, target.value) : [];
+
+          if (target.type === 'index') {
+            if (!resolved) {
+              taskReplyText = 'その番号のタスクが見つからなかった。「タスク一覧」で確認してみて？';
+            } else {
+              taskStore.updateProgress(resolved.id, percent);
+              taskReplyText = `「${resolved.title}」の進捗を${percent}%にしたよ。`;
+            }
+          } else if (candidates.length === 1) {
+            const t = candidates[0]!;
+            taskStore.updateProgress(t.id, percent);
+            taskReplyText = `「${t.title}」の進捗を${percent}%にしたよ。`;
+          } else if (candidates.length > 1) {
+            taskReplyText = `複数見つかったよ。番号で教えてくれる？\n${formatCandidateList(candidates)}`;
+          } else {
+            // task-done と同様、数字%を含む広めのパターンは雑談中の言及にも反応しうるため、
+            // 該当タスクが1件も無ければ通常の雑談として処理する。
+            taskReplyText = '';
+          }
         }
       } else {
         // task-add
