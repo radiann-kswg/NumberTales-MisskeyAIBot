@@ -16,6 +16,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | --------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ---------- |
 | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md)    | F-10             | 今日のエンジェルナンバー占い（実装仕様）                                                      | 着手 🔧    |
 | [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md) | F-06 D3 / F-12・F-12B / 会話 | 実運用フィードバック改修（ヒット＆ブロウ／タスク管理／会話パターン） | 一部対応済み 🔧 |
+| [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                          | 運用            | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）                                  | VM内実装済み・GCE側デプロイ待ち 🔧 |
 
 ## フェーズ概要
 
@@ -56,6 +57,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-10                       | 今日のエンジェルナンバー占い                               | 着手 🔧   | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md) |
 | F-12 MVP                   | シンプルリマインダー（後日 F-12/F-12B 本実装により置き換え・削除済み） | 完了 ✅ | [completed/2026-07-03_milestone_f12-mvp-reminder.md](./completed/2026-07-03_milestone_f12-mvp-reminder.md) |
 | F-12 / F-12B               | タスク＆スケジュール管理（優先度/難易度/進捗%）＋信頼度システム   | 完了 ✅   | [completed/2026-06-23_milestone_f12-reminder.md](./completed/2026-06-23_milestone_f12-reminder.md)     |
+| 運用: 自動復旧             | 3層ウォッチドッグ（ハートビート・VM内監視・GCE外部復旧）          | 着手 🔧   | [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                       |
 
 ## bot-spec 残タスク
 

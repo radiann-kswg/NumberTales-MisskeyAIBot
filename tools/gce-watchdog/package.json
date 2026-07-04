@@ -1,0 +1,15 @@
+{
+  "name": "numbertales-gce-watchdog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "External watchdog for the NumberTales Bot GCE VM (Cloud Run functions)",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google-cloud/compute": "^4.7.0",
+    "@google-cloud/functions-framework": "^3.4.0"
+  }
+}

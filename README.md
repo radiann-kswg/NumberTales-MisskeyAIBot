@@ -212,6 +212,16 @@ grep '"level":3' .cache/incident.log   # L3 のみ抽出
 tail -n 20 .cache/error.log
 ```
 
+### 自動復旧（3層ウォッチドッグ）
+
+エラー落ち・ハング・VM 障害から人手を介さず復旧します（詳細: [docs/deployment.md](./docs/deployment.md) §5）。
+
+| レイヤー | 障害 | 復旧手段 |
+| -------- | ---- | -------- |
+| 1 | プロセスのクラッシュ | PM2 `autorestart` |
+| 2 | ハング・WS切断継続・`errored` 放置 | ハートビート（`.cache/heartbeat.json`・30秒毎）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs`・systemd timer 毎分） |
+| 3 | VM ごとフリーズ・停止 | GCE 外部ウォッチドッグ（Cloud Scheduler + Cloud Run functions → reset/start、[tools/gce-watchdog/](./tools/gce-watchdog/README.md)） |
+
 ---
 
 ## ディレクトリ構成
@@ -260,6 +270,7 @@ src/
   utils/
     logger.ts                 # ロガー（ファイル出力対応）
     incident-logger.ts        # インシデントロガー（ハラスメント検知ログ）
+    heartbeat.ts              # ハートビートライター（VM内ウォッチドッグの監視対象）
 docs/                         # 詳細ドキュメント
   deployment.md               # デプロイ手順（GCP VM + GitHub Actions）
   architecture.md             # 技術アーキテクチャ詳細
@@ -268,6 +279,9 @@ _ideas/bot-spec/              # 仕様書・設計ドキュメント
 _roleplay-datas/              # キャラクタープロンプト・AI 連携情報
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
 tools/                        # 補助スクリプト（Misskey 投稿取得・同期検知等）
+  vm-watchdog.mjs             # VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
+  systemd/                    # ウォッチドッグ用 systemd service/timer 雛形
+  gce-watchdog/               # GCE外部ウォッチドッグ（Cloud Run functions + Scheduler）
 ```
 
 ---

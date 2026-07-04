@@ -18,6 +18,7 @@ import { setEmojiCache } from './bot/responder/emoji.js';
 import { initializeCharacterDB } from './bot/character/loader.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
+import { HeartbeatWriter } from './utils/heartbeat.js';
 
 /**
  * イベントハンドラ（onMention/onHomeTL 等）内で発生した未捕捉エラーはこのプロセスの
@@ -148,9 +149,18 @@ async function main(): Promise<void> {
   const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore });
   scheduler.start();
 
+  // ハートビート開始（VM 内ウォッチドッグによるハング・WS切断検知用）
+  const heartbeat = new HeartbeatWriter(
+    config.storage.heartbeatPath,
+    config.storage.heartbeatIntervalMs,
+    () => misskeyClient.isConnected(),
+  );
+  heartbeat.start();
+
   // プロセス終了時のクリーンアップ
   const shutdown = (): void => {
     logger.info('Shutting down...');
+    heartbeat.stop();
     scheduler.stop();
     misskeyClient.close();
     activeCharacterStore.close();

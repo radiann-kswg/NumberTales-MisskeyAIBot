@@ -178,6 +178,7 @@ src/
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
+    heartbeat.ts              #   ハートビートライター（VM内ウォッチドッグの監視対象）
 docs/                         # 詳細ドキュメント
   architecture.md / development.md / deployment.md
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
@@ -196,6 +197,9 @@ _creations-db/                # サブモジュール: 百花繚乱研究所 創
 _tasks/                       # creations-db 同期の自動最適化タスク作業ログ
 _session-archives/            # 過去の対話アーカイブ（_agent-chats / diary）
 tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
+  vm-watchdog.mjs             #   VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
+  systemd/                    #   ウォッチドッグ用 systemd service/timer 雛形
+  gce-watchdog/               #   GCE外部ウォッチドッグ（Cloud Run functions + Scheduler）
 ```
 
 ---
@@ -239,6 +243,7 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | —          | Bot 状態の永続ストレージ（`storage/bot-state.ts`・KV 形式 SQLite）                               | ✅ 実装済み |
 | —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
 | —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
+| —          | 自動復旧: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）。GCE外部ウォッチドッグ（`tools/gce-watchdog/`）はデプロイ待ち | ✅ 実装済み |
 
 ### 検討中・着手待ちのBot機能
 
