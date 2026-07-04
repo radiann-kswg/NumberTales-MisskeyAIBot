@@ -45,8 +45,8 @@ function buildExtractionSystemPrompt(nowMs: number): string {
   "remind_at_iso": "通知日時 ISO 8601（例: 2026-07-04T10:00:00+09:00）。不要なら null",
   "due_at_iso": "期日 ISO 8601。不要なら null",
   "remind_type": "todo | alert | schedule",
-  "priority": 1,
-  "difficulty": 1
+  "priority": "1(高) | 2(中) | 3(低)",
+  "difficulty": "1(易) | 2(普通) | 3(難)"
 }
 
 - remind_type の判定基準: 「〇〇をやるのを忘れないようにして」「〇時に〇〇を教えて」のような通知希望は alert、
@@ -166,20 +166,19 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = { 1: '高', 2: '中', 3: '�
 const DIFFICULTY_LABEL: Record<TaskDifficulty, string> = { 1: '易', 2: '普', 3: '難' };
 const CIRCLE_NUMS = ['①', '②', '③', '④', '⑤'] as const;
 
-/** アクティブなタスク一覧を CW 表示用に整形する（期日近い順・上位5件） */
+/**
+ * アクティブなタスク一覧を CW 表示用に整形する（上位5件）。
+ * 引数の並び順（TaskStore.listActive() の優先度→期日順）をそのまま番号に使う。
+ * ここで独自に並び替えると、①②③の表示順と「○番」返信の解決順（listActive基準）が
+ * ズレて別タスクを操作してしまうため、絶対に再ソートしないこと。
+ */
 export function formatTaskList(tasks: TaskRecord[]): string {
   const formatter = new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo',
     month: 'numeric',
     day: 'numeric',
   });
-  const sorted = [...tasks].sort((a, b) => {
-    if (a.dueAt === null && b.dueAt === null) return 0;
-    if (a.dueAt === null) return 1;
-    if (b.dueAt === null) return -1;
-    return a.dueAt - b.dueAt;
-  });
-  const top = sorted.slice(0, 5);
+  const top = tasks.slice(0, 5);
   return top
     .map((t, i) => {
       const label = `[${PRIORITY_LABEL[t.priority]}・${DIFFICULTY_LABEL[t.difficulty]}]`;
@@ -208,6 +207,7 @@ export function extractTaskTarget(text: string, actionPattern: RegExp): TaskTarg
   const query = text
     .replace(/の?タスク/g, '')
     .replace(actionPattern, '')
+    .replace(/[、。！？!?\s]/g, '')
     .trim();
   return { type: 'query', value: query };
 }
