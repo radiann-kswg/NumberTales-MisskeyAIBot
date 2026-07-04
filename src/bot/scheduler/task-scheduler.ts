@@ -13,12 +13,11 @@ import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import { getReleasedCharacterByNum, getDefaultCharacterProfile } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
-import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import type { ActiveCharacterStore } from '../character/store.js';
 import { TaskStore, type TaskRecord } from '../../storage/task.js';
 import type { TrustStore } from '../../storage/trust.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
-import { BOT_CONSTANTS } from '../../config/constants.js';
 
 /** 配信チェック間隔（5分） */
 const TASK_CHECK_INTERVAL_MS = 5 * 60 * 1000;
@@ -32,9 +31,10 @@ const PERIODIC_NUDGE_INTERVAL_MS = 12 * 60 * 60 * 1000;
 export interface TaskSchedulerDeps {
   ai: AIProvider;
   misskeyClient: MisskeyClient;
-  botState: BotStateStore;
   taskStore: TaskStore;
   trustStore: TrustStore;
+  /** タスク所有ユーザーの会話相手キャラクターを解決するために使う（週次担当ではなくユーザー個別担当で通知するため） */
+  activeCharacterStore: ActiveCharacterStore;
 }
 
 function mentionPrefix(task: TaskRecord): string {
@@ -147,18 +147,14 @@ export class TaskScheduler {
   }
 
   private async tick(): Promise<void> {
-    const charNum = this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
-    const profile = getReleasedCharacterByNum(charNum) ?? getDefaultCharacterProfile();
-    const systemPrompt = buildCharacterSystemPrompt(profile, 'chat');
-
     const dueForRemind = this.deps.taskStore.getDueForRemind(Date.now(), MAX_PROCESS_PER_RUN);
     for (const task of dueForRemind) {
-      await this.deliverReminder(task, charNum, systemPrompt);
+      await this.deliverReminder(task);
     }
 
     const overdue = this.deps.taskStore.getOverdue(Date.now(), MAX_PROCESS_PER_RUN);
     for (const task of overdue) {
-      await this.deliverOverdue(task, charNum, systemPrompt);
+      await this.deliverOverdue(task);
     }
 
     const forNudge = this.deps.taskStore.getForPeriodicNudge(
@@ -167,12 +163,21 @@ export class TaskScheduler {
       MAX_PROCESS_PER_RUN,
     );
     for (const task of forNudge) {
-      await this.deliverNudge(task, charNum, systemPrompt);
+      await this.deliverNudge(task);
     }
   }
 
-  private async deliverReminder(task: TaskRecord, charNum: string, systemPrompt: string): Promise<void> {
+  /** タスク所有ユーザーの会話相手キャラ（週次担当ではなくユーザー個別担当）を解決する */
+  private resolveTaskCharacter(userId: string): { charNum: string; systemPrompt: string } {
+    const charNum = this.deps.activeCharacterStore.resolve(userId);
+    const profile = getReleasedCharacterByNum(charNum) ?? getDefaultCharacterProfile();
+    const systemPrompt = buildCharacterSystemPrompt(profile, 'chat');
+    return { charNum, systemPrompt };
+  }
+
+  private async deliverReminder(task: TaskRecord): Promise<void> {
     try {
+      const { charNum, systemPrompt } = this.resolveTaskCharacter(task.userId);
       const messageText = await generateReminderMessage(this.deps.ai, systemPrompt, task);
       const speechText = formatSpeech(charNum, `${mentionPrefix(task)}${messageText}`);
       await this.deps.misskeyClient.postToUser(speechText, task.userId);
@@ -190,8 +195,9 @@ export class TaskScheduler {
     }
   }
 
-  private async deliverOverdue(task: TaskRecord, charNum: string, systemPrompt: string): Promise<void> {
+  private async deliverOverdue(task: TaskRecord): Promise<void> {
     try {
+      const { charNum, systemPrompt } = this.resolveTaskCharacter(task.userId);
       const messageText = await generateOverdueMessage(this.deps.ai, systemPrompt, task);
       const speechText = formatSpeech(charNum, `${mentionPrefix(task)}${messageText}`);
       await this.deps.misskeyClient.postToUser(speechText, task.userId);
@@ -202,8 +208,9 @@ export class TaskScheduler {
     }
   }
 
-  private async deliverNudge(task: TaskRecord, charNum: string, systemPrompt: string): Promise<void> {
+  private async deliverNudge(task: TaskRecord): Promise<void> {
     try {
+      const { charNum, systemPrompt } = this.resolveTaskCharacter(task.userId);
       const messageText = await generateNudgeMessage(this.deps.ai, systemPrompt, task);
       const speechText = formatSpeech(charNum, `${mentionPrefix(task)}${messageText}`);
       await this.deps.misskeyClient.postToUser(speechText, task.userId);

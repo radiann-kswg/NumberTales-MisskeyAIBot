@@ -7,6 +7,7 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
 import type { TaskStore } from '../../storage/task.js';
 import type { TrustStore } from '../../storage/trust.js';
+import type { ActiveCharacterStore } from '../character/store.js';
 import { WeeklyPollScheduler } from './weekly-poll.js';
 import { TaskScheduler } from './task-scheduler.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -123,6 +124,7 @@ export interface SchedulerDeps {
   botState: BotStateStore;
   taskStore: TaskStore;
   trustStore: TrustStore;
+  activeCharacterStore: ActiveCharacterStore;
 }
 
 /**
@@ -151,9 +153,9 @@ export class PostScheduler {
     this.taskScheduler = new TaskScheduler({
       ai: deps.ai,
       misskeyClient: deps.misskeyClient,
-      botState: deps.botState,
       taskStore: deps.taskStore,
       trustStore: deps.trustStore,
+      activeCharacterStore: deps.activeCharacterStore,
     });
   }
 
