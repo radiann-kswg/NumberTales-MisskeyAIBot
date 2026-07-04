@@ -195,6 +195,17 @@ export function formatTaskList(tasks: TaskRecord[]): string {
 
 export type TaskTarget = { type: 'index'; value: number } | { type: 'query'; value: string };
 
+/** 一覧・候補表示で使う丸数字→インデックスの対応（returnされた一覧をそのまま丸数字で参照返信されるケースに対応） */
+const CIRCLED_DIGIT_TO_INDEX: Record<string, number> = {
+  '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5,
+  '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10,
+};
+
+/** 全角数字を半角数字に変換する（「１番」のような入力を拾えるようにする） */
+function toHalfWidthDigits(s: string): string {
+  return s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+}
+
 /** タスク完了トリガーの語句除去用パターン（意図分類側の TASK_DONE_PATTERNS と活用形を揃えること） */
 export const DONE_ACTION_PATTERN =
   /(が|を)?(終わ(った|り(ました|ます)?|って(る|います)?)|完了(した|しました|してる|しています)?|でき(た|ました|てる|ています)|やり終え(た|ました))/g;
@@ -215,10 +226,15 @@ export function extractProgressPercent(text: string): number | null {
 
 /**
  * タスク特定対象を解析する。
- * 「○番」の番号指定を優先し、なければアクション語句を除いた残りを内容検索クエリとする。
+ * 一覧・候補表示の丸数字（①等）による参照、「○番」「１番」（全角可）の番号指定を優先し、
+ * どれにも一致しなければアクション語句を除いた残りを内容検索クエリとする。
  */
 export function extractTaskTarget(text: string, actionPattern: RegExp): TaskTarget {
-  const indexMatch = /(\d+)\s*番/.exec(text);
+  const circledMatch = /[①②③④⑤⑥⑦⑧⑨⑩]/.exec(text);
+  if (circledMatch) {
+    return { type: 'index', value: CIRCLED_DIGIT_TO_INDEX[circledMatch[0]]! };
+  }
+  const indexMatch = /(\d+)\s*番/.exec(toHalfWidthDigits(text));
   if (indexMatch?.[1]) {
     return { type: 'index', value: parseInt(indexMatch[1], 10) };
   }
