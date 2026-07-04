@@ -43,11 +43,30 @@ export class RateLimiter {
   }
 
   /**
-   * 返信を記録する（canReply() が true を返した後に呼ぶ）
+   * 同一ユーザーへのクールダウンのみを見る（全体の時間あたり上限は見ない）。
+   * ヒット＆ブロウ・ヨットなど、既にアクティブなゲームセッションの手番継続は
+   * 新規の呼びかけではなく既に許可された1:1のやり取りの続きなので、
+   * 他ユーザーへの応答枠を圧迫する全体上限のカウント対象からは外すために使う。
    */
-  recordReply(userId: string): void {
+  canReplyIgnoringGlobalCap(userId: string): boolean {
+    if (this.cooldownMs > 0) {
+      const now = Date.now();
+      const last = this.lastReply.get(userId);
+      if (last !== undefined && now - last < this.cooldownMs) return false;
+    }
+    return true;
+  }
+
+  /**
+   * 返信を記録する（canReply() / canReplyIgnoringGlobalCap() が true を返した後に呼ぶ）。
+   * countsTowardGlobalCap を false にすると、同一ユーザーへのクールダウン用の
+   * タイムスタンプだけ更新し、全体の時間あたり上限のカウントには加算しない。
+   */
+  recordReply(userId: string, opts: { countsTowardGlobalCap?: boolean } = {}): void {
     const now = Date.now();
     this.lastReply.set(userId, now);
-    this.globalPostTimes.push(now);
+    if (opts.countsTowardGlobalCap ?? true) {
+      this.globalPostTimes.push(now);
+    }
   }
 }

@@ -44,7 +44,13 @@ import {
   type F06Result, type YachtState, type HitBlowState,
 } from '../../features/f06/index.js';
 import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
-import { parseGuess, HITBLOW_DIGITS_PATTERN, HITBLOW_DUPLICATE_PATTERN } from '../../features/f06/hitblow.js';
+import {
+  parseGuess,
+  HITBLOW_DIGITS_PATTERN,
+  HITBLOW_DUPLICATE_PATTERN,
+  HITBLOW_ALPHABET_PATTERN,
+  HITBLOW_REVEAL_ON_END_PATTERN,
+} from '../../features/f06/hitblow.js';
 import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
@@ -506,7 +512,16 @@ export async function handleMention(
   }
 
   // 3. レートリミット確認
-  if (!rateLimiter.canReply(event.userId)) {
+  // アクティブなゲームセッション（ヒット＆ブロウ・ヨット）の手番継続は、新規の呼びかけではなく
+  // 既に許可された1:1のやり取りの続きなので、他ユーザーへの応答枠を圧迫する全体の時間あたり
+  // 上限のチェックからは除外する（同一ユーザーへのクールダウンはそのまま適用する）。
+  const hasActiveGameSession =
+    gameSessionStore.getSession<YachtState>(event.userId, 'yacht') !== null ||
+    gameSessionStore.getSession<HitBlowState>(event.userId, 'hitblow') !== null;
+  const canReplyNow = hasActiveGameSession
+    ? rateLimiter.canReplyIgnoringGlobalCap(event.userId)
+    : rateLimiter.canReply(event.userId);
+  if (!canReplyNow) {
     logger.info(`Rate limited for user: ${event.userId}`);
     return;
   }
@@ -578,7 +593,7 @@ export async function handleMention(
           formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
           event.noteId,
         );
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
       } catch (replyErr) {
         logger.error('Failed to post yacht error fallback reply:', replyErr);
       }
@@ -595,7 +610,7 @@ export async function handleMention(
       const yachtNoteText = formatSpeech(activeCharacterNum, finalText);
       try {
         await misskeyClient.reply(yachtNoteText, event.noteId);
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
         logger.info(`Replied (yacht-action) to ${event.userId}`);
         const reactionPool = MENTION_REACTION_MAP['game-yacht'] ?? MENTION_REACTION_MAP['chat']!;
         misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
@@ -608,7 +623,7 @@ export async function handleMention(
       const abandonResult = handleYachtAbandon(gameSessionStore, event.userId);
       try {
         await misskeyClient.reply(formatSpeech(activeCharacterNum, abandonResult.text), event.noteId);
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
       } catch (err) {
         logger.error('Failed to post yacht abandon reply:', err);
       }
@@ -632,7 +647,7 @@ export async function handleMention(
         gameSessionStore.setSession(event.userId, 'yacht', { ...activeYachtState, pendingReroll: null });
         try {
           await misskeyClient.reply(formatSpeech(activeCharacterNum, 'じゃあどれを振り直す？'), event.noteId);
-          rateLimiter.recordReply(event.userId);
+          rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
         } catch (err) {
           logger.error('Failed to post yacht confirm-cancel reply:', err);
         }
@@ -658,7 +673,7 @@ export async function handleMention(
             formatSpeech(activeCharacterNum, yachtConfirmPrompt(rerollCmd.indices)),
             event.noteId,
           );
-          rateLimiter.recordReply(event.userId);
+          rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
         } catch (err) {
           logger.error('Failed to post yacht confirm prompt:', err);
         }
@@ -685,7 +700,7 @@ export async function handleMention(
           formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
           event.noteId,
         );
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
       } catch (replyErr) {
         logger.error('Failed to post hitblow error fallback reply:', replyErr);
       }
@@ -696,7 +711,12 @@ export async function handleMention(
 
   /** アクティブなヒット＆ブロウセッションへのターン操作を処理する。処理して返信済みなら true、対象外なら false。 */
   async function handleActiveHitBlowTurn(activeHitBlowState: HitBlowState): Promise<boolean> {
-    const guess = parseGuess(event.text, activeHitBlowState.digits, activeHitBlowState.allowDuplicates);
+    const guess = parseGuess(
+      event.text,
+      activeHitBlowState.digits,
+      activeHitBlowState.allowDuplicates,
+      activeHitBlowState.mode,
+    );
     if (guess !== null) {
       let hbResult = handleHitBlowGuess(activeHitBlowState, guess, gameSessionStore, event.userId);
       const hbFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-hitblow', hbResult.text);
@@ -706,7 +726,7 @@ export async function handleMention(
         (hbResult.cwBody ? '\n\n' + hbResult.cwBody : '');
       try {
         await misskeyClient.reply(hbNoteText, event.noteId, { cw: hbResult.cwLabel });
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
         logger.info(`Replied (hitblow-guess) to ${event.userId}`);
         const reactionPool = MENTION_REACTION_MAP['game-hitblow'] ?? MENTION_REACTION_MAP['chat']!;
         misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
@@ -715,13 +735,18 @@ export async function handleMention(
       }
       return true;
     }
-    if (HITBLOW_DIGITS_PATTERN.test(event.text) || HITBLOW_DUPLICATE_PATTERN.test(event.text)) {
-      // 予想としては解釈できず、桁数・重複ありの指定が含まれている: 条件変更の指示とみなし新条件で再スタートする
+    if (
+      HITBLOW_DIGITS_PATTERN.test(event.text) ||
+      HITBLOW_DUPLICATE_PATTERN.test(event.text) ||
+      HITBLOW_ALPHABET_PATTERN.test(event.text) ||
+      HITBLOW_REVEAL_ON_END_PATTERN.test(event.text)
+    ) {
+      // 予想としては解釈できず、桁数・重複あり・モード・色ヒント設定の指定が含まれている: 条件変更の指示とみなし新条件で再スタートする
       const restartResult = handleHitBlowStart(event.userId, gameSessionStore, event.text);
       const restartText = `条件を変えて、ゲームをやり直すね。\n${restartResult.text}`;
       try {
         await misskeyClient.reply(formatSpeech(activeCharacterNum, restartText), event.noteId);
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
         logger.info(`Replied (hitblow-restart) to ${event.userId}`);
       } catch (err) {
         logger.error('Failed to post hitblow restart reply:', err);
@@ -732,7 +757,7 @@ export async function handleMention(
       const abandonResult = handleHitBlowAbandon(activeHitBlowState, gameSessionStore, event.userId);
       try {
         await misskeyClient.reply(formatSpeech(activeCharacterNum, abandonResult.text), event.noteId);
-        rateLimiter.recordReply(event.userId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
       } catch (err) {
         logger.error('Failed to post hitblow abandon reply:', err);
       }
