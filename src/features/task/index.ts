@@ -3,6 +3,7 @@
  */
 import type { AIProvider } from '../../ai/index.js';
 import type { TaskRecord, TaskRemindType, TaskPriority, TaskDifficulty } from '../../storage/task.js';
+import { matchCircledDigit, toHalfWidthDigits } from '../../utils/text.js';
 
 /** remind_at 指定時の許容幅: 最短1分後 */
 const MIN_LEAD_MS = 60 * 1000;
@@ -195,17 +196,6 @@ export function formatTaskList(tasks: TaskRecord[]): string {
 
 export type TaskTarget = { type: 'index'; value: number } | { type: 'query'; value: string };
 
-/** 一覧・候補表示で使う丸数字→インデックスの対応（returnされた一覧をそのまま丸数字で参照返信されるケースに対応） */
-const CIRCLED_DIGIT_TO_INDEX: Record<string, number> = {
-  '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5,
-  '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10,
-};
-
-/** 全角数字を半角数字に変換する（「１番」のような入力を拾えるようにする） */
-function toHalfWidthDigits(s: string): string {
-  return s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
-}
-
 /** タスク完了トリガーの語句除去用パターン（意図分類側の TASK_DONE_PATTERNS と活用形を揃えること） */
 export const DONE_ACTION_PATTERN =
   /(が|を)?(終わ(った|り(ました|ます)?|って(る|います)?)|完了(した|しました|してる|しています)?|でき(た|ました|てる|ています)|やり終え(た|ました))/g;
@@ -217,7 +207,7 @@ export const PROGRESS_ACTION_PATTERN =
 
 /** 発話から進捗％の指定値（0-100）を抽出する。見つからなければ null */
 export function extractProgressPercent(text: string): number | null {
-  const match = /(\d{1,3})\s*[%％]/.exec(text);
+  const match = /(\d{1,3})\s*[%％]/.exec(toHalfWidthDigits(text));
   if (!match) return null;
   const value = parseInt(match[1]!, 10);
   if (Number.isNaN(value)) return null;
@@ -230,9 +220,9 @@ export function extractProgressPercent(text: string): number | null {
  * どれにも一致しなければアクション語句を除いた残りを内容検索クエリとする。
  */
 export function extractTaskTarget(text: string, actionPattern: RegExp): TaskTarget {
-  const circledMatch = /[①②③④⑤⑥⑦⑧⑨⑩]/.exec(text);
-  if (circledMatch) {
-    return { type: 'index', value: CIRCLED_DIGIT_TO_INDEX[circledMatch[0]]! };
+  const circledIndex = matchCircledDigit(text);
+  if (circledIndex !== null) {
+    return { type: 'index', value: circledIndex };
   }
   const indexMatch = /(\d+)\s*番/.exec(toHalfWidthDigits(text));
   if (indexMatch?.[1]) {

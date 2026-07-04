@@ -5,6 +5,7 @@
  * - キープしたダイス: suigyoku（翠玉・緑）
  * - 新たに振ったダイス: hakuji（白磁・白）
  */
+import { CIRCLED_DIGIT_TO_INDEX, toHalfWidthDigits } from '../../utils/text.js';
 
 /** ゲームセッション保持用の状態 */
 export interface YachtState {
@@ -110,13 +111,27 @@ export interface RerollParseResult {
 }
 
 /**
+ * ダイス位置を表す丸数字（①②③④⑤）を、対応する半角数字を前後スペースで囲んだ形に展開し、
+ * 全角数字も半角に変換する。丸数字は区切り文字なしで並ぶことが多い（「①③」等）ため、
+ * 単純に数字へ変換するだけだと隣接して桁が繋がってしまう（例:「13」）ので、
+ * 各数字をスペースで区切って複数指定の正規表現がそのまま機能するようにする。
+ */
+function expandDicePositionDigits(text: string): string {
+  const withExpandedCircles = text.replace(
+    /[①②③④⑤]/g,
+    (c) => ` ${CIRCLED_DIGIT_TO_INDEX[c]!} `,
+  );
+  return toHalfWidthDigits(withExpandedCircles);
+}
+
+/**
  * 出目ベースの振り直し指定を解析する。
  * - 「Nの目を振り直し」: 出目Nのダイスを対象にする
  * - 「Nの目以外を振り直し」: 出目Nをキープし、残りを対象にする
  * 該当なしなら null。
  */
 export function parseRerollByFaceValue(text: string, dice: number[]): number[] | null {
-  const normalized = text.trim();
+  const normalized = toHalfWidthDigits(text.trim());
 
   const exceptMatch = /([1-6])の目以外を?(?:振り直し|ふりなおし|reroll)/i.exec(normalized);
   if (exceptMatch?.[1]) {
@@ -145,7 +160,9 @@ export function parseRerollByFaceValue(text: string, dice: number[]): number[] |
  * - 位置指定と出目指定が同一文に混在した場合は和集合（OR）にした上で確認必須
  */
 export function parseRerollCommand(text: string, dice: number[]): RerollParseResult | 'keep' | null {
-  const normalized = text.trim();
+  // ①②③のような丸数字表示（Bot自身がダイス位置ラベルとして使う）や全角数字での
+  // 返信もそのまま解析できるよう、位置指定部分は事前に半角数字へ正規化する。
+  const normalized = expandDicePositionDigits(text.trim());
 
   // キープ / 確定 コマンド
   if (/このまま|キープ|確定|keep/i.test(normalized)) return 'keep';
