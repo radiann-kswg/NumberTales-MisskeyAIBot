@@ -197,7 +197,60 @@ grep '"level":"error"' .cache/error.log  # error のみ
 
 ---
 
-## 5. トラブルシューティング
+## 5. 自動復旧（ウォッチドッグ）
+
+障害レイヤーごとに3層で自動復旧する。詳細設計は
+[`_ideas/milestone/2026-07-04_milestone_auto-recovery.md`](../_ideas/milestone/2026-07-04_milestone_auto-recovery.md) を参照。
+
+| レイヤー | 障害 | 復旧手段 |
+| -------- | ---- | -------- |
+| 1 | プロセスの即死・クラッシュ | PM2 `autorestart`（既存） |
+| 2 | プロセスハング / WS切断継続 / PM2 `errored` 放置 | VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer） |
+| 3 | VMごとフリーズ・停止 | GCE外部ウォッチドッグ（Cloud Scheduler + Cloud Run functions → reset/start） |
+
+### 5-1. Bot ハートビート
+
+Bot は起動中、`HEARTBEAT_PATH`（デフォルト `.cache/heartbeat.json`）へ30秒ごとに
+`{ ts, wsConnected, lastConnectedAt, uptimeSec }` を書き出す。追加設定は不要
+（`.env` の `HEARTBEAT_PATH` / `HEARTBEAT_INTERVAL_MS` で変更可能）。
+
+### 5-2. VM内ウォッチドッグの導入（初回のみ）
+
+毎分 `tools/vm-watchdog.mjs` を systemd timer で実行し、以下の場合に pm2 を再起動する。
+
+- pm2 のプロセスが `online` でない（`errored` / `stopped` / 未登録）
+- ハートビートが3分以上更新されていない（イベントループのハング）
+- WebSocket 切断が10分以上継続（自動再接続の失敗）
+- フラッピング防止: 再起動は30分間に3回まで。超過時は `.cache/watchdog.log` に記録して抑止
+
+```bash
+cd ~/NumberTales-MisskeyAIBot
+
+# ユニットファイルを配置（<USER> と <REPO_DIR> を置換）
+sed -e "s|<USER>|$(whoami)|g" -e "s|<REPO_DIR>|$HOME/NumberTales-MisskeyAIBot|g" \
+  tools/systemd/numbertales-watchdog.service | sudo tee /etc/systemd/system/numbertales-watchdog.service
+sudo cp tools/systemd/numbertales-watchdog.timer /etc/systemd/system/
+
+# 有効化
+sudo systemctl daemon-reload
+sudo systemctl enable --now numbertales-watchdog.timer
+
+# 動作確認
+systemctl list-timers numbertales-watchdog.timer
+node tools/vm-watchdog.mjs --dry-run   # 手動判定（再起動はしない）
+tail -n 20 .cache/watchdog.log         # 異常検知・再起動の記録
+```
+
+### 5-3. GCE外部ウォッチドッグの導入
+
+VM そのものが落ちた場合の復旧。セットアップ手順・gcloud コマンドは
+[`tools/gce-watchdog/README.md`](../tools/gce-watchdog/README.md) を参照。
+併せて GCE インスタンスの `automaticRestart`（ホスト障害時の自動再起動）が
+有効になっているかも確認すること。
+
+---
+
+## 6. トラブルシューティング
 
 ### Bot が起動しない
 

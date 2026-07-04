@@ -24,6 +24,8 @@ export class MisskeyClient {
   private readonly stream: Stream;
   private readonly apiClient: MisskeyApi.APIClient;
   private readonly mainCh: ChannelConnection<Channels['main']>;
+  /** WebSocket の現在の接続状態（ハートビート経由でウォッチドッグが参照） */
+  private connected = false;
 
   constructor(
     private readonly origin: string,
@@ -34,12 +36,19 @@ export class MisskeyClient {
     this.mainCh = this.stream.useChannel('main');
 
     this.stream.on('_connected_', () => {
+      this.connected = true;
       logger.info(`Misskey WebSocket connected: ${this.origin}`);
     });
 
     this.stream.on('_disconnected_', () => {
+      this.connected = false;
       logger.debug('Misskey WebSocket disconnected. Reconnecting...');
     });
+  }
+
+  /** WebSocket が現在接続中かどうかを返す（自動復旧のヘルスチェック用） */
+  isConnected(): boolean {
+    return this.connected;
   }
 
   /**

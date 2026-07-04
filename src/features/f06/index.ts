@@ -42,11 +42,15 @@ import {
   calculateHitBlow,
   parseGuess,
   hitBlowCwBody,
+  symbolLabel,
   HITBLOW_MIN_DIGITS,
   HITBLOW_MAX_DIGITS,
   HITBLOW_DIGITS_PATTERN,
   HITBLOW_DUPLICATE_PATTERN,
+  HITBLOW_ALPHABET_PATTERN,
+  HITBLOW_REVEAL_ON_END_PATTERN,
   type HitBlowState,
+  type HitBlowMode,
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
@@ -425,8 +429,10 @@ export function handleHitBlowStart(userId: string, store: GameSessionStore, text
     };
   }
   const allowDuplicates = HITBLOW_DUPLICATE_PATTERN.test(text);
+  const mode: HitBlowMode = HITBLOW_ALPHABET_PATTERN.test(text) ? 'alphabet' : 'digit';
+  const revealOnEnd = HITBLOW_REVEAL_ON_END_PATTERN.test(text);
 
-  const secret = generateSecret(digits, allowDuplicates);
+  const secret = generateSecret(digits, allowDuplicates, mode);
   const maxGuesses = Math.max(10, digits * 2);
   const state: HitBlowState = {
     secret,
@@ -434,13 +440,17 @@ export function handleHitBlowStart(userId: string, store: GameSessionStore, text
     maxGuesses,
     digits,
     allowDuplicates,
+    mode,
+    revealOnEnd,
     guessHistory: [],
   };
   store.setSession(userId, 'hitblow', state);
+  const symbolSetLabel = mode === 'alphabet' ? 'アルファベット(A〜Z)' : '数字';
+  const revealNote = revealOnEnd ? '\n（色ヒントは結果発表のときだけ出すね）' : '';
   return {
     text:
-      `${digits}桁の数字を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
-      `最大${maxGuesses}回で当ててね！\n数字を送って予想してみよう`,
+      `${digits}桁の${symbolSetLabel}を設定したよ（${allowDuplicates ? '重複あり' : '重複なし'}）。` +
+      `最大${maxGuesses}回で当ててね！\n${symbolSetLabel}を送って予想してみよう${revealNote}`,
   };
 }
 
@@ -456,11 +466,14 @@ export function handleHitBlowGuess(
 ): F06Result {
   const { hits, blows } = calculateHitBlow(state.secret, guess);
   const newGuessCount = state.guessCount + 1;
-  const guessStr = guess.join('');
+  const guessStr = guess.map((g) => symbolLabel(state.mode, g)).join('');
   const remaining = state.maxGuesses - newGuessCount;
   const guessHistory = [...state.guessHistory, { guess: guessStr, hits, blows }];
   const cwLabel = `${newGuessCount}回目の予想`;
-  const cwBody = hitBlowCwBody(state.secret, guessHistory);
+  const isFinished = hits === state.digits || remaining <= 0;
+  // 「結果発表のみ色ヒント」オプション時、ゲーム進行中は色ヒントを白固定にし、終了時にのみ色で明かす
+  const revealColors = !state.revealOnEnd || isFinished;
+  const cwBody = hitBlowCwBody(state.secret, guessHistory, state.mode, revealColors);
 
   if (hits === state.digits) {
     store.deleteSession(userId, 'hitblow');
@@ -473,7 +486,7 @@ export function handleHitBlowGuess(
 
   if (remaining <= 0) {
     store.deleteSession(userId, 'hitblow');
-    const secretStr = state.secret.join('');
+    const secretStr = state.secret.map((s) => symbolLabel(state.mode, s)).join('');
     return {
       text: `「${guessStr}」→ ${hits}ヒット ${blows}ブロウ\n残念……正解は「${secretStr}」だったよ`,
       cwBody,
@@ -492,7 +505,7 @@ export function handleHitBlowGuess(
 /** ゲームを中断・放棄する（正解を明かす） */
 export function handleHitBlowAbandon(state: HitBlowState, store: GameSessionStore, userId: string): F06Result {
   store.deleteSession(userId, 'hitblow');
-  const secretStr = state.secret.join('');
+  const secretStr = state.secret.map((s) => symbolLabel(state.mode, s)).join('');
   return { text: `ヒット＆ブロウを終了したよ。答えは「${secretStr}」だったよ` };
 }
 

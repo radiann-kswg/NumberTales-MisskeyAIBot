@@ -1,0 +1,15 @@
+# NumberTales Bot VM 内ウォッチドッグ（oneshot・timer から毎分起動）
+# 導入手順は docs/deployment.md の「自動復旧」節を参照。
+# <USER> と <REPO_DIR> を実環境に合わせて置換してから
+# /etc/systemd/system/ に配置すること。
+[Unit]
+Description=NumberTales Bot watchdog (pm2 health + heartbeat check)
+After=network.target
+
+[Service]
+Type=oneshot
+User=<USER>
+WorkingDirectory=<REPO_DIR>
+ExecStart=/usr/bin/node <REPO_DIR>/tools/vm-watchdog.mjs
+# pm2 のソケットはユーザーごと（~/.pm2）のため、対象ユーザーで実行する
+Environment=PM2_HOME=/home/<USER>/.pm2

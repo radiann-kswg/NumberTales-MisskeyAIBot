@@ -34,6 +34,10 @@ export const config = {
     incidentLogPath: optionalEnv('INCIDENT_LOG_PATH', '.cache/incident.log'),
     /** エラー・警告ログの出力先ファイルパス（error / warn レベル） */
     errorLogPath: optionalEnv('ERROR_LOG_PATH', '.cache/error.log'),
+    /** ハートビートファイルの出力先（VM 内ウォッチドッグが鮮度を監視） */
+    heartbeatPath: optionalEnv('HEARTBEAT_PATH', '.cache/heartbeat.json'),
+    /** ハートビート書き込み間隔（ミリ秒） */
+    heartbeatIntervalMs: parseInt(optionalEnv('HEARTBEAT_INTERVAL_MS', '30000'), 10),
   },
   bot: {
     nodeEnv: optionalEnv('NODE_ENV', 'development') as 'development' | 'production',
@@ -43,7 +47,7 @@ export const config = {
   },
   rateLimit: {
     replyCooldownMs: parseInt(optionalEnv('RATE_LIMIT_REPLY_COOLDOWN_MS', '0'), 10),
-    globalPerHour: parseInt(optionalEnv('RATE_LIMIT_GLOBAL_PER_HOUR', '10'), 10),
+    globalPerHour: parseInt(optionalEnv('RATE_LIMIT_GLOBAL_PER_HOUR', '30'), 10),
   },
   features: {
     enableGlobalTL: optionalEnv('ENABLE_GLOBAL_TL', 'false') === 'true',
