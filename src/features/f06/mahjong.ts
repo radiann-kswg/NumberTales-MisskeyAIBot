@@ -3,8 +3,23 @@
  *
  * Secvier 麻雀牌絵文字（sv_mj_{suit}_{num} / sv_mj_char_{id}）を使用。
  * 136枚標準デッキから14枚を配牌し、役判定・翻数計算を行う。
- * セッションレス（1回完結）。
+ * 本来の打牌・ツモに倣い、指定した位置の牌を山からツモった牌と交換できる
+ * （最大 MAHJONG_MAX_EXCHANGES 回）。
  */
+import { toHalfWidthDigits } from '../../utils/text.js';
+
+/** ゲームセッション保持用の状態 */
+export interface MahjongState {
+  /** 現在の14枚の手牌 */
+  tiles: Tile[];
+  /** ツモ用に残っている山 */
+  wall: Tile[];
+  /** 交換（打牌→ツモ）済みの回数 */
+  turnsUsed: number;
+}
+
+/** 打牌→ツモによる交換の上限回数（実際の麻雀は1局で15巡以上打牌するため、それに近い回数を許容する） */
+export const MAHJONG_MAX_EXCHANGES = 10;
 
 export type TileSuit = 'man' | 'pin' | 'sou' | 'char';
 export type CharTileId = 'east' | 'south' | 'west' | 'north' | 'haku' | 'hatsu' | 'chun';
@@ -33,6 +48,11 @@ function tileKey(t: Tile): number {
 
 function tilesEqual(a: Tile, b: Tile): boolean {
   return a.suit === b.suit && a.num === b.num && a.char === b.char;
+}
+
+/** 手牌を見やすいよう、萬子→筒子→索子→字牌の順・数の昇順に並べ替える */
+export function sortTiles(tiles: Tile[]): Tile[] {
+  return [...tiles].sort((a, b) => tileKey(a) - tileKey(b));
 }
 
 // ================================================================
@@ -65,6 +85,12 @@ function shuffle<T>(arr: T[]): T[] {
 /** 136枚デッキをシャッフルして14枚を配る */
 export function dealHand(): Tile[] {
   return shuffle(buildDeck()).slice(0, 14);
+}
+
+/** 136枚デッキをシャッフルし、14枚の初期手牌と残りの山を返す */
+export function dealMahjongGame(): { tiles: Tile[]; wall: Tile[] } {
+  const shuffled = shuffle(buildDeck());
+  return { tiles: shuffled.slice(0, 14), wall: shuffled.slice(14) };
 }
 
 // ================================================================
@@ -286,22 +312,38 @@ export function handEmojiBlock(tiles: Tile[]): string {
   return `${row1}\n${row2}`;
 }
 
+/** 14枚の手牌を位置番号（1始まり）付きで2行（7枚ずつ）表示するテキストを返す */
+export function handEmojiBlockLabeled(tiles: Tile[]): string {
+  const half = Math.ceil(tiles.length / 2);
+  const row = (slice: Tile[], offset: number): string =>
+    slice.map((t, i) => `${offset + i + 1}${tileEmoji(t)}`).join(' ');
+  return `${row(tiles.slice(0, half), 0)}\n${row(tiles.slice(half), half)}`;
+}
+
 const HAN_LABEL: Record<number, string> = {
   1: '★', 2: '★★', 3: '★★★', 4: '★★★★',
   5: '★★★★★', 6: '★★★★★★',
 };
+
+function formatHan(han: number): string {
+  return han >= 13 ? '役満！' :
+    han >= 8  ? '跳満！' :
+    HAN_LABEL[han] ? `${HAN_LABEL[han]}（${han}翻）` :
+    `${han}翻`;
+}
+
+/** 現在の手牌の状態（役なし/流局/役あり）を1行で表す */
+function handStatusLine(result: MahjongResult): string {
+  if (!result.agari) return '現在: アガり形になっていない';
+  if (result.yaku.length === 0) return '現在: アガれるけど役なし';
+  return `現在: ${result.yaku.join('・')}【${formatHan(result.han)}】`;
+}
 
 /** 麻雀ゲームの結果テキストを生成する */
 export function mahjongResultText(
   tiles: Tile[],
   result: MahjongResult,
 ): { text: string; cwBody: string; cwLabel: string } {
-  const hanStr =
-    result.han >= 13 ? '役満！' :
-    result.han >= 8  ? '跳満！' :
-    HAN_LABEL[result.han] ? `${HAN_LABEL[result.han]}（${result.han}翻）` :
-    `${result.han}翻`;
-
   let text: string;
   if (!result.agari) {
     text = '配牌チャレンジ → 流局……アガり形にならなかった';
@@ -309,7 +351,7 @@ export function mahjongResultText(
     text = '配牌チャレンジ → アガれるけど役なし！もう一回どうぞ';
   } else {
     const yakuList = result.yaku.join('・');
-    text = `配牌チャレンジ → ${yakuList}【${hanStr}】`;
+    text = `配牌チャレンジ → ${yakuList}【${formatHan(result.han)}】`;
   }
 
   return {
@@ -317,4 +359,51 @@ export function mahjongResultText(
     cwBody: handEmojiBlock(tiles),
     cwLabel: '配牌の内容',
   };
+}
+
+/**
+ * 打牌（交換）コマンドを解析する。
+ * - 'keep': 交換せず現在の手牌で確定する（「あがり」「ツモ」等）
+ * - number: 交換する 0-indexed の手牌位置
+ * - null: 交換コマンドとして認識できなかった
+ */
+export function parseDiscardCommand(text: string): number | 'keep' | null {
+  const normalized = toHalfWidthDigits(text.trim());
+
+  if (/あがり|ツモ(?:った)?|このまま|確定|キープ/i.test(normalized)) return 'keep';
+
+  // 前後が数字に接していない（＝2桁の数字の一部を切り出してしまわない）ことを要求する
+  const posPattern = '(?<!\\d)(?:1[0-4]|[1-9])(?!\\d)';
+  const prefixMatch = new RegExp(`(?:打牌|切る|捨てる|discard)[\\s\u3000]*(${posPattern})(?:番)?`, 'i').exec(normalized);
+  const suffixMatch = new RegExp(`(${posPattern})[\\s\u3000]*番?[\\s\u3000]*を?(?:打牌|切る|捨てる|discard)`, 'i').exec(normalized);
+  const numbersOnly = new RegExp(`^[\\s\u3000]*(${posPattern})[\\s\u3000]*番?[\\s\u3000]*$`).exec(normalized);
+  const raw = prefixMatch?.[1] ?? suffixMatch?.[1] ?? numbersOnly?.[1];
+  if (!raw) return null;
+
+  const index = parseInt(raw, 10) - 1;
+  return index >= 0 && index <= 13 ? index : null;
+}
+
+/** ゲーム開始時（初回配牌）の表示テキスト */
+export function mahjongInitialMessage(state: MahjongState): string {
+  const result = evaluateHand(state.tiles);
+  return (
+    `配牌チャレンジだよ（14枚）\n${handEmojiBlockLabeled(state.tiles)}\n${handStatusLine(result)}\n` +
+    `交換可能: あと${MAHJONG_MAX_EXCHANGES - state.turnsUsed}回\n` +
+    `「打牌 3」でその位置の牌をツモ交換できる（1始まり）\n「あがり」で確定`
+  );
+}
+
+/** 交換後（ゲーム中）の表示テキスト */
+export function mahjongMidMessage(state: MahjongState): string {
+  const result = evaluateHand(state.tiles);
+  const statusLine = handStatusLine(result);
+  const remaining = MAHJONG_MAX_EXCHANGES - state.turnsUsed;
+  if (remaining <= 0) {
+    return `${handEmojiBlockLabeled(state.tiles)}\n${statusLine}\n交換上限です。「あがり」で確定してください`;
+  }
+  return (
+    `${handEmojiBlockLabeled(state.tiles)}\n${statusLine}\n` +
+    `あと${remaining}回交換できる。「打牌 X」または「あがり」で確定`
+  );
 }

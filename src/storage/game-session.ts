@@ -1,7 +1,7 @@
 /**
  * ゲームセッション一時ストレージ（SQLite）
  *
- * ターン制ミニゲーム（ヨット・ヒット＆ブロウ）の状態を TTL 付きで保持する。
+ * ターン制ミニゲーム（ヨット・ヒット＆ブロウ・ポーカー・麻雀配牌チャレンジ）の状態を TTL 付きで保持する。
  * 個人情報は保存しない — userId を識別子として使用するのみ。
  * 同一ユーザーのゲームセッションは 1 つまで（並行ゲーム禁止）。
  */
@@ -9,7 +9,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export type GameType = 'yacht' | 'hitblow' | 'hitblow-pending';
+export type GameType = 'yacht' | 'hitblow' | 'hitblow-pending' | 'poker' | 'mahjong';
 
 /** 「もう一回」継続コマンド（D3-7）の対象となる5ゲーム */
 export type RecentGameType = 'yacht' | 'hitblow' | 'slot' | 'poker' | 'mahjong';
