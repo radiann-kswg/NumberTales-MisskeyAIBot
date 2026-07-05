@@ -295,6 +295,16 @@ export function classifyIntent(text: string): ClassificationResult {
     if (pattern.test(normalized)) return { intent: 'task-progress-update' };
   }
 
+  // TASK_ADD_PATTERNS は「タスクに追加/登録して/覚えておいて」等の明示的なトリガー語のみに
+  // 限定されているのに対し、TASK_LIST_PATTERNS/TASK_DONE_PATTERNS は「進捗」「完了」という
+  // 単語が単独で含まれるだけでもマッチしうる広いパターンを含む。そのため判定順をそのままにすると
+  // 「進捗管理のためにタスクを登録して」のような追加依頼が task-list/task-done に誤分類され、
+  // タスクが追加されないまま雑談応答にフォールスルーしてしまう。より明示的な意図である
+  // task-add を先に判定することでこの誤爆を防ぐ。
+  for (const pattern of TASK_ADD_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'task-add' };
+  }
+
   for (const pattern of TASK_LIST_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'task-list' };
   }
@@ -305,10 +315,6 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of TASK_CANCEL_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'task-cancel' };
-  }
-
-  for (const pattern of TASK_ADD_PATTERNS) {
-    if (pattern.test(normalized)) return { intent: 'task-add' };
   }
 
   for (const pattern of DICE_PATTERNS) {
