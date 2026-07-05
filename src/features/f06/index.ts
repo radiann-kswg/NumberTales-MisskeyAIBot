@@ -27,8 +27,24 @@ import {
   type SlotRole,
 } from './responder.js';
 import { characterDiceColor } from './dice-color.js';
-import { dealPokerHand, evaluatePokerHand, pokerResultText } from './poker.js';
-import { dealHand, evaluateHand, mahjongResultText } from './mahjong.js';
+import {
+  dealPokerGame,
+  evaluatePokerHand,
+  pokerResultText,
+  pokerInitialMessage,
+  sortCards,
+  type PokerState,
+} from './poker.js';
+import {
+  dealMahjongGame,
+  evaluateHand,
+  mahjongResultText,
+  mahjongInitialMessage,
+  mahjongMidMessage,
+  sortTiles,
+  MAHJONG_MAX_EXCHANGES,
+  type MahjongState,
+} from './mahjong.js';
 import {
   rollDice,
   rerollDice,
@@ -57,7 +73,7 @@ import {
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
 
-export type { YachtState, HitBlowState };
+export type { YachtState, HitBlowState, PokerState, MahjongState };
 
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
 
@@ -344,22 +360,100 @@ export function handleSlot(): F06Result {
 // 麻雀配牌チャレンジ（D3-2c）
 // ----------------------------------------------------------------
 
-/** 136枚デッキから14枚を配牌し、役判定・翻数を返す（1回完結） */
-export function handleMahjong(): F06Result {
-  const tiles = dealHand();
-  const result = evaluateHand(tiles);
-  return mahjongResultText(tiles, result);
+/** 麻雀配牌チャレンジを開始する（14枚配牌）。既存セッションは上書き。 */
+export function handleMahjongStart(userId: string, store: GameSessionStore): F06Result {
+  const { tiles, wall } = dealMahjongGame();
+  const state: MahjongState = { tiles: sortTiles(tiles), wall, turnsUsed: 0 };
+  store.setSession(userId, 'mahjong', state);
+  return { text: mahjongInitialMessage(state) };
+}
+
+/**
+ * 指定位置の牌を山からツモった牌と交換する（打牌→ツモ）。
+ * 上限回数（MAHJONG_MAX_EXCHANGES）に達するか、山が尽きたらゲームを自動終了する。
+ */
+export function handleMahjongDiscard(
+  state: MahjongState,
+  position: number,
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  const drawn = state.wall[0];
+  if (!drawn) {
+    // 山切れ: 現在の手牌のまま流局として終了する
+    store.deleteSession(userId, 'mahjong');
+    return mahjongResultText(state.tiles, evaluateHand(state.tiles));
+  }
+
+  const replaced = [...state.tiles];
+  replaced[position] = drawn;
+  const newTiles = sortTiles(replaced);
+  const newTurnsUsed = state.turnsUsed + 1;
+
+  if (newTurnsUsed >= MAHJONG_MAX_EXCHANGES) {
+    store.deleteSession(userId, 'mahjong');
+    return mahjongResultText(newTiles, evaluateHand(newTiles));
+  }
+
+  const newState: MahjongState = { tiles: newTiles, wall: state.wall.slice(1), turnsUsed: newTurnsUsed };
+  store.setSession(userId, 'mahjong', newState);
+  return { text: mahjongMidMessage(newState) };
+}
+
+/** ユーザーが「あがり」等で現在の手牌のまま確定したときの処理 */
+export function handleMahjongKeep(state: MahjongState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'mahjong');
+  return mahjongResultText(state.tiles, evaluateHand(state.tiles));
+}
+
+/** ゲームを中断・放棄する（現在の手牌の評価を返す） */
+export function handleMahjongAbandon(state: MahjongState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'mahjong');
+  return mahjongResultText(state.tiles, evaluateHand(state.tiles));
 }
 
 // ----------------------------------------------------------------
 // ポーカー（D3-2a）
 // ----------------------------------------------------------------
 
-/** 5 枚ドローポーカーを 1 回行い、手役と絵文字表示を返す */
-export function handlePoker(): F06Result {
-  const cards = dealPokerHand();
-  const hand = evaluatePokerHand(cards);
-  return { text: pokerResultText(cards, hand) };
+/** ポーカーを開始する（5枚ドロー初回配札）。既存セッションは上書き。 */
+export function handlePokerStart(userId: string, store: GameSessionStore): F06Result {
+  const { hand, deck } = dealPokerGame();
+  const state: PokerState = { hand: sortCards(hand), deck };
+  store.setSession(userId, 'poker', state);
+  return { text: pokerInitialMessage(state) };
+}
+
+/** 指定位置のカードを山から引いた札と交換し、ゲームを終了する（交換は1回のみ） */
+export function handlePokerExchange(
+  state: PokerState,
+  indices: number[],
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  const deck = [...state.deck];
+  const replaced = [...state.hand];
+  for (const i of indices) {
+    if (i >= 0 && i < 5) {
+      const drawn = deck.shift();
+      if (drawn) replaced[i] = drawn;
+    }
+  }
+  const newHand = sortCards(replaced);
+  store.deleteSession(userId, 'poker');
+  return { text: pokerResultText(newHand, evaluatePokerHand(newHand)) };
+}
+
+/** ユーザーが「このまま」で交換せず確定したときの処理 */
+export function handlePokerKeep(state: PokerState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'poker');
+  return { text: pokerResultText(state.hand, evaluatePokerHand(state.hand)) };
+}
+
+/** ゲームを中断・放棄する */
+export function handlePokerAbandon(store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'poker');
+  return { text: 'ポーカー、終了したよ。また遊ぼうね！' };
 }
 
 // ----------------------------------------------------------------

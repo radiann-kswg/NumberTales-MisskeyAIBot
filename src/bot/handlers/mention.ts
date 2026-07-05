@@ -37,14 +37,18 @@ import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';impo
 } from '../character/switch.js';
 import {
   handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei, handleDice, handleSlot,
-  handlePoker, handleMahjong,
+  handlePokerStart, handlePokerExchange, handlePokerKeep, handlePokerAbandon,
+  handleMahjongStart, handleMahjongDiscard, handleMahjongKeep, handleMahjongAbandon,
   handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
   extractTriviaNumber,
   type F06Result, type YachtState, type HitBlowState, type HitBlowPendingStart,
+  type PokerState, type MahjongState,
 } from '../../features/f06/index.js';
 import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
+import { parseExchangeCommand } from '../../features/f06/poker.js';
+import { parseDiscardCommand } from '../../features/f06/mahjong.js';
 import {
   parseGuess,
   symbolLabel,
@@ -732,6 +736,136 @@ export async function handleMention(
     return false;
   }
 
+  const activePokerState = gameSessionStore.getSession<PokerState>(event.userId, 'poker');
+  if (activePokerState) {
+    let handled: boolean;
+    try {
+      handled = await handleActivePokerTurn(activePokerState);
+    } catch (err) {
+      logger.error('Poker active-session handler error:', err);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (replyErr) {
+        logger.error('Failed to post poker error fallback reply:', replyErr);
+      }
+      handled = true;
+    }
+    if (handled) return;
+  }
+
+  /** アクティブなポーカーセッションへのターン操作を処理する。処理して返信済みなら true、対象外なら false。 */
+  async function handleActivePokerTurn(activePokerState: PokerState): Promise<boolean> {
+    const postPokerResult = async (result: F06Result): Promise<void> => {
+      const pokerFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-poker', result.text);
+      const finalText = pokerFraming ? `${pokerFraming}\n${result.text}` : result.text;
+      const pokerNoteText = formatSpeech(activeCharacterNum, finalText);
+      try {
+        await misskeyClient.reply(pokerNoteText, event.noteId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+        logger.info(`Replied (poker-action) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-poker'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post poker action reply:', err);
+      }
+    };
+
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handlePokerAbandon(gameSessionStore, event.userId);
+      try {
+        await misskeyClient.reply(formatSpeech(activeCharacterNum, abandonResult.text), event.noteId);
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post poker abandon reply:', err);
+      }
+      return true;
+    }
+
+    const exchangeCmd = parseExchangeCommand(event.text);
+    if (exchangeCmd !== null) {
+      const result =
+        exchangeCmd === 'keep'
+          ? handlePokerKeep(activePokerState, gameSessionStore, event.userId)
+          : handlePokerExchange(activePokerState, exchangeCmd, gameSessionStore, event.userId);
+      await postPokerResult(result);
+      return true;
+    }
+
+    return false;
+  }
+
+  const activeMahjongState = gameSessionStore.getSession<MahjongState>(event.userId, 'mahjong');
+  if (activeMahjongState) {
+    let handled: boolean;
+    try {
+      handled = await handleActiveMahjongTurn(activeMahjongState);
+    } catch (err) {
+      logger.error('Mahjong active-session handler error:', err);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (replyErr) {
+        logger.error('Failed to post mahjong error fallback reply:', replyErr);
+      }
+      handled = true;
+    }
+    if (handled) return;
+  }
+
+  /** アクティブな麻雀セッションへのターン操作を処理する。処理して返信済みなら true、対象外なら false。 */
+  async function handleActiveMahjongTurn(activeMahjongState: MahjongState): Promise<boolean> {
+    const postMahjongResult = async (result: F06Result): Promise<void> => {
+      const mahjongFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-mahjong', result.text);
+      const finalText = mahjongFraming ? `${mahjongFraming}\n${result.text}` : result.text;
+      const mahjongNoteText =
+        formatSpeech(activeCharacterNum, finalText) + (result.cwBody ? '\n\n' + result.cwBody : '');
+      try {
+        await misskeyClient.reply(mahjongNoteText, event.noteId, { cw: result.cwLabel });
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+        logger.info(`Replied (mahjong-action) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-mahjong'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post mahjong action reply:', err);
+      }
+    };
+
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handleMahjongAbandon(activeMahjongState, gameSessionStore, event.userId);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, abandonResult.text) +
+            (abandonResult.cwBody ? '\n\n' + abandonResult.cwBody : ''),
+          event.noteId,
+          { cw: abandonResult.cwLabel },
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post mahjong abandon reply:', err);
+      }
+      return true;
+    }
+
+    const discardCmd = parseDiscardCommand(event.text);
+    if (discardCmd !== null) {
+      const result =
+        discardCmd === 'keep'
+          ? handleMahjongKeep(activeMahjongState, gameSessionStore, event.userId)
+          : handleMahjongDiscard(activeMahjongState, discardCmd, gameSessionStore, event.userId);
+      await postMahjongResult(result);
+      return true;
+    }
+
+    return false;
+  }
+
   const activeHitBlowState = gameSessionStore.getSession<HitBlowState>(event.userId, 'hitblow');
   if (activeHitBlowState) {
     let handled: boolean;
@@ -908,10 +1042,15 @@ export async function handleMention(
     effectiveIntent === 'game-mahjong'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
-    if (effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow') {
+    if (
+      effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' ||
+      effectiveIntent === 'game-hitblow' || effectiveIntent === 'game-mahjong'
+    ) {
       const existingGame = gameSessionStore.getAnyActiveSession(event.userId);
       if (existingGame) {
-        const gameNames: Record<string, string> = { yacht: 'ヨット', hitblow: 'ヒット＆ブロウ' };
+        const gameNames: Record<string, string> = {
+          yacht: 'ヨット', hitblow: 'ヒット＆ブロウ', poker: 'ポーカー', mahjong: '麻雀',
+        };
         const ongoingName = gameNames[existingGame] ?? 'ゲーム';
         const busyText = formatSpeech(activeCharacterNum, `今${ongoingName}の途中だよ！「やめ」か「終了」で終わらせてから試してね`);
         try {
@@ -966,10 +1105,10 @@ export async function handleMention(
         }
       } else {
         if (effectiveIntent === 'game-mahjong') {
-          f06Result = handleMahjong();
+          f06Result = handleMahjongStart(event.userId, gameSessionStore);
           gameSessionStore.recordPlayed(event.userId, 'mahjong');
         } else if (effectiveIntent === 'game-poker') {
-          f06Result = handlePoker();
+          f06Result = handlePokerStart(event.userId, gameSessionStore);
           gameSessionStore.recordPlayed(event.userId, 'poker');
         } else if (effectiveIntent === 'game-yacht') {
           f06Result = handleYachtStart(event.userId, gameSessionStore);
@@ -1205,7 +1344,7 @@ export async function handleMention(
                   {
                     role: 'user' as const,
                     content:
-                      `タスク登録の確認メッセージを40文字以内で返してください（台詞のみ）。\n` +
+                      `あなたのキャラクターとして自然な口調で、タスク登録の確認メッセージを40文字以内で返してください（台詞のみ）。\n` +
                       `タスク: ${extracted.title}、優先度: ${priorityLabel[extracted.priority]}、` +
                       `難易度: ${difficultyLabel[extracted.difficulty]}\n期日: ${dueLabel}、通知: ${remindLabel}`,
                   },
