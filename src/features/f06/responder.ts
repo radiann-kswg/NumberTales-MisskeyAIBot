@@ -276,3 +276,32 @@ export function slotResultText(digits: [number, number, number], role: SlotRole)
   const emojiLine = digits.map((d) => `:${SLOT_DIGIT_EMOJIS[d]!}:`).join(' ');
   return `${emojiLine}\n${SLOT_ROLE_LABELS[role]}`;
 }
+
+// ----------------------------------------------------------------
+// キャラ番号ルーレット（D3-5）
+// ----------------------------------------------------------------
+
+export const ROULETTE_CW_LABEL = '「今日のキャラ番号ルーレット」';
+
+/** キャラ番号ルーレット結果の見出し（CW 展開後の導入文。他の数秘術系と同じ形式） */
+export function rouletteHeadline(): string {
+  return 'ルーレットを回したよ。CW内で結果を見てね';
+}
+
+/**
+ * 任意の色でキャラクター番号を桁ごとの絵文字表示にする（Secvier 英数字絵文字、0-9・A-Z 対応）。
+ * ハイフンや "0x" 等の非英数字は表示から除外する（"0xA" → "0A" の2文字のみ表示）。
+ */
+export function coloredNumberEmoji(color: DiceColor, num: string): string {
+  const symbols = num.toUpperCase().replace(/[^0-9A-Z]/g, '').split('');
+  return symbols.map((s) => `:sv_${color}_${s}:`).join('');
+}
+
+/**
+ * キャラ番号ルーレット結果の本文（CW 内テキスト）。
+ * flavor は抽選キャラの `Character_JP`/`Character`（人物紹介）。無ければ省略する。
+ */
+export function rouletteCwBody(num: string, name: string, numEmojiLine: string, flavor: string | null): string {
+  const flavorLine = flavor ? `\n\n${flavor}` : '';
+  return `${numEmojiLine}\n✦ 縁のあった番号: ${num}(${name})${flavorLine}`;
+}

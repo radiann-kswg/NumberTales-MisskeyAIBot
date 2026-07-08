@@ -92,6 +92,7 @@ export const MENTION_REACTION_MAP: Record<string, readonly string[]> = {
   'game-yacht':   ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65'],
   'game-hitblow': ['tensaika_aphrnts8', 'omoshiroi_i_aphrnts65'],
   'game-mahjong': ['yattaze_aphrnts41', 'omoshiroi_i_aphrnts65', 'ee_ooo_aphrnts89'],
+  'game-roulette': ['omoshiroi_i_aphrnts65', 'tensaika_aphrnts8', 'kawaii_aphrnts6'],
   'task-add':    ['iine_aphrnts42', 'okay_aphrnts25', 'wakatta_aphrnts52'],
   'task-list':   ['naruhodo_aphrnts24', 'wakatta_aphrnts52'],
   'task-done':   ['yattaze_aphrnts41', 'sugoi_aphrnts57', 'sasuga_aphrnts61'],

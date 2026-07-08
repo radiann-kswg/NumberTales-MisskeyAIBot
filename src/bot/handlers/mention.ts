@@ -31,7 +31,7 @@ import {
 import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
-import { getDefaultCharacterProfile, getReleasedCharacterByNum } from '../character/loader.js';
+import { getDefaultCharacterProfile, getReleasedCharacterByNum, getReleasedCharacters } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';import {
   buildCharacterResetText,
   buildCharacterSwitchText,
@@ -51,6 +51,7 @@ import {
   handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
+  handleRoulette,
   extractTriviaNumber,
   type F06Result, type YachtState, type HitBlowState, type HitBlowPendingStart,
   type PokerState, type MahjongState,
@@ -85,7 +86,7 @@ const DIFFICULTY_LABEL: Record<number, string> = { 1: '易', 2: '普通', 3: '�
 const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
   'chat', 'creative-consultation', 'numerology-consultation',
   'calculate', 'numerology', 'dice', 'trivia',
-  'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong',
+  'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong', 'game-roulette',
   'task-add', 'task-list', 'task-done', 'task-cancel', 'task-progress-update',
 ]);
 
@@ -249,6 +250,7 @@ async function generateHarassmentReply(
     'game-yacht':   'ヨットゲーム',
     'game-hitblow': 'ヒット＆ブロウ',
     'game-mahjong': '麻雀配牌チャレンジ',
+    'game-roulette': 'キャラ番号ルーレット',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
     'moon-star': '月命星',
@@ -1167,7 +1169,7 @@ export async function handleMention(
     effectiveIntent === 'calculate' || effectiveIntent === 'numerology' ||
     effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
     effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow' ||
-    effectiveIntent === 'game-mahjong'
+    effectiveIntent === 'game-mahjong' || effectiveIntent === 'game-roulette'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
     if (
@@ -1247,6 +1249,8 @@ export async function handleMention(
         } else {
           if (effectiveIntent === 'game-slot') {
             gameSessionStore.recordPlayed(event.userId, 'slot');
+          } else if (effectiveIntent === 'game-roulette') {
+            gameSessionStore.recordPlayed(event.userId, 'roulette');
           }
           f06Result =
             effectiveIntent === 'calculate'
@@ -1255,11 +1259,13 @@ export async function handleMention(
                 ? handleDice(event.text, activeCharacterNum)
                 : effectiveIntent === 'game-slot'
                   ? handleSlot()
-                  : numerologyType === 'life-path'
-                    ? handleLifePath(event.text)
-                    : numerologyType === 'moon-star'
-                      ? handleTsukimeisei(event.text)
-                      : handleKyusei(event.text);
+                  : effectiveIntent === 'game-roulette'
+                    ? handleRoulette(getReleasedCharacters())
+                    : numerologyType === 'life-path'
+                      ? handleLifePath(event.text)
+                      : numerologyType === 'moon-star'
+                        ? handleTsukimeisei(event.text)
+                        : handleKyusei(event.text);
         }
 
         // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
@@ -1271,6 +1277,7 @@ export async function handleMention(
           : effectiveIntent === 'game-yacht' ? 'game-yacht'
           : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
           : effectiveIntent === 'game-mahjong' ? 'game-mahjong'
+          : effectiveIntent === 'game-roulette' ? 'game-roulette'
           : numerologyType === 'life-path' ? 'life-path'
           : numerologyType === 'moon-star' ? 'moon-star'
           : 'kyusei';

@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -89,6 +89,14 @@ const MAHJONG_PATTERNS: RegExp[] = [
   /まーじゃん/,
   /\/mahjong\b/i,
   /\/mj\b/i,
+];
+
+/** キャラ番号ルーレット（D3-5） */
+const ROULETTE_PATTERNS: RegExp[] = [
+  /ルーレット(?:を?回して|しよう|やって|して|お願い)?/,
+  /(?:キャラ|番号)(?:を)?引いて/,
+  /今日の(?:縁|相棒)/,
+  /\/roulette\b/i,
 ];
 
 const HITBLOW_PATTERNS: RegExp[] = [
@@ -285,6 +293,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of MAHJONG_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-mahjong' };
+  }
+
+  for (const pattern of ROULETTE_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-roulette' };
   }
 
   for (const pattern of REPEAT_PATTERNS) {
