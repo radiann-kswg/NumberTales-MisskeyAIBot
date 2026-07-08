@@ -37,6 +37,22 @@ export interface TaskRecord {
 /** 同時アクティブ（status='todo'）上限 */
 export const TASK_MAX_ACTIVE = 10;
 
+/**
+ * 優先度・難易度が発話から判断できなかった場合の確認待ちドラフト（F-12 難易度確認ワークフロー）。
+ * 判明済みの項目は値を保持し、不明な項目のみ null のまま次の返信で埋める。
+ */
+export interface PendingTaskDraft {
+  title: string;
+  dueAt: number | null;
+  remindAt: number | null;
+  remindType: TaskRemindType;
+  priority: TaskPriority | null;
+  difficulty: TaskDifficulty | null;
+}
+
+/** 確認待ちドラフトの有効期間（10分。長時間放置された確認は打ち切る） */
+const PENDING_DRAFT_TTL_MS = 10 * 60 * 1000;
+
 interface TaskRow {
   id: number;
   user_id: string;
@@ -116,6 +132,12 @@ export class TaskStore {
       CREATE INDEX IF NOT EXISTS idx_tasks_user   ON tasks (user_id, status);
       CREATE INDEX IF NOT EXISTS idx_tasks_remind ON tasks (remind_at, status);
       CREATE INDEX IF NOT EXISTS idx_tasks_due    ON tasks (due_at, status);
+
+      CREATE TABLE IF NOT EXISTS pending_task_drafts (
+        user_id    TEXT PRIMARY KEY,
+        draft      TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
     `);
     this.migrateAddLastNudgedAt();
     this.migrateAddProgressPercent();
@@ -295,6 +317,46 @@ export class TaskStore {
   /** 定期催促の送信時刻を記録する */
   markNudged(id: number, nowMs: number): void {
     this.db.prepare(`UPDATE tasks SET last_nudged_at = ? WHERE id = ?`).run(nowMs, id);
+  }
+
+  /** 優先度/難易度の確認待ちドラフトを保存する（upsert） */
+  setPendingDraft(userId: string, draft: PendingTaskDraft): void {
+    this.db
+      .prepare(
+        `INSERT INTO pending_task_drafts (user_id, draft, created_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT (user_id) DO UPDATE SET
+           draft = excluded.draft,
+           created_at = excluded.created_at`,
+      )
+      .run(userId, JSON.stringify(draft), Date.now());
+  }
+
+  /** 確認待ちドラフトを取得する（TTL 切れは null として扱う） */
+  getPendingDraft(userId: string): PendingTaskDraft | null {
+    const cutoff = Date.now() - PENDING_DRAFT_TTL_MS;
+    const row = this.db
+      .prepare(
+        `SELECT draft FROM pending_task_drafts WHERE user_id = ? AND created_at > ?`,
+      )
+      .get(userId, cutoff) as { draft: string } | undefined;
+    if (!row) return null;
+    try {
+      return JSON.parse(row.draft) as PendingTaskDraft;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 確認待ちドラフトを削除する（確定・キャンセル時） */
+  clearPendingDraft(userId: string): void {
+    this.db.prepare(`DELETE FROM pending_task_drafts WHERE user_id = ?`).run(userId);
+  }
+
+  /** TTL 切れの確認待ちドラフトを一括削除する（起動時クリーン用） */
+  pruneExpiredPendingDrafts(): void {
+    const cutoff = Date.now() - PENDING_DRAFT_TTL_MS;
+    this.db.prepare(`DELETE FROM pending_task_drafts WHERE created_at <= ?`).run(cutoff);
   }
 
   close(): void {

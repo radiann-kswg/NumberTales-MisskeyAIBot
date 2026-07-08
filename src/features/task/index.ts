@@ -17,8 +17,10 @@ export type ExtractTaskResult =
       dueAtMs: number | null;
       remindAtMs: number | null;
       remindType: TaskRemindType;
-      priority: TaskPriority;
-      difficulty: TaskDifficulty;
+      /** 発話から判断できなければ null（呼び出し側で確認を挟むこと） */
+      priority: TaskPriority | null;
+      /** 発話から判断できなければ null（呼び出し側で確認を挟むこと） */
+      difficulty: TaskDifficulty | null;
     }
   | { ok: false; reason: 'too_short' | 'too_far' | 'unparseable' };
 
@@ -46,15 +48,17 @@ function buildExtractionSystemPrompt(nowMs: number): string {
   "remind_at_iso": "通知日時 ISO 8601（例: 2026-07-04T10:00:00+09:00）。不要なら null",
   "due_at_iso": "期日 ISO 8601。不要なら null",
   "remind_type": "todo | alert | schedule",
-  "priority": "1(高) | 2(中) | 3(低)",
-  "difficulty": "1(易) | 2(普通) | 3(難)"
+  "priority": "1(高) | 2(中) | 3(低) | null(発話に手がかりが無ければ null)",
+  "difficulty": "1(易) | 2(普通) | 3(難) | null(発話に手がかりが無ければ null)"
 }
 
 - remind_type の判定基準: 「〇〇をやるのを忘れないようにして」「〇時に〇〇を教えて」のような通知希望は alert、
   「〇〇がある」「打ち合わせ/会議/イベント」のような予定・スケジュールは schedule、
   期日・時刻指定が特にない単純な ToDo は todo。
-- priority（優先度）: 1=高（「急ぎ」「緊急」「重要」等） 2=中（デフォルト） 3=低（「後でいい」「余裕あり」等）
-- difficulty（難易度）: 1=易（「簡単」「すぐできる」等） 2=普通（デフォルト） 3=難（「大変」「難しい」「複雑」等）
+- priority（優先度）: 1=高（「急ぎ」「緊急」「重要」等） 2=中（「普通」等の明示） 3=低（「後でいい」「余裕あり」等）。
+  発話中に優先度を示す手がかりが一切無ければ、2（中）で埋めずに必ず null にすること。
+- difficulty（難易度）: 1=易（「簡単」「すぐできる」等） 2=普通（「普通」等の明示） 3=難（「大変」「難しい」「複雑」等）。
+  発話中に難易度を示す手がかりが一切無ければ、1（易）や2（普通）で埋めずに必ず null にすること。
 - 相対指定（「3時間後」「明日」「来週月曜」等）は現在日時を基準に絶対日時へ変換すること。
 - 日時が全く読み取れない場合は remind_at_iso・due_at_iso ともに null にすること。`;
 }
@@ -119,10 +123,12 @@ export async function extractTaskRequest(
     remindTypeRaw === 'alert' || remindTypeRaw === 'schedule' ? remindTypeRaw : 'todo';
 
   const priorityRaw = Number(obj['priority']);
-  const priority: TaskPriority = priorityRaw === 1 || priorityRaw === 3 ? priorityRaw : 2;
+  const priority: TaskPriority | null =
+    priorityRaw === 1 || priorityRaw === 2 || priorityRaw === 3 ? priorityRaw : null;
 
   const difficultyRaw = Number(obj['difficulty']);
-  const difficulty: TaskDifficulty = difficultyRaw === 1 || difficultyRaw === 3 ? difficultyRaw : 2;
+  const difficulty: TaskDifficulty | null =
+    difficultyRaw === 1 || difficultyRaw === 2 || difficultyRaw === 3 ? difficultyRaw : null;
 
   return {
     ok: true,
@@ -133,6 +139,27 @@ export async function extractTaskRequest(
     priority,
     difficulty,
   };
+}
+
+/**
+ * 優先度・難易度の確認への返信テキストから値を読み取る（F-12 難易度確認ワークフロー）。
+ * 具体語（高/低・易/難）を優先し、「普通」「中」は最後に判定することで、
+ * 「高い、普通」のような複合返信でも優先度=高・難易度=普通を正しく拾えるようにする。
+ * 判別できなければ null を返す（呼び出し側でデフォルト値を確定させること）。
+ */
+export function parsePriorityReply(text: string): TaskPriority | null {
+  if (/高|緊急|急ぎ|重要/.test(text)) return 1;
+  if (/低|後で|余裕/.test(text)) return 3;
+  if (/中|普通/.test(text)) return 2;
+  return null;
+}
+
+/** @see parsePriorityReply */
+export function parseDifficultyReply(text: string): TaskDifficulty | null {
+  if (/易|簡単|すぐ/.test(text)) return 1;
+  if (/難|大変|複雑/.test(text)) return 3;
+  if (/普通|中/.test(text)) return 2;
+  return null;
 }
 
 const PRIORITY_WEIGHT: Record<TaskPriority, number> = { 1: 3, 2: 2, 3: 1 };
