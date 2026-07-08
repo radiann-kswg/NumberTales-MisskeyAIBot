@@ -19,8 +19,10 @@
 
 以下のファイルは `_ideas/future-plan/` 直下に残置しています（一部の項目だけ昇進済み、または全体が未昇進のため）。
 
-- [`F-06_stage-d-minigames.md`](../F-06_stage-d-minigames.md): D3-1・D3-2・D3-2c・D3-6・D3-7 は昇進済み
-  （各 milestone ドキュメント参照）だが、D3-4a・D3-4b・D3-5・D3-8 は未昇進のため本体はここに移動していない。
+- [`F-06_stage-d-minigames.md`](../F-06_stage-d-minigames.md): D3-1・D3-2・D3-2c・D3-6・D3-7 は milestone ドキュメントへ
+  昇進済み（各 milestone ドキュメント参照）。D3-8（ポーカー・麻雀の手札/手牌交換）は 2026-07-05 に実装済みだが、
+  独立した milestone ドキュメントは作成せず本ファイル上でステータス更新のみ行ったため未昇進扱い。
+  D3-4a・D3-4b・D3-5 は未着手のため本体はここに移動していない。
 - [`creations-db-reference-expansion.md`](../creations-db-reference-expansion.md): 実装完了 ✅ の記録はあるが、
   対応する独立した milestone ドキュメントは作成されていないため未昇進扱い。
 

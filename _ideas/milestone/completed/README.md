@@ -26,5 +26,6 @@
 | [2026-07-03_milestone_f06-d3-7-repeat-command.md](./2026-07-03_milestone_f06-d3-7-repeat-command.md)                             | F-06 Stage D3-7    | ゲーム終了後の継続コマンド対応「もう一回」                  |
 | [2026-07-03_milestone_f12-mvp-reminder.md](./2026-07-03_milestone_f12-mvp-reminder.md)                                           | F-12 MVP           | シンプルリマインダー機能（後日 F-12/F-12B 本実装により置き換え・削除済み） |
 | [2026-06-23_milestone_f12-reminder.md](./2026-06-23_milestone_f12-reminder.md)                                                   | F-12 / F-12B        | タスク＆スケジュール管理（優先度/難易度/進捗%）＋信頼度システム（F-12 MVP を置き換え） |
+| [2026-07-05_milestone_bug-task-add-roleplay.md](./2026-07-05_milestone_bug-task-add-roleplay.md)                                 | F-12・F-12B / ロールプレイ | バグ報告: タスク追加の失敗／タスク追加時のロールプレイ劣化（対応済み・実機ログ突き合わせ未実施） |
 
 進行中・未着手のマイルストーンは [`_ideas/milestone/README.md`](../README.md) を参照してください。

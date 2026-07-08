@@ -17,7 +17,6 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md)    | F-10             | 今日のエンジェルナンバー占い（実装仕様）                                                      | 着手 🔧    |
 | [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md) | F-06 D3 / F-12・F-12B / 会話 | 実運用フィードバック改修（ヒット＆ブロウ／タスク管理／会話パターン） | ほぼ対応済み 🔧 |
 | [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                          | 運用            | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）                                  | VM内実装済み・GCE側デプロイ待ち 🔧 |
-| [2026-07-05_milestone_bug-task-add-roleplay.md](./2026-07-05_milestone_bug-task-add-roleplay.md)          | F-12・F-12B / ロールプレイ | バグ報告: タスク追加の失敗／タスク追加時のロールプレイ劣化                              | 対応済み ✅（実機ログ突き合わせ未実施） |
 
 ## フェーズ概要
 

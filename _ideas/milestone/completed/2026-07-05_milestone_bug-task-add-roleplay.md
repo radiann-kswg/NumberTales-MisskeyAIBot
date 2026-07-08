@@ -83,7 +83,7 @@
 
 ## 関連
 
-- [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md)
+- [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](../2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md)
   — F-12・F-12B のタスク管理に関する既知の要望・改修（「タスク一覧や進捗状況が更新されていない」
   「リプライによる指示が正確に汲み取れていない」等）を扱う別 milestone。本バグ報告とは別ファイルとして
   管理し、統合はしない。タスク追加の不具合がこれらと関連する場合は本欄で相互参照する。
