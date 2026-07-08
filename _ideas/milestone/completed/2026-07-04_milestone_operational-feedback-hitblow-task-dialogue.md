@@ -1,8 +1,9 @@
 # 実運用フィードバック改修: ヒット＆ブロウ / タスク管理 / 会話パターン — 実装仕様
 
 > 作成日: 2026-07-04
-> ステータス: **ほぼ対応済み** 🔧（バグ修正・要望のほとんどに対応済み。F-12の難易度確認ワークフローと
-> メンション処理の非同期シリアライズ改善のみ次フェーズで別途検討 — 詳細は末尾「対応状況」参照）
+> 更新日: 2026-07-08（残タスク2件のうちコード対応分を完了・typecheck/lint/実データスモークテスト確認済み）
+> ステータス: **完了 ✅**（バグ修正・要望はすべて対応済み。詳細は末尾「対応状況」参照。
+> GCE外部ウォッチドッグ等インフラ側デプロイ作業は本milestoneのスコープ外のため別管理）
 > 対象機能: F-06 D3（ヒット＆ブロウ） / F-12・F-12B（タスク＆スケジュール管理） / キャラクタープロンプト（`DialogueExamples`）
 > 出典: 実機（[@APHR_NTs](https://radiann6631.net/@APHR_NTs)）運用中に受領したバグ報告・追加要望
 
@@ -139,10 +140,24 @@
 - **会話パターン**: 35(サトコ) の `DialogueExamples` を `TalkingTone_JP`（理論整然・感性豊か）に整合するよう
   `_creations-db` サブモジュール側で改訂済み（ユーザー対応）。
 
-### 次フェーズで別途検討（未対応）
+### 残タスク2件の対応（2026-07-08・第6フェーズ）
 
-- F-12: 難易度・優先度が不明な場合に確認を挟む会話フロー
-- メンションイベントの非同期処理シリアライズ改善（体感バグの副次的要因）
+- **メンションイベントの非同期処理シリアライズ改善**: `src/misskey/client.ts` の `onMention()` が
+  `void callback(note)` で fire-and-forget していたため、同一ユーザーから短時間に連続でメンションが
+  来た場合（ゲームの連続手番等）に並行実行され、セッション状態の競合を招いていた。ユーザー単位の
+  Promise チェーン（`mentionQueues`）を導入し、同一ユーザー内は前段の処理完了を待ってから次を実行する
+  よう変更（他ユーザーの応答性は落とさない）。
+- **F-12: 難易度・優先度が不明な場合に確認を挟む会話フロー**: `extractTaskRequest`（`src/features/task/index.ts`）
+  のLLM抽出プロンプトを、優先度/難易度の手がかりが無ければ `2`（中/普通）で埋めず必ず `null` を返すよう変更。
+  `null` が返った場合は即登録せず、`TaskStore`（`src/storage/task.ts`）に確認待ちドラフト
+  （`pending_task_drafts` テーブル・TTL10分）を保存し、不明な項目だけを尋ね返す。次の返信は
+  `mention.ts` の新設ブロック（4-pre-d）で回収し、`parsePriorityReply`/`parseDifficultyReply`
+  （キーワードマッチ）で解釈、確認は一度だけに留めるためそれでも読み取れない項目は中(普通)で確定する
+  （無限に聞き返さない設計）。
+- 確認: `npm run typecheck` / `npm run lint`（対象5ファイルに新規エラーなし・既存の無関係な指摘のみ残存）
+  ・`npm run build` 通過。モックAIProviderによるスモークテストで、優先度/難易度が不明な抽出結果が
+  `null` になること、確認待ちドラフトの保存/取得/削除（TTL含む）、返信キーワードパースの正誤
+  （「高い、普通」→ 優先度=高・難易度=普通 等）を確認済み。実機ログとの突き合わせは未実施。
 
 ### 実運用フィードバック追加対応（2026-07-04・第1.5フェーズ）
 
@@ -185,7 +200,7 @@ VM実ログ（`pm2 logs`）を突き合わせた結果、**ヒット＆ブロウ
 - 01:37〜01:41（UTC）にヒット＆ブロウを連続6手プレイ＋直前のタスク操作等と合わせ、直近1時間で
   メンション返信が計13件発生し、既定の上限10件を超過。
 - 01:54:08、当該ノートの到着時にはログに `Rate limited for user: ...` とだけ記録され、
-  [mention.ts](../../src/bot/handlers/mention.ts) のレートリミット確認（アクティブゲームセッションの
+  [mention.ts](../../../src/bot/handlers/mention.ts) のレートリミット確認（アクティブゲームセッションの
   手番処理より手前）で早期リターンし、以降の処理が一切実行されなかった。
 - 同一ユーザー向けクールダウン（`RATE_LIMIT_REPLY_COOLDOWN_MS`）は今回のブロック要因ではない
   （本番では実質無効化されている挙動だった）。
@@ -194,8 +209,8 @@ VM実ログ（`pm2 logs`）を突き合わせた結果、**ヒット＆ブロウ
 
 1. アクティブなヒット＆ブロウ／ヨットのセッション継続（1手ごとの返信）は、新規の呼びかけではなく
    既に許可された1:1のやり取りの続きとみなし、全体1時間あたり上限のカウント対象から除外する
-   （[ratelimit/index.ts](../../src/bot/ratelimit/index.ts) に `canReplyIgnoringGlobalCap()` /
-   `recordReply(userId, { countsTowardGlobalCap: false })` を追加、[mention.ts](../../src/bot/handlers/mention.ts)
+   （[ratelimit/index.ts](../../../src/bot/ratelimit/index.ts) に `canReplyIgnoringGlobalCap()` /
+   `recordReply(userId, { countsTowardGlobalCap: false })` を追加、[mention.ts](../../../src/bot/handlers/mention.ts)
    のレート確認をセッション有無で分岐。同一ユーザーへのクールダウンは引き続き適用）。
 2. 安全弁としての全体上限自体も 10件/時 → 30件/時 に引き上げ（`src/config/env.ts` のデフォルト値、
    `.env.example`）。
@@ -218,7 +233,7 @@ VM実ログ（`pm2 logs`）を突き合わせた結果、**ヒット＆ブロウ
   さらに、「色」「ヒント」等の話題には触れているが確信度の高いパターンに一致しない**曖昧なケース**を
   検出する `HITBLOW_REVEAL_AMBIGUOUS_PATTERN` を新設し、該当時はゲーム開始前に「する/しない」の
   事前確認を挟むワークフローを追加（`hitblow-pending` セッション、`needsRevealConfirmation()` /
-  `buildPendingStartFromText()` / `handleHitBlowStartWithReveal()`、[mention.ts](../../src/bot/handlers/mention.ts)）。
+  `buildPendingStartFromText()` / `handleHitBlowStartWithReveal()`、[mention.ts](../../../src/bot/handlers/mention.ts)）。
 
 **2. アルファベットモードでの「禁止ワード」誤解**
 
@@ -255,3 +270,11 @@ VM実ログ（`pm2 logs`）を突き合わせた結果、**ヒット＆ブロウ
   ため、色分けロジック（`DIGIT_MARK_COLOR`・`coloredDigitEmoji`・`markGuessDigits`）はモードごとに
   分岐させず完全に共用。数字モードと同じ5色（紅玉=ヒット／星幽=ブロウ／白磁=非該当／砂金=hit-dup／
   翠玉=blow-dup）を使う（`hitblow.ts` にモード固有の色分けを新設しない旨のコメントを明記）。
+
+### 条件変更リプライでのモード引き継ぎ漏れ修正（2026-07-04・第5フェーズ）
+
+第1フェーズで実装した「桁数・重複ありの指定を含むリプライを条件変更とみなして再スタートする」機能に、
+モード（アルファベット等）の引き継ぎ漏れが残っていたことが判明。進行中セッションを条件変更で
+再スタートする際、リプライにモード指定が無いと常に数字モードへ戻ってしまっていたため、現在のモードを
+fallback として引き継ぐよう修正（`src/bot/handlers/mention.ts` / `src/features/f06/hitblow.ts` /
+`src/features/f06/index.ts`、コミット `6372a71`）。

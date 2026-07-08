@@ -15,9 +15,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | ファイル                                                                                                | フェーズ         | 概要                                                                                        | ステータス |
 | --------------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------- | ---------- |
 | [2026-06-23_milestone_f10-angel-number-fortune.md](./2026-06-23_milestone_f10-angel-number-fortune.md)    | F-10             | 今日のエンジェルナンバー占い（実装仕様）                                                      | 着手 🔧    |
-| [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md) | F-06 D3 / F-12・F-12B / 会話 | 実運用フィードバック改修（ヒット＆ブロウ／タスク管理／会話パターン） | ほぼ対応済み 🔧 |
-| [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                          | 運用            | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）                                  | VM内実装済み・GCE側デプロイ待ち 🔧 |
-| [2026-07-05_milestone_bug-task-add-roleplay.md](./2026-07-05_milestone_bug-task-add-roleplay.md)          | F-12・F-12B / ロールプレイ | バグ報告: タスク追加の失敗／タスク追加時のロールプレイ劣化                              | 対応済み ✅（実機ログ突き合わせ未実施） |
+| [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                          | 運用            | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）                                  | レイヤー1・2本番稼働中・GCE外部はgcloud要（クライアント側作業） 🔧 |
 
 ## フェーズ概要
 
@@ -50,7 +48,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-06 Stage D-1             | 数字スロット（Secvier 数字絵文字 0〜9 対応）               | 完了 ✅   | [completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md](./completed/2026-06-23_milestone_f06-d1-slot-and-db-fallback.md) |
 | F-06 Stage D-2a/2b/3       | ポーカー・ヨット・ヒット＆ブロウ                           | 完了 ✅   | [completed/2026-06-23_milestone_f06-d2-d3-games.md](./completed/2026-06-23_milestone_f06-d2-d3-games.md)                  |
 | F-06 Stage D-2c            | 麻雀配牌チャレンジ                                         | 完了 ✅   | [completed/2026-06-29_milestone_f06-d3-2c-mahjong.md](./completed/2026-06-29_milestone_f06-d3-2c-mahjong.md)              |
-| F-06 Stage D-4/D-5         | 牌引き占い・ルーレット                                     | 未着手 ⏳ | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
+| F-06 Stage D-5              | キャラ番号ルーレット                                       | 完了 ✅   | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md#d3-5-キャラ番号ルーレット実装済み-2026-07-08) |
+| F-06 Stage D-4a/D-4b        | 牌引き占い・手役クイズ                                     | 設計確定・実装準備中 📝 | [future-plan/F-06_stage-d-minigames.md](../future-plan/F-06_stage-d-minigames.md)                      |
 | F-06 Stage D3-6            | ミニゲーム絵文字活用強化（ヒット＆ブロウ/ヨット/ダイスロール） | 完了 ✅   | [completed/2026-07-03_milestone_f06-d3-6-emoji-ux.md](./completed/2026-07-03_milestone_f06-d3-6-emoji-ux.md) |
 | F-06 Stage D3-7            | ゲーム終了後の継続コマンド対応（「もう一回」）              | 完了 ✅   | [completed/2026-07-03_milestone_f06-d3-7-repeat-command.md](./completed/2026-07-03_milestone_f06-d3-7-repeat-command.md) |
 | DB参照改修                 | CreationsDB pkg/nodejs クライアントへの移行               | 完了 ✅   | [completed/2026-06-03_milestone_db-client-migration.md](./completed/2026-06-03_milestone_db-client-migration.md)           |

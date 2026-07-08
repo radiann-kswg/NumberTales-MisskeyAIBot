@@ -88,6 +88,7 @@ async function main(): Promise<void> {
 
   // タスクストア初期化（F-12）
   const taskStore = new TaskStore(config.storage.dbPath);
+  taskStore.pruneExpiredPendingDrafts(); // 起動時に期限切れの確認待ちドラフトをクリーン
   logger.info('Task store ready');
 
   // 信頼度ストア初期化（F-12B）

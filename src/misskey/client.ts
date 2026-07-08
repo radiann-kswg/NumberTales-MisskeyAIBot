@@ -26,6 +26,15 @@ export class MisskeyClient {
   private readonly mainCh: ChannelConnection<Channels['main']>;
   /** WebSocket の現在の接続状態（ハートビート経由でウォッチドッグが参照） */
   private connected = false;
+  /**
+   * ユーザー単位のメンション処理直列化キュー。
+   * 同一ユーザーから短時間に連続でメンションが来た場合（ゲームの連続手番等）、
+   * 従来は `void callback(note)` の fire-and-forget だったため並行実行され、
+   * セッション状態の読み取り→書き込みが競合してモード引き継ぎ漏れ等の不具合を招いていた。
+   * ユーザーごとに前段の処理完了を待ってから次を実行することで、
+   * 他ユーザーの応答性を落とさずに同一ユーザー内だけ処理順序を保証する。
+   */
+  private readonly mentionQueues = new Map<string, Promise<void>>();
 
   constructor(
     private readonly origin: string,
@@ -57,7 +66,23 @@ export class MisskeyClient {
    */
   onMention(callback: MentionCallback): void {
     this.mainCh.on('mention', (note) => {
-      void callback(note);
+      const userId = note.userId;
+      const previous = this.mentionQueues.get(userId) ?? Promise.resolve();
+      const current = previous
+        .catch(() => {
+          // 前段の失敗で後続ユーザーの処理まで止まらないよう、ここで握りつぶす
+        })
+        .then(() => callback(note))
+        .catch((err: unknown) => {
+          logger.error('Error in mention callback:', err);
+        });
+      this.mentionQueues.set(userId, current);
+      void current.finally(() => {
+        // キューの末尾がこの処理のままなら、以降の待機者がいないので掃除する（メモリリーク防止）
+        if (this.mentionQueues.get(userId) === current) {
+          this.mentionQueues.delete(userId);
+        }
+      });
     });
     logger.info('Subscribed to mentions via main channel');
   }

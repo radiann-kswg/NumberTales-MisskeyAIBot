@@ -24,9 +24,14 @@ import {
   isSupportedDiceSides,
   rollD100,
   d100PairEmoji,
+  ROULETTE_CW_LABEL,
+  rouletteHeadline,
+  rouletteCwBody,
+  coloredNumberEmoji,
   type SlotRole,
 } from './responder.js';
 import { characterDiceColor } from './dice-color.js';
+import type { CharacterRecord } from '../../bot/character/loader.js';
 import {
   dealPokerGame,
   evaluatePokerHand,
@@ -354,6 +359,32 @@ export function handleSlot(): F06Result {
     Math.floor(Math.random() * 10),
   ];
   return { text: slotResultText(digits, determineSlotRole(digits)) };
+}
+
+// ----------------------------------------------------------------
+// キャラ番号ルーレット（D3-5）
+// ----------------------------------------------------------------
+
+/**
+ * 公開済みキャラクターから1体を一様ランダムに抽選する（D3-5）。
+ * 演出色は抽選キャラ自身の番号の桁根で決める（ダイスロールと同じ色則を流用・`dice-color.ts`）。
+ * 結果は CW 内で公開する（数字スロット等と異なり、他のワンショットゲームより「めくり」の演出を重視）。
+ */
+export function handleRoulette(characters: CharacterRecord[]): F06Result {
+  if (characters.length === 0) {
+    return { text: 'あれ、今引けるキャラクターがいないみたい…また後で試してね。' };
+  }
+  const picked = characters[Math.floor(Math.random() * characters.length)]!;
+  const num = String(picked.Num);
+  const name = (picked.Name_JP ?? picked.Name) || `${num}番機`;
+  const color = characterDiceColor(num);
+  const numEmojiLine = coloredNumberEmoji(color, num);
+  const flavor = picked.Character_JP ?? picked.Character ?? null;
+  return {
+    text: rouletteHeadline(),
+    cwBody: rouletteCwBody(num, name, numEmojiLine, flavor),
+    cwLabel: ROULETTE_CW_LABEL,
+  };
 }
 
 // ----------------------------------------------------------------

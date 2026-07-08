@@ -6,7 +6,14 @@ import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
-import { type TaskStore, TASK_MAX_ACTIVE } from '../../storage/task.js';
+import {
+  type TaskStore,
+  type PendingTaskDraft,
+  type TaskPriority,
+  type TaskDifficulty,
+  type TaskRemindType,
+  TASK_MAX_ACTIVE,
+} from '../../storage/task.js';
 import { type TrustStore, type TrustContext } from '../../storage/trust.js';
 import {
   extractTaskRequest,
@@ -15,6 +22,8 @@ import {
   formatCandidateList,
   extractTaskTarget,
   extractProgressPercent,
+  parsePriorityReply,
+  parseDifficultyReply,
   DONE_ACTION_PATTERN,
   CANCEL_ACTION_PATTERN,
   PROGRESS_ACTION_PATTERN,
@@ -22,7 +31,7 @@ import {
 import { classifyIntent, detectFormTarget, type FormTarget, type Intent } from '../classifier/intent.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import type { CharacterRecord } from '../character/loader.js';
-import { getDefaultCharacterProfile, getReleasedCharacterByNum } from '../character/loader.js';
+import { getDefaultCharacterProfile, getReleasedCharacterByNum, getReleasedCharacters } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';import {
   buildCharacterResetText,
   buildCharacterSwitchText,
@@ -42,6 +51,7 @@ import {
   handleYachtStart, handleYachtReroll, handleYachtKeep, handleYachtAbandon,
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
+  handleRoulette,
   extractTriviaNumber,
   type F06Result, type YachtState, type HitBlowState, type HitBlowPendingStart,
   type PokerState, type MahjongState,
@@ -67,11 +77,16 @@ import { BOT_CONSTANTS } from '../../config/constants.js';
 import { config } from '../../config/env.js';
 import { IncidentLogger } from '../../utils/incident-logger.js';
 
+/** F-12 タスクの優先度表示ラベル（確認ワークフロー・確認メッセージ生成の両方で使用） */
+const PRIORITY_LABEL: Record<number, string> = { 1: '高', 2: '中', 3: '低' };
+/** F-12 タスクの難易度表示ラベル（確認ワークフロー・確認メッセージ生成の両方で使用） */
+const DIFFICULTY_LABEL: Record<number, string> = { 1: '易', 2: '普通', 3: '難' };
+
 /** F-12B 会話ボーナス（1日1回+3pt）の対象となる「意味のある交流」インテント */
 const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
   'chat', 'creative-consultation', 'numerology-consultation',
   'calculate', 'numerology', 'dice', 'trivia',
-  'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong',
+  'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong', 'game-roulette',
   'task-add', 'task-list', 'task-done', 'task-cancel', 'task-progress-update',
 ]);
 
@@ -235,6 +250,7 @@ async function generateHarassmentReply(
     'game-yacht':   'ヨットゲーム',
     'game-hitblow': 'ヒット＆ブロウ',
     'game-mahjong': '麻雀配牌チャレンジ',
+    'game-roulette': 'キャラ番号ルーレット',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
     'moon-star': '月命星',
@@ -978,6 +994,120 @@ export async function handleMention(
     return false;
   }
 
+  /**
+   * タスクを確定登録し、AI生成の確認メッセージを返す（優先度・難易度が確定した後の共通処理）。
+   * 即時登録（優先度・難易度とも判明済み）・確認ワークフロー完了後の確定登録の両方から呼ばれる。
+   */
+  async function finalizeTaskCreation(fields: {
+    title: string;
+    dueAtMs: number | null;
+    remindAtMs: number | null;
+    remindType: TaskRemindType;
+    priority: TaskPriority;
+    difficulty: TaskDifficulty;
+  }): Promise<string> {
+    taskStore.create({
+      userId: event.userId,
+      username: event.username ?? null,
+      userHost: event.userHost ?? null,
+      title: fields.title,
+      dueAt: fields.dueAtMs,
+      remindAt: fields.remindAtMs,
+      remindType: fields.remindType,
+      priority: fields.priority,
+      difficulty: fields.difficulty,
+    });
+    const dueLabel = fields.dueAtMs
+      ? new Intl.DateTimeFormat('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          month: 'numeric',
+          day: 'numeric',
+        }).format(new Date(fields.dueAtMs))
+      : 'なし';
+    const remindLabel = fields.remindAtMs
+      ? new Intl.DateTimeFormat('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(new Date(fields.remindAtMs))
+      : 'なし';
+    try {
+      const aiResult = await ai.chat(
+        [
+          { role: 'system' as const, content: chatSystemPrompt },
+          {
+            role: 'user' as const,
+            content:
+              `あなたのキャラクターとして自然な口調で、タスク登録の確認メッセージを40文字以内で返してください（台詞のみ）。\n` +
+              `タスク: ${fields.title}、優先度: ${PRIORITY_LABEL[fields.priority]}、` +
+              `難易度: ${DIFFICULTY_LABEL[fields.difficulty]}\n期日: ${dueLabel}、通知: ${remindLabel}`,
+          },
+        ],
+        { maxTokens: 100, temperature: 0.9 },
+      );
+      return aiResult.text.trim();
+    } catch (err) {
+      logger.error('AI task confirm error:', err);
+      return `了解、「${fields.title}」のタスクを追加したよ。`;
+    }
+  }
+
+  // 4-pre-d. タスク登録の優先度/難易度 確認待ちがあれば、この返信を確認結果として処理する
+  const pendingTaskDraft: PendingTaskDraft | null = taskStore.getPendingDraft(event.userId);
+  if (pendingTaskDraft) {
+    if (/やめ|中止|キャンセル/.test(event.text)) {
+      taskStore.clearPendingDraft(event.userId);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, 'タスク登録をやめておくね。また気が向いたら教えて。'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post task pending-draft cancel reply:', err);
+      }
+      return;
+    }
+
+    // 確認は一度だけ挟む方針のため、この返信で読み取れなかった項目は中(普通)で確定させる
+    // （無限に聞き返してユーザーを待たせないため）。
+    const priority = pendingTaskDraft.priority ?? parsePriorityReply(event.text) ?? 2;
+    const difficulty = pendingTaskDraft.difficulty ?? parseDifficultyReply(event.text) ?? 2;
+    taskStore.clearPendingDraft(event.userId);
+
+    let confirmReplyText: string;
+    try {
+      confirmReplyText = await finalizeTaskCreation({
+        title: pendingTaskDraft.title,
+        dueAtMs: pendingTaskDraft.dueAt,
+        remindAtMs: pendingTaskDraft.remindAt,
+        remindType: pendingTaskDraft.remindType,
+        priority,
+        difficulty,
+      });
+    } catch (err) {
+      logger.error('Task pending-draft finalize error:', err);
+      confirmReplyText = `了解、「${pendingTaskDraft.title}」のタスクを追加したよ。`;
+    }
+    try {
+      await misskeyClient.reply(formatSpeech(activeCharacterNum, confirmReplyText), event.noteId);
+      rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      logger.info(`Replied (task-add-confirmed) to ${event.userId}`);
+
+      const reactionPool = MENTION_REACTION_MAP['task-add'] ?? MENTION_REACTION_MAP['chat']!;
+      const reactionEmoji = reactionPool[Math.floor(Math.random() * reactionPool.length)]!;
+      misskeyClient.react(event.noteId, reactionEmoji).catch((err: unknown) => {
+        logger.warn('Failed to add reaction to task pending-draft confirm mention:', err);
+      });
+    } catch (err) {
+      logger.error('Failed to post task pending-draft confirm reply:', err);
+    }
+    return;
+  }
+
   // 4. 意図分類
   const { intent, formTarget, numerologyType, harassmentLevel } = classifyIntent(event.text);
   let effectiveIntent: Intent =
@@ -1039,7 +1169,7 @@ export async function handleMention(
     effectiveIntent === 'calculate' || effectiveIntent === 'numerology' ||
     effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
     effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow' ||
-    effectiveIntent === 'game-mahjong'
+    effectiveIntent === 'game-mahjong' || effectiveIntent === 'game-roulette'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
     if (
@@ -1119,6 +1249,8 @@ export async function handleMention(
         } else {
           if (effectiveIntent === 'game-slot') {
             gameSessionStore.recordPlayed(event.userId, 'slot');
+          } else if (effectiveIntent === 'game-roulette') {
+            gameSessionStore.recordPlayed(event.userId, 'roulette');
           }
           f06Result =
             effectiveIntent === 'calculate'
@@ -1127,11 +1259,13 @@ export async function handleMention(
                 ? handleDice(event.text, activeCharacterNum)
                 : effectiveIntent === 'game-slot'
                   ? handleSlot()
-                  : numerologyType === 'life-path'
-                    ? handleLifePath(event.text)
-                    : numerologyType === 'moon-star'
-                      ? handleTsukimeisei(event.text)
-                      : handleKyusei(event.text);
+                  : effectiveIntent === 'game-roulette'
+                    ? handleRoulette(getReleasedCharacters())
+                    : numerologyType === 'life-path'
+                      ? handleLifePath(event.text)
+                      : numerologyType === 'moon-star'
+                        ? handleTsukimeisei(event.text)
+                        : handleKyusei(event.text);
         }
 
         // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
@@ -1143,6 +1277,7 @@ export async function handleMention(
           : effectiveIntent === 'game-yacht' ? 'game-yacht'
           : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
           : effectiveIntent === 'game-mahjong' ? 'game-mahjong'
+          : effectiveIntent === 'game-roulette' ? 'game-roulette'
           : numerologyType === 'life-path' ? 'life-path'
           : numerologyType === 'moon-star' ? 'moon-star'
           : 'kyusei';
@@ -1209,9 +1344,6 @@ export async function handleMention(
     effectiveIntent === 'task-cancel' ||
     effectiveIntent === 'task-progress-update'
   ) {
-    const priorityLabel: Record<number, string> = { 1: '高', 2: '中', 3: '低' };
-    const difficultyLabel: Record<number, string> = { 1: '易', 2: '普通', 3: '難' };
-
     let taskReplyText: string;
     try {
       if (effectiveIntent === 'task-list') {
@@ -1308,11 +1440,10 @@ export async function handleMention(
                 : extracted.reason === 'too_far'
                   ? '365日以内の日時を指定してね。'
                   : '何をいつまでにやりたいか、もう少しはっきり教えてくれる？';
-          } else {
-            taskStore.create({
-              userId: event.userId,
-              username: event.username ?? null,
-              userHost: event.userHost ?? null,
+          } else if (extracted.priority === null || extracted.difficulty === null) {
+            // F-12 難易度確認ワークフロー: 優先度/難易度が発話から読み取れない場合は
+            // その場でデフォルト値に決め打ちせず、一度だけ確認を挟む（4-pre-d で結果を回収する）。
+            taskStore.setPendingDraft(event.userId, {
               title: extracted.title,
               dueAt: extracted.dueAtMs,
               remindAt: extracted.remindAtMs,
@@ -1320,42 +1451,22 @@ export async function handleMention(
               priority: extracted.priority,
               difficulty: extracted.difficulty,
             });
-            const dueLabel = extracted.dueAtMs
-              ? new Intl.DateTimeFormat('ja-JP', {
-                  timeZone: 'Asia/Tokyo',
-                  month: 'numeric',
-                  day: 'numeric',
-                }).format(new Date(extracted.dueAtMs))
-              : 'なし';
-            const remindLabel = extracted.remindAtMs
-              ? new Intl.DateTimeFormat('ja-JP', {
-                  timeZone: 'Asia/Tokyo',
-                  month: 'numeric',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                }).format(new Date(extracted.remindAtMs))
-              : 'なし';
-            try {
-              const aiResult = await ai.chat(
-                [
-                  { role: 'system' as const, content: chatSystemPrompt },
-                  {
-                    role: 'user' as const,
-                    content:
-                      `あなたのキャラクターとして自然な口調で、タスク登録の確認メッセージを40文字以内で返してください（台詞のみ）。\n` +
-                      `タスク: ${extracted.title}、優先度: ${priorityLabel[extracted.priority]}、` +
-                      `難易度: ${difficultyLabel[extracted.difficulty]}\n期日: ${dueLabel}、通知: ${remindLabel}`,
-                  },
-                ],
-                { maxTokens: 100, temperature: 0.9 },
-              );
-              taskReplyText = aiResult.text.trim();
-            } catch (err) {
-              logger.error('AI task confirm error:', err);
-              taskReplyText = `了解、「${extracted.title}」のタスクを追加したよ。`;
-            }
+            const missingLabel = [
+              extracted.priority === null ? '優先度（高・中・低）' : null,
+              extracted.difficulty === null ? '難易度（易・普通・難）' : null,
+            ]
+              .filter((v): v is string => v !== null)
+              .join('と');
+            taskReplyText = `「${extracted.title}」だね。${missingLabel}を教えてもらえる？`;
+          } else {
+            taskReplyText = await finalizeTaskCreation({
+              title: extracted.title,
+              dueAtMs: extracted.dueAtMs,
+              remindAtMs: extracted.remindAtMs,
+              remindType: extracted.remindType,
+              priority: extracted.priority,
+              difficulty: extracted.difficulty,
+            });
           }
         }
       }
