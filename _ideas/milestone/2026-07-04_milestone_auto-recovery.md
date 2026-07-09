@@ -1,8 +1,9 @@
 # Milestone: Bot 自動復旧機能（3層ウォッチドッグ）
 
-> 更新日: 2026-07-08（レイヤー2のsystemd timerを本番VMへ導入・稼働確認）
-> ステータス: レイヤー1・2 本番稼働中 ✅／レイヤー3（GCE外部）・`automaticRestart`確認は
-> gcloud CLI が必要でエージェント側のツールでは実行不可 🔜（詳細は「残作業」参照）
+> 更新日: 2026-07-09（gcloud CLI 導入によりエージェント側で `automaticRestart` 確認が完了。
+> レイヤー3〔GCE外部ウォッチドッグ〕は未デプロイと判明）
+> ステータス: レイヤー1・2 本番稼働中 ✅／`automaticRestart` は有効化済みと確認 ✅／
+> レイヤー3（GCE外部）は gcloud CLI 導入により作業可能になったが未デプロイ 🔜（詳細は「残作業」参照）
 
 ## 背景・目的
 
@@ -48,15 +49,17 @@ VM インスタンス上の Bot がエラー落ち・処理落ち（ハング）
 - [ ] GCE外部ウォッチドッグのデプロイ（手順: [tools/gce-watchdog/README.md](../../tools/gce-watchdog/README.md)）
       — 実機: プロジェクト `numbertales-misskey-surver` / ゾーン `us-central1-a` /
       インスタンス `misskey-bots-group-numbertales`（e2-small・2026-07-04 コネクタで確認済み）。
-      **エージェント側では実行不可**: ローカル開発機・本番VMのいずれにも `gcloud` CLI が無く、
-      Google Compute Engine コネクタも Cloud Functions/Cloud Scheduler/IAM のデプロイ用ツールを
-      持たない（インスタンスの参照・start/stop/reset・作成/削除・マシンタイプ変更のみ対応）ため、
-      クライアント君の gcloud 認証済み環境での実行が必要（2026-07-08 確認）。
-- [ ] `automaticRestart` 有効化確認。**同様の理由でエージェント側では実行不可**
-      （コネクタからは `scheduling.automaticRestart` を参照できず、gcloud もローカル/VMどちらにも無い）。
-      クライアント君側で `gcloud compute instances describe misskey-bots-group-numbertales
-      --project=numbertales-misskey-surver --zone=us-central1-a
-      --format='value(scheduling.automaticRestart)'` を実行して確認してもらう必要がある。
+      2026-07-09、ローカル開発機に `gcloud` CLI（575.0.1）が導入され `snine9801@gmail.com` で
+      認証済みと確認（100(モモ)がAPHRNTs_100リポジトリ側で導入）。現状確認できた前提状態:
+      - `cloudfunctions.googleapis.com` / `run.googleapis.com` / `cloudbuild.googleapis.com` は有効化済み
+      - `cloudscheduler.googleapis.com` は**未有効化**（手順1つ目として有効化が必要）
+      - 専用サービスアカウント `numbertales-watchdog` は**未作成**
+      - Cloud Functions(v2) デプロイ済み関数は0件（＝レイヤー3はまだ何もデプロイされていない）
+      → gcloud 実行自体は可能になったので、実施するタイミングはクライアント君の確認を取ってから
+      着手する（サービスアカウント作成・IAM権限付与・課金対象APIの有効化を伴うため）。
+- [x] `automaticRestart` 有効化確認。2026-07-09、gcloud CLI 導入により確認完了:
+      `scheduling.automaticRestart: true`、`onHostMaintenance: MIGRATE`。ホスト障害・メンテナンス時の
+      自動再起動は**既に有効**なので、この項目に対する追加対応は不要。
 - [ ] 障害注入テスト（`kill -STOP` でハング再現 → 3分後に自動復旧するか）。
       SSH経由で実行自体は可能だが、本番の実ユーザー向けBotを一時的に応答不能にする実験のため、
       実施前に必ずクライアント君に日時の確認を取ってから行うこと。
