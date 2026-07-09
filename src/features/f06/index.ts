@@ -28,6 +28,7 @@ import {
   rouletteHeadline,
   rouletteCwBody,
   coloredNumberEmoji,
+  tileFortuneThemes,
   type SlotRole,
 } from './responder.js';
 import { characterDiceColor } from './dice-color.js';
@@ -47,9 +48,20 @@ import {
   mahjongInitialMessage,
   mahjongMidMessage,
   sortTiles,
+  drawTileTypes,
   MAHJONG_MAX_EXCHANGES,
+  type Tile,
   type MahjongState,
 } from './mahjong.js';
+import {
+  pickQuizQuestion,
+  quizQuestionText,
+  quizAnswerHeadline,
+  quizAnswerCwBody,
+  quizAbandonCwBody,
+  MAHJONG_QUIZ_CW_LABEL,
+  type MahjongQuizState,
+} from './mahjong-quiz.js';
 import {
   rollDice,
   rerollDice,
@@ -78,7 +90,7 @@ import {
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
 
-export type { YachtState, HitBlowState, PokerState, MahjongState };
+export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState };
 
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
 
@@ -388,6 +400,30 @@ export function handleRoulette(characters: CharacterRecord[]): F06Result {
 }
 
 // ----------------------------------------------------------------
+// 牌引き占い（D3-4a）
+// ----------------------------------------------------------------
+
+const TILE_FORTUNE_COUNT_PATTERN = /(\d)\s*枚/;
+
+export interface TileFortuneDraw {
+  tiles: Tile[];
+  themes: string[];
+}
+
+/**
+ * テキストから枚数（1〜3、既定1。範囲外はフォールバック）を読み取り、34種の牌タイプから
+ * 重複なしで抽選する。LLMコメントの生成はここでは行わない（呼び出し元でtrivia同様にai.chat()を呼ぶ）。
+ */
+export function handleTileFortune(text: string): TileFortuneDraw {
+  const halfWidthText = toHalfWidthDigits(text);
+  const match = TILE_FORTUNE_COUNT_PATTERN.exec(halfWidthText);
+  const requested = match ? parseInt(match[1]!, 10) : 1;
+  const count = requested >= 1 && requested <= 3 ? requested : 1;
+  const tiles = drawTileTypes(count);
+  return { tiles, themes: tileFortuneThemes(tiles) };
+}
+
+// ----------------------------------------------------------------
 // 麻雀配牌チャレンジ（D3-2c）
 // ----------------------------------------------------------------
 
@@ -441,6 +477,38 @@ export function handleMahjongKeep(state: MahjongState, store: GameSessionStore, 
 export function handleMahjongAbandon(state: MahjongState, store: GameSessionStore, userId: string): F06Result {
   store.deleteSession(userId, 'mahjong');
   return mahjongResultText(state.tiles, evaluateHand(state.tiles));
+}
+
+// ----------------------------------------------------------------
+// 手役クイズ（D3-4b）
+// ----------------------------------------------------------------
+
+/** 手役クイズを開始する（新規出題）。既存セッションは上書き。 */
+export function handleMahjongQuizStart(userId: string, store: GameSessionStore): F06Result {
+  const state = pickQuizQuestion();
+  store.setSession(userId, 'mahjong-quiz', state);
+  return { text: quizQuestionText(state) };
+}
+
+/** ユーザーの回答（0-indexed choiceIndex）を判定する。正誤に関わらずセッションは即削除。 */
+export function handleMahjongQuizAnswer(
+  state: MahjongQuizState,
+  choiceIndex: number,
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  store.deleteSession(userId, 'mahjong-quiz');
+  return {
+    text: quizAnswerHeadline(),
+    cwBody: quizAnswerCwBody(state, choiceIndex),
+    cwLabel: MAHJONG_QUIZ_CW_LABEL,
+  };
+}
+
+/** ゲームを中断・放棄する（正解を明かす） */
+export function handleMahjongQuizAbandon(state: MahjongQuizState, store: GameSessionStore, userId: string): F06Result {
+  store.deleteSession(userId, 'mahjong-quiz');
+  return { text: '手役クイズ、終了したよ', cwBody: quizAbandonCwBody(state), cwLabel: MAHJONG_QUIZ_CW_LABEL };
 }
 
 // ----------------------------------------------------------------

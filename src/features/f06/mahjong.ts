@@ -93,6 +93,22 @@ export function dealMahjongGame(): { tiles: Tile[]; wall: Tile[] } {
   return { tiles: shuffled.slice(0, 14), wall: shuffled.slice(14) };
 }
 
+/** 34種の牌タイプ（各1枚）を返す。D3-4a 牌引き占い専用の抽選プール（136枚デッキとは別物）。 */
+function buildTileTypePool(): Tile[] {
+  const pool: Tile[] = [];
+  for (const suit of ['man', 'pin', 'sou'] as const) {
+    for (let num = 1; num <= 9; num++) pool.push({ suit, num });
+  }
+  for (const char of CHAR_ORDER) pool.push({ suit: 'char', char });
+  return pool;
+}
+
+/** 34種の牌タイプから重複なしで count 枚（1〜34）を一様ランダム抽出する（D3-4a 牌引き占い専用） */
+export function drawTileTypes(count: number): Tile[] {
+  const n = Math.max(1, Math.min(count, 34));
+  return shuffle(buildTileTypePool()).slice(0, n);
+}
+
 // ================================================================
 // 面子取り出し（再帰・全分解列挙）
 // ================================================================

@@ -52,13 +52,16 @@ import {
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
   handleRoulette,
+  handleTileFortune,
+  handleMahjongQuizStart, handleMahjongQuizAnswer, handleMahjongQuizAbandon,
   extractTriviaNumber,
   type F06Result, type YachtState, type HitBlowState, type HitBlowPendingStart,
-  type PokerState, type MahjongState,
+  type PokerState, type MahjongState, type MahjongQuizState,
 } from '../../features/f06/index.js';
 import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '../../features/f06/yacht.js';
 import { parseExchangeCommand } from '../../features/f06/poker.js';
 import { parseDiscardCommand } from '../../features/f06/mahjong.js';
+import { parseQuizAnswer } from '../../features/f06/mahjong-quiz.js';
 import {
   parseGuess,
   symbolLabel,
@@ -68,7 +71,11 @@ import {
   HITBLOW_REVEAL_ON_END_PATTERN,
 } from '../../features/f06/hitblow.js';
 import { containsFlaggedWord } from '../../features/f06/hitblow-words.js';
-import { TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse } from '../../features/f06/responder.js';
+import {
+  TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse,
+  TILE_FORTUNE_CW_LABEL, tileFortuneHeadline, buildTileFortuneUserPrompt,
+  tileFortuneErrorResponse, tileFortuneCwBody,
+} from '../../features/f06/responder.js';
 import { pickGreetingResponse } from '../responder/templates/greeting.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
@@ -87,6 +94,7 @@ const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
   'chat', 'creative-consultation', 'numerology-consultation',
   'calculate', 'numerology', 'dice', 'trivia',
   'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong', 'game-roulette',
+  'game-tile-fortune', 'game-mahjong-quiz',
   'task-add', 'task-list', 'task-done', 'task-cancel', 'task-progress-update',
 ]);
 
@@ -250,6 +258,7 @@ async function generateHarassmentReply(
     'game-yacht':   'ヨットゲーム',
     'game-hitblow': 'ヒット＆ブロウ',
     'game-mahjong': '麻雀配牌チャレンジ',
+    'game-mahjong-quiz': '手役クイズ',
     'game-roulette': 'キャラ番号ルーレット',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
@@ -994,6 +1003,68 @@ export async function handleMention(
     return false;
   }
 
+  const activeMahjongQuizState = gameSessionStore.getSession<MahjongQuizState>(event.userId, 'mahjong-quiz');
+  if (activeMahjongQuizState) {
+    let handled: boolean;
+    try {
+      handled = await handleActiveMahjongQuizTurn(activeMahjongQuizState);
+    } catch (err) {
+      logger.error('MahjongQuiz active-session handler error:', err);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (replyErr) {
+        logger.error('Failed to post mahjong-quiz error fallback reply:', replyErr);
+      }
+      handled = true;
+    }
+    if (handled) return;
+  }
+
+  /** アクティブな手役クイズセッションへの回答を処理する。処理して返信済みなら true、対象外なら false。 */
+  async function handleActiveMahjongQuizTurn(activeMahjongQuizState: MahjongQuizState): Promise<boolean> {
+    const postQuizResult = async (result: F06Result): Promise<void> => {
+      const quizFraming = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-mahjong-quiz', result.text);
+      const finalText = quizFraming ? `${quizFraming}\n${result.text}` : result.text;
+      const quizNoteText = formatSpeech(activeCharacterNum, finalText) + (result.cwBody ? '\n\n' + result.cwBody : '');
+      try {
+        await misskeyClient.reply(quizNoteText, event.noteId, { cw: result.cwLabel });
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+        logger.info(`Replied (mahjong-quiz-action) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-mahjong-quiz'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post mahjong-quiz action reply:', err);
+      }
+    };
+
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handleMahjongQuizAbandon(activeMahjongQuizState, gameSessionStore, event.userId);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, abandonResult.text) +
+            (abandonResult.cwBody ? '\n\n' + abandonResult.cwBody : ''),
+          event.noteId,
+          { cw: abandonResult.cwLabel },
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post mahjong-quiz abandon reply:', err);
+      }
+      return true;
+    }
+
+    const choiceIndex = parseQuizAnswer(event.text);
+    if (choiceIndex === null) return false;
+
+    const result = handleMahjongQuizAnswer(activeMahjongQuizState, choiceIndex, gameSessionStore, event.userId);
+    await postQuizResult(result);
+    return true;
+  }
+
   /**
    * タスクを確定登録し、AI生成の確認メッセージを返す（優先度・難易度が確定した後の共通処理）。
    * 即時登録（優先度・難易度とも判明済み）・確認ワークフロー完了後の確定登録の両方から呼ばれる。
@@ -1169,17 +1240,20 @@ export async function handleMention(
     effectiveIntent === 'calculate' || effectiveIntent === 'numerology' ||
     effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
     effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow' ||
-    effectiveIntent === 'game-mahjong' || effectiveIntent === 'game-roulette'
+    effectiveIntent === 'game-mahjong' || effectiveIntent === 'game-roulette' ||
+    effectiveIntent === 'game-tile-fortune' || effectiveIntent === 'game-mahjong-quiz'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
     if (
       effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' ||
-      effectiveIntent === 'game-hitblow' || effectiveIntent === 'game-mahjong'
+      effectiveIntent === 'game-hitblow' || effectiveIntent === 'game-mahjong' ||
+      effectiveIntent === 'game-mahjong-quiz'
     ) {
       const existingGame = gameSessionStore.getAnyActiveSession(event.userId);
       if (existingGame) {
         const gameNames: Record<string, string> = {
           yacht: 'ヨット', hitblow: 'ヒット＆ブロウ', poker: 'ポーカー', mahjong: '麻雀',
+          'mahjong-quiz': '手役クイズ',
         };
         const ongoingName = gameNames[existingGame] ?? 'ゲーム';
         const busyText = formatSpeech(activeCharacterNum, `今${ongoingName}の途中だよ！「やめ」か「終了」で終わらせてから試してね`);
@@ -1233,10 +1307,40 @@ export async function handleMention(
           logger.error('AI trivia error:', err);
           f06Result = { text: triviaErrorResponse() };
         }
+      } else if (effectiveIntent === 'game-tile-fortune') {
+        // 牌引き占い: trivia同様、LLMに直接委ねる（generateF06Framingは経由しない）
+        const draw = handleTileFortune(event.text);
+        gameSessionStore.recordPlayed(event.userId, 'tile-fortune');
+        const tileFortuneSystemPrompt = buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget, trustContext);
+        try {
+          const aiResult = await ai.chat(
+            [
+              { role: 'system' as const, content: tileFortuneSystemPrompt },
+              { role: 'user' as const, content: buildTileFortuneUserPrompt(draw.themes) },
+            ],
+            { maxTokens: 120, temperature: 0.9 },
+          );
+          const comment = aiResult.text.trim() || tileFortuneErrorResponse();
+          f06Result = {
+            text: tileFortuneHeadline(),
+            cwBody: tileFortuneCwBody(draw.tiles, comment),
+            cwLabel: TILE_FORTUNE_CW_LABEL,
+          };
+        } catch (err) {
+          logger.error('AI tile-fortune error:', err);
+          f06Result = {
+            text: tileFortuneHeadline(),
+            cwBody: tileFortuneCwBody(draw.tiles, tileFortuneErrorResponse()),
+            cwLabel: TILE_FORTUNE_CW_LABEL,
+          };
+        }
       } else {
         if (effectiveIntent === 'game-mahjong') {
           f06Result = handleMahjongStart(event.userId, gameSessionStore);
           gameSessionStore.recordPlayed(event.userId, 'mahjong');
+        } else if (effectiveIntent === 'game-mahjong-quiz') {
+          f06Result = handleMahjongQuizStart(event.userId, gameSessionStore);
+          gameSessionStore.recordPlayed(event.userId, 'mahjong-quiz');
         } else if (effectiveIntent === 'game-poker') {
           f06Result = handlePokerStart(event.userId, gameSessionStore);
           gameSessionStore.recordPlayed(event.userId, 'poker');
@@ -1277,6 +1381,7 @@ export async function handleMention(
           : effectiveIntent === 'game-yacht' ? 'game-yacht'
           : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
           : effectiveIntent === 'game-mahjong' ? 'game-mahjong'
+          : effectiveIntent === 'game-mahjong-quiz' ? 'game-mahjong-quiz'
           : effectiveIntent === 'game-roulette' ? 'game-roulette'
           : numerologyType === 'life-path' ? 'life-path'
           : numerologyType === 'moon-star' ? 'moon-star'
