@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -83,12 +83,38 @@ const YACHT_PATTERNS: RegExp[] = [
   /\/yacht\b/i,
 ];
 
+/**
+ * 手役クイズ（D3-4b）。既存 MAHJONG_PATTERNS は末尾の接尾辞グループが丸ごとoptionalな緩い
+ * 正規表現（/麻雀(?:しよう|...)?/）のため「麻雀クイズ」も部分一致してしまう。
+ * TASK_PROGRESS_PATTERNS を TASK_LIST_PATTERNS より先に判定している既存パターンと同様、
+ * より限定的な MAHJONG_QUIZ_PATTERNS を MAHJONG_PATTERNS より先に判定する必要がある。
+ */
+const MAHJONG_QUIZ_PATTERNS: RegExp[] = [
+  /手役クイズ/,
+  /役当てクイズ/,
+  /麻雀クイズ/,
+  /\/mjquiz\b/i,
+];
+
 const MAHJONG_PATTERNS: RegExp[] = [
   /麻雀(?:しよう|やって|して|お願い|ゲーム)?/,
   /配牌(?:して|チャレンジ)?/,
   /まーじゃん/,
   /\/mahjong\b/i,
   /\/mj\b/i,
+];
+
+/**
+ * 牌引き占い（D3-4a）。「麻雀」「配牌」を含まないため MAHJONG_PATTERNS とは字面上バッティングしない。
+ * 「牌を3枚引いて」のように「を」と「引いて」の間に枚数指定が挟まるケースを許容するため、
+ * 数字（全角/半角）＋「枚」を任意で挟めるようにしている。
+ */
+const TILE_FORTUNE_PATTERNS: RegExp[] = [
+  /牌占い/,
+  /牌を?[0-9０-９]*枚?引いて/,
+  /牌引き占い/,
+  /占い牌/,
+  /\/tilefortune\b/i,
 ];
 
 /** キャラ番号ルーレット（D3-5） */
@@ -291,8 +317,17 @@ export function classifyIntent(text: string): ClassificationResult {
     if (pattern.test(normalized)) return { intent: 'game-hitblow' };
   }
 
+  // MAHJONG_PATTERNS より必ず先に判定する（MAHJONG_QUIZ_PATTERNS 定義部のコメント参照）
+  for (const pattern of MAHJONG_QUIZ_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-mahjong-quiz' };
+  }
+
   for (const pattern of MAHJONG_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-mahjong' };
+  }
+
+  for (const pattern of TILE_FORTUNE_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-tile-fortune' };
   }
 
   for (const pattern of ROULETTE_PATTERNS) {

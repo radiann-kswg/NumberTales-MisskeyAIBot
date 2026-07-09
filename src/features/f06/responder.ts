@@ -3,6 +3,8 @@
 import type { NumerologyType } from './index.js';
 import { TAROT_MAP } from './numerology.js';
 import type { DiceColor } from './dice-color.js';
+import type { Tile, CharTileId } from './mahjong.js';
+import { tileEmoji } from './mahjong.js';
 
 // ----------------------------------------------------------------
 // 数式計算
@@ -304,4 +306,71 @@ export function coloredNumberEmoji(color: DiceColor, num: string): string {
 export function rouletteCwBody(num: string, name: string, numEmojiLine: string, flavor: string | null): string {
   const flavorLine = flavor ? `\n\n${flavor}` : '';
   return `${numEmojiLine}\n✦ 縁のあった番号: ${num}(${name})${flavorLine}`;
+}
+
+// ----------------------------------------------------------------
+// 牌引き占い（D3-4a）
+// ----------------------------------------------------------------
+
+export const TILE_FORTUNE_CW_LABEL = '「牌引き占い」';
+
+type TileFortuneCategory = 'man' | 'pin' | 'sou' | 'wind' | 'sangen';
+
+const TILE_FORTUNE_CATEGORY_LABEL: Record<TileFortuneCategory, string> = {
+  man: '萬子', pin: '筒子', sou: '索子', wind: '風牌', sangen: '三元牌',
+};
+
+/** 占いテーマ表（コード側で固定。LLMには渡すが生成させない） */
+const TILE_FORTUNE_THEME: Record<TileFortuneCategory, string> = {
+  man: '力・意志', pin: '縁・調和', sou: '成長・試練', wind: '方向性', sangen: '純粋さ',
+};
+
+const SANGEN_IDS = new Set<CharTileId>(['haku', 'hatsu', 'chun']);
+
+function tileFortuneCategory(t: Tile): TileFortuneCategory {
+  if (t.suit !== 'char') return t.suit;
+  return SANGEN_IDS.has(t.char!) ? 'sangen' : 'wind';
+}
+
+/** 引いた牌からカテゴリ単位の値を、初出順・重複なしで返す共通ヘルパー */
+function dedupedByCategory<T>(tiles: Tile[], pick: (c: TileFortuneCategory) => T): T[] {
+  const seen = new Set<TileFortuneCategory>();
+  const result: T[] = [];
+  for (const t of tiles) {
+    const cat = tileFortuneCategory(t);
+    if (!seen.has(cat)) { seen.add(cat); result.push(pick(cat)); }
+  }
+  return result;
+}
+
+/** LLMプロンプトに渡すテーマ一覧（重複なし） */
+export function tileFortuneThemes(tiles: Tile[]): string[] {
+  return dedupedByCategory(tiles, (c) => TILE_FORTUNE_THEME[c]);
+}
+
+/** 牌引き占い結果の見出し（本文） */
+export function tileFortuneHeadline(): string {
+  return '牌を引いてみるね……';
+}
+
+/**
+ * 牌引き占い LLM 呼び出し用ユーザープロンプト。
+ * テーマはコード側で固定し、文面（占いコメント）の生成のみLLMに委ねる。
+ */
+export function buildTileFortuneUserPrompt(themes: string[]): string {
+  return `占いの題材として、以下のテーマを引きました: ${themes.join('・')}。\n` +
+    `このテーマに沿って、短い占いコメントを1つだけ、60文字以内で生成してください。` +
+    `テーマの単語をそのまま繰り返さず、意味を膨らませて話してください。断定しすぎず、寄り添うトーンでお願いします。`;
+}
+
+/** 牌引き占い LLM 生成失敗時のフォールバック文言 */
+export function tileFortuneErrorResponse(): string {
+  return 'うまく言葉にできなかったけど、悪くない流れを感じるよ。';
+}
+
+/** CW内テキスト: 牌絵文字＋引いたカテゴリ＋LLM占いコメント */
+export function tileFortuneCwBody(tiles: Tile[], comment: string): string {
+  const emojiLine = tiles.map(tileEmoji).join('');
+  const categoryLabels = dedupedByCategory(tiles, (c) => TILE_FORTUNE_CATEGORY_LABEL[c]);
+  return `${emojiLine}\n✦ ${categoryLabels.join('・')}を引いたよ\n${comment}`;
 }
