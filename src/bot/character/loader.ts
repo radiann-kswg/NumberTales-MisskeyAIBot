@@ -31,22 +31,6 @@ export interface CharacterThisMastersEntry {
   _DBLink?: unknown;
 }
 
-/** NumberMarkLocation の1エントリ（formation ごとのマーク情報） */
-export interface NumberMarkEntry {
-  Formation: string;
-  Marks: Array<{
-    MarkPosition_JP?: string;
-    MarkPosition?: string;
-    MarkPosition_EN?: string;
-    MarkColor_JP?: string;
-    MarkColor?: string;
-    MarkColor_EN?: string;
-    MarkNotation_JP?: string;
-    MarkNotation?: string;
-    MarkNotation_EN?: string;
-  }>;
-}
-
 export interface CharacterConversationPattern {
   TalkingTone_JP?: string;
   TalkingTone?: string;
@@ -123,11 +107,6 @@ export interface CharacterRecord {
   /** 三人称での呼び方（他者からの言及時） */
   ThirdPersonCalling_JP?: string;
   ThirdPersonCalling?: string;
-  /**
-   * 各 formation ごとの数字マーキング位置情報（v2026-06 追加）
-   * 画像生成パイプライン等での参照を想定。Bot 応答には直接使用しない。
-   */
-  NumberMarkLocation?: NumberMarkEntry[] | null;
   /**
    * 専属契約した主人リスト（$Def_ThisMastersEntry[] 型）
    * v2026-06 以降、ThisMasters_EN は廃止され本フィールドに日英両フィールドが統合された。
