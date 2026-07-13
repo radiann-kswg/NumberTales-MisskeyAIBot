@@ -111,23 +111,47 @@ GET https://database.numbertales-radiann.net/api/v1/NumberTales/Primary/records
 
 R2 復旧後の本番 API でも、ボットが必要とするレコードが同一内容で取得できることを確認した。
 
-## 既知の潜在リスク（今回の更新起因ではない・対応見送り）
+## 追加対応: `Num` 正規化の衝突を修正（ボット側の既存バグ）
 
-`loader.ts` の `normalizeNum()` は先頭ゼロを除去するため、`Num` が `"000"` / `"0"` / `"00"` の
-3レコードがいずれも `"0"` に正規化される（`000(チトセ)` / `零 零` / `零 百`）。
+同期作業中に発見した **親リポジトリ側（ボット）のバグ**。creations-db 側は `Num` を `"000"` / `"0"` / `"00"`
+の別レコードとして正しく区別しており（`000(チトセ)` / `零 零` / `零 百`）、DB 側に問題はない。
+`loader.ts` の `normalizeNum()` が先頭ゼロを除去するため、この3つがすべて `"0"` へ潰れて
+取り違えが起きる状態だった。
 
-- 現状は `零 零` / `零 百` の `Progress` が `"released(beta)"` であり、`initializeCharacterDB()` の
-  `Progress === 'released'` 厳密一致フィルタで除外されるため、`getReleasedCharacterByNum('000')` は
-  正しく `000(チトセ)` を返す（**実害なし**）。
-- 旧コミット `7d44e5bd` 時点でも両レコードは存在しており、**今回の DB 更新で新たに発生したものではない**。
-- 将来 `零 零` / `零 百` が `released` へ昇格した場合、`getReleasedCharacterByNum('000')` が
-  意図しないレコードを返す可能性がある。対処が必要になった時点で `normalizeNum()` の正規化規則
-  （先頭ゼロ除去をやめる／`Num` を文字列のまま比較する等）を見直すこと。
+- **発現条件**: 現状は `零 零` / `零 百` の `Progress` が `"released(beta)"` で、`initializeCharacterDB()` の
+  `Progress === 'released'` 厳密一致フィルタに除外されるため実害は出ていなかった。ただし両レコードを
+  含めて解決すると `"0"` / `"00"` の**どちらも `000(チトセ)` を返す**（誤爆）状態であり、両者が
+  `released` へ昇格した時点で顕在化する時限バグだった。
+- 旧コミット `7d44e5bd` 時点でも両レコードは存在しており、**今回の DB 更新で発生したものではない**。
+
+**修正（`src/bot/character/loader.ts` の `getReleasedCharacterByNum()`）**: 生値の完全一致を先に試し、
+一致しない場合のみゼロ埋め除去（`normalizeNum()`）でフォールバックする2段構えに変更した。
+`normalizeNum()` 自体は `"057"` → `"57"` の表記ゆれ吸収に必要なため残している。
+
+検証（`dist/` をビルドして実関数を実行）:
+
+```
+--- 現行データ（released のみ）: 後方互換を維持 ---
+getReleasedCharacterByNum("000") => Num=000 000(チトセ)
+getReleasedCharacterByNum("0")   => Num=000 000(チトセ)   ← 「0番機に切り替えて」が従来どおり動作
+getReleasedCharacterByNum("00")  => Num=000 000(チトセ)
+getReleasedCharacterByNum("57")  => Num=57  57(イズナ)
+getReleasedCharacterByNum("057") => Num=57  57(イズナ)    ← ゼロ埋め吸収も維持
+getDefaultCharacterProfile()     => Num=000 000(チトセ)
+
+--- 将来シナリオ（beta 昇格を想定し全105レコードで解決）---
+"000"  修正前 => 000(チトセ)   修正後 => 000(チトセ)
+"0"    修正前 => 000(チトセ)   修正後 => 零 零     ← 誤爆を解消
+"00"   修正前 => 000(チトセ)   修正後 => 零 百     ← 誤爆を解消
+```
+
+`零 零` / `零 百` が `released` へ昇格しても、`Num` の指すレコードを取り違えない状態になった。
 
 ## コミット
 
-- メッセージ: `chore(creations-db): _creations-db を develop 最新(e1d45b71)へ追従し NumberMarkLocation 廃止に対応`
-- 含まれる変更:
+- `chore(creations-db): _creations-db を develop 最新(e1d45b71)へ追従し NumberMarkLocation 廃止に対応`
   - `_creations-db`: gitlink を `7d44e5bd` → `e1d45b71` へ更新
   - `src/bot/character/loader.ts`: `NumberMarkEntry` 型・`CharacterRecord.NumberMarkLocation` を削除
   - `_tasks/2026-07-13-1605-creations-db-sync.md`: 本ログ
+- `fix(character): Num 正規化の衝突を修正（"000"/"0"/"00" の取り違えを防止）`
+  - `src/bot/character/loader.ts`: `getReleasedCharacterByNum()` を完全一致優先の2段解決に変更
