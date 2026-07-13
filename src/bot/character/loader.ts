@@ -195,6 +195,7 @@ export async function initializeCharacterDB(): Promise<void> {
   cachedReleasedCharacters = [FALLBACK_CHARACTER];
 }
 
+/** ゼロ埋めの表記ゆれを吸収する（"057" → "57"） */
 function normalizeNum(value: string | number): string {
   return String(value).trim().replace(/^0+(?=\d)/, '');
 }
@@ -211,8 +212,18 @@ export function getReleasedCharacters(): CharacterRecord[] {
 }
 
 export function getReleasedCharacterByNum(num: string): CharacterRecord | null {
-  const target = normalizeNum(num);
-  return loadReleasedCharacters().find((entry) => normalizeNum(entry.Num) === target) ?? null;
+  const characters = loadReleasedCharacters();
+  const raw = String(num).trim();
+
+  // DB は "000"(チトセ) / "0"(零 零) / "00"(零 百) を別レコードとして区別しているが、
+  // normalizeNum() は3つとも "0" に潰してしまう。先に生値の完全一致で引くことで取り違えを防ぐ。
+  const exact = characters.find((entry) => String(entry.Num).trim() === raw);
+  if (exact) {
+    return exact;
+  }
+
+  const target = normalizeNum(raw);
+  return characters.find((entry) => normalizeNum(entry.Num) === target) ?? null;
 }
 
 export function getDefaultCharacterProfile(): CharacterRecord {
