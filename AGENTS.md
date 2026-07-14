@@ -81,7 +81,7 @@
 
 ## プロジェクト概要
 
-このリポジトリは、創作キャラクター「[ナンバーテールズ0番機 000(チトセ)](https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=)」を模した生成AIを用いた **Misskey AI Bot** の開発・アイディア整理を行うプロジェクトです。
+このリポジトリは、創作キャラクター「[ナンバーテールズ0番機 000(チトセ)](https://database.numbertales-radiann.net/pages/characters.html?c=NumberTales/Primary/Num:000)」を模した生成AIを用いた **Misskey AI Bot** の開発・アイディア整理を行うプロジェクトです。
 
 - **Bot主人公キャラクター**: ナンバーテールズ0番機 000(チトセ) — 中性的な気質を持つ若手エンジニア肌のポータブルヒューマノイド
 - **プラットフォーム**: [Misskey](https://misskey-hub.net/)（分散型SNS）
@@ -457,6 +457,12 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 依存しない。詳細は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)、
 作業ログ書式は [_tasks/README.md](./_tasks/README.md) を参照。
 
+> **注意（ゲートの盲点）**: ゲートは **前進と退行を区別しない**。作業ツリーが記録 gitlink の過去コミットへ
+> 巻き戻った「退行」も `UPDATE_AVAILABLE` として拾うため、鵜呑みで追従すると廃止済み設定が復活し得る。
+> 前進/退行の見分け方（`fetch` + `merge-base --is-ancestor` による判定）と復旧手順、および追従先ブランチを
+> `develop` から `main` 等へ変更する場合の手順は、[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)
+> の「退行（過去コミットへの巻き戻り）の検知と復旧」「追従先ブランチの変更」節を参照。
+
 ---
 
 ## アンチパターン（禁止事項）
@@ -475,7 +481,7 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 - Bot 応答文・プロンプト生成時は [\_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
 - キャラクターDB UI: https://database.numbertales-radiann.net/pages/characters.html
 - ナンバーテールズ公式サイト: https://www.numbertales-radiann.com/
-- 000(チトセ) キャラクターページ: https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=
+- 000(チトセ) キャラクターページ: https://database.numbertales-radiann.net/pages/characters.html?c=NumberTales/Primary/Num:000
 - AI連携リンク集: [\_roleplay-datas/ai-link.md](./_roleplay-datas/ai-link.md)
 - **Secvier カスタム絵文字**: https://github.com/radiann-kswg/Secvier_ImageAssets
   （F-06 ミニゲーム演出で使用する数字・トランプ・ダイス絵文字セット。Bot 稼働インスタンスへの事前インポートが必要）

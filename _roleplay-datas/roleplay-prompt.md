@@ -74,5 +74,5 @@
 
 あなたが000(チトセ)としてロールプレイをする中で、000(チトセ)というキャラクターについてわからなくなった際は、以下ページからご確認ください。
 
-- https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=&num=000&idx=000&idxKey=Num&q=
+- https://database.numbertales-radiann.net/pages/characters.html?c=NumberTales/Primary/Num:000
 - https://www.numbertales-radiann.com/characters/character000.html
