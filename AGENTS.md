@@ -81,7 +81,7 @@
 
 ## プロジェクト概要
 
-このリポジトリは、創作キャラクター「[ナンバーテールズ0番機 000(チトセ)](https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=)」を模した生成AIを用いた **Misskey AI Bot** の開発・アイディア整理を行うプロジェクトです。
+このリポジトリは、創作キャラクター「[ナンバーテールズ0番機 000(チトセ)](https://database.numbertales-radiann.net/pages/characters.html?c=NumberTales/Primary/Num:000)」を模した生成AIを用いた **Misskey AI Bot** の開発・アイディア整理を行うプロジェクトです。
 
 - **Bot主人公キャラクター**: ナンバーテールズ0番機 000(チトセ) — 中性的な気質を持つ若手エンジニア肌のポータブルヒューマノイド
 - **プラットフォーム**: [Misskey](https://misskey-hub.net/)（分散型SNS）
@@ -475,7 +475,7 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 - Bot 応答文・プロンプト生成時は [\_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md) の設定に準拠すること
 - キャラクターDB UI: https://database.numbertales-radiann.net/pages/characters.html
 - ナンバーテールズ公式サイト: https://www.numbertales-radiann.com/
-- 000(チトセ) キャラクターページ: https://database.numbertales-radiann.net/pages/characters.html?work=Works_NumberTales&db=Primary&num=000&idx=000&idxKey=Num&q=
+- 000(チトセ) キャラクターページ: https://database.numbertales-radiann.net/pages/characters.html?c=NumberTales/Primary/Num:000
 - AI連携リンク集: [\_roleplay-datas/ai-link.md](./_roleplay-datas/ai-link.md)
 - **Secvier カスタム絵文字**: https://github.com/radiann-kswg/Secvier_ImageAssets
   （F-06 ミニゲーム演出で使用する数字・トランプ・ダイス絵文字セット。Bot 稼働インスタンスへの事前インポートが必要）
