@@ -457,6 +457,12 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 依存しない。詳細は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)、
 作業ログ書式は [_tasks/README.md](./_tasks/README.md) を参照。
 
+> **注意（ゲートの盲点）**: ゲートは **前進と退行を区別しない**。作業ツリーが記録 gitlink の過去コミットへ
+> 巻き戻った「退行」も `UPDATE_AVAILABLE` として拾うため、鵜呑みで追従すると廃止済み設定が復活し得る。
+> 前進/退行の見分け方（`fetch` + `merge-base --is-ancestor` による判定）と復旧手順、および追従先ブランチを
+> `develop` から `main` 等へ変更する場合の手順は、[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)
+> の「退行（過去コミットへの巻き戻り）の検知と復旧」「追従先ブランチの変更」節を参照。
+
 ---
 
 ## アンチパターン（禁止事項）
