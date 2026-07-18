@@ -156,7 +156,8 @@ src/
   bot/
     character/                # マルチキャラクター切り替え・動的プロンプト生成
       loader.ts               #   創作DB JSON のロード（実スキーマ value_JP 等に追従）
-      prompt-builder.ts       #   キャラクター別プロンプト生成（専門性セクション含む）
+      roleplay-prompt-loader.ts #   creations-db 生成のキャラ別ロールプレイプロンプトからキャラカードを抽出（見出しアンカー方式・遅延キャッシュ・Numサニタイズ）
+      prompt-builder.ts       #   キャラクター別プロンプト生成（生成カード基盤層 + Bot実行層の二層。未生成キャラは従来のフィールド組み立てにfallback）
       store.ts                #   ユーザーごとのアクティブキャラクター状態（SQLite）
       switch.ts               #   切り替えロジック
     classifier/intent.ts      # 意図分類（戻り値型: ClassificationResult）
@@ -263,6 +264,7 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
 | —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
 | —          | キャラプロンプト個性化（`Hobby`/`SpecialSkill`/`NumerospecAbout` 等を専門性セクションとして追加） | ✅ 実装済み |
+| —          | DB生成ロールプレイプロンプトをキャラ応答の基盤層に採用（二層化: `roleplay-prompt-loader.ts` が `RoleplayPrompts/DB_*/roleplay-prompt-<Num>.md` からキャラカードを抽出→識別/口調/専門性の正典として採用、その上に Bot 実行層=形態/応答方針/文字数/制約/信頼度を重ねる。未生成キャラは従来のフィールド組み立てにfallback。呼称DSLの二重管理を解消し型番/尻尾ユニット/主人呼称等も反映） | ✅ 実装済み |
 | —          | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング）                         | ✅ 実装済み |
 | —          | フォローバック（followed イベント受信時に自動フォロー）                                           | ✅ 実装済み |
 | —          | インシデントロガー（ハラスメント検知時に NDJSON ファイル出力）                                    | ✅ 実装済み |
