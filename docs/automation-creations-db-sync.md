@@ -64,12 +64,85 @@ bash tools/check-creations-db-update.sh
 git fetch origin master
 git reset --hard origin/master
 git submodule update --remote _creations-db   # ← 作業ツリーを upstream develop の最新へ進める
+bash tools/setup-creations-db-sparse.sh        # ← NumberTales 一次系だけに sparse 間引き（冪等・下記節参照）
 npm install --omit=dev
 npm run build
 pm2 reload ecosystem.config.cjs
 ```
 
 これで作業ツリー HEAD が進み、次回（最大6時間後）の Cowork タスクが追従コミットを生成する。
+
+## サブモジュール sparse-checkout（作業ツリー間引き）
+
+`_creations-db` は創作サークルの全 9 作品を含むが、本 Bot リポジトリで必要なのは **NumberTales の一次系（Primary / SemiPrimary）**だけ。他作品（8 作品）と、NumberTales 内でも他作者が絡む／キャラデザ未着手の種別（`Secondary` / `SelfSecondary` / `UnprocessedSecondary`）を sparse-checkout で作業ツリーから間引く。取得自体も減らしたい場合は部分クローン（`--filter=blob:none`）を併用する。
+
+### 適用（冪等ブートストラップ）
+
+`tools/setup-creations-db-sparse.sh` を実行する。ネットワーク非依存・複数回実行安全（適用済みなら `UP_TO_DATE` で no-op）。前提として先に `git submodule update --init _creations-db` を済ませておくこと。
+
+```bash
+git submodule update --init _creations-db     # 先にサブモジュールを初期化
+bash tools/setup-creations-db-sparse.sh        # sparse 適用＋必須パスのアサート
+```
+
+### パターン（non-cone / denylist）
+
+`Works_NumberTales` を丸ごと include し、非一次系の種別だけを `!` で再除外する。上流 develop のリネームに対し allowlist より頑健（NumberTales 内の新規/リネームは自動で include 側に倒れる）。
+
+```
+/pkg/nodejs/
+/data/db_meta.json
+/data/db_type.json
+/data/Works_NumberTales/
+!/data/Works_NumberTales/DataBases/db_Secondary.json
+!/data/Works_NumberTales/DataBases/db_SelfSecondary.json
+!/data/Works_NumberTales/DataBases/db_UnprocessedSecondary.json
+!/data/Works_NumberTales/Images/DB_Secondary/
+!/data/Works_NumberTales/Images/DB_SelfSecondary/
+```
+
+> **なぜ non-cone か**: `DataBases/` 直下に `db_Primary.json`・`db_SemiPrimary.json`・`db_Secondary.json`… が同居するため、ディレクトリ単位でしか選べない cone モードでは「Primary を残しつつ Secondary 等だけ落とす」ファイル単位分割ができない。よって non-cone（フルパターン）必須。
+
+### 保持される Bot 必須パス（間引き禁止）
+
+- `pkg/nodejs/index.mjs`（クライアント本体・動的 import）
+- `data/db_meta.json`（グローバルメタ）
+- `data/Works_NumberTales/DataBases/db_meta.json` ＋ `db_Primary.json`（キャラ本体）
+- `data/Works_NumberTales/Dictionaries/*`（任意・欠損許容）
+- `data/Works_NumberTales/RoleplayPrompts/DB_Primary/*`（任意・欠損時は null→フォールバック。RoleplayPrompts を採用する submodule コミットでのみ存在）
+
+スクリプトは適用後に硬依存（`pkg/nodejs/index.mjs` / `db_meta.json` / `db_Primary.json`）の実在をアサートし、さらに「コミットツリーに在るのに作業ツリーから消えた」パス（`RoleplayPrompts/DB_Primary` 等）を検知して非 0 で落とす（**無言フォールバック対策**）。
+
+### 各 git 操作での挙動（sparse は per-clone のローカル状態）
+
+sparse 設定は `.git/modules/_creations-db/{config,info/sparse-checkout}` に置かれ**コミットされない**。よってクローン毎に一度ブートストラップが要る。
+
+| 操作 | 挙動 | 対応 |
+| --- | --- | --- |
+| フレッシュクローン（新規 VM） | sparse 未設定のため一旦フル展開される | `--init` 直後に `setup-…` を必ず実行（deploy 配線済み・自己修復） |
+| `git submodule update --init --recursive` | 既に sparse 設定済みなら `SKIP_WORKTREE` を尊重し再展開しない | 不要（一度ブートストラップ済みなら持続） |
+| `git submodule update --remote`（追従） | 既存 sparse を尊重してチェックアウト。他作品は自動除外、NumberTales 内の新規ファイルは include | 不要 |
+| `git reset --hard origin/master`（親） | 親ツリー/gitlink のみ。サブモジュール作業ツリーには入らない | 不要 |
+
+`deploy.yml` では `git submodule update --init --recursive --filter=blob:none`（未対応環境はフルフェッチへフォールバック）の直後に `bash tools/setup-creations-db-sparse.sh` を冪等に呼ぶ。既存の永続 VM では 2 回目以降 no-op、`.git`（既取得の blob）は縮小しない（部分クローンは新規クローン向け）。
+
+### 同期ゲート・SHA 比較への影響（なし）
+
+sparse は `SKIP_WORKTREE` を立てて作業ツリーからファイルを消すだけで、HEAD・ツリー・gitlink を変えない。よって：
+
+- `tools/check-creations-db-update.sh`（`git -C _creations-db rev-parse HEAD` と `git rev-parse HEAD:_creations-db` の**コミット SHA 比較**）は不変。
+- 6 時間ごとの gitlink 追従コミットも不変。
+- `git -C _creations-db status` は **clean のまま**（skip-worktree は「削除」として出ない）＝親リポがサブモジュールを dirty 視せず、余計なコミットも `git reset --hard` の妨げも起きない。
+
+### 検証
+
+```bash
+ls _creations-db/data                                   # Works_NumberTales + db_meta.json + db_type.json のみ
+ls _creations-db/data/Works_NumberTales/DataBases       # db_Primary / db_SemiPrimary / db_meta / db_type のみ
+ls _creations-db/data/Works_NumberTales/Images          # DB_Primary / DB_SemiPrimary / General / Ref_* のみ
+git -C _creations-db status                              # clean（間引きで dirty 化しない）
+bash tools/check-creations-db-update.sh                  # 従来どおり UP_TO_DATE/UPDATE_AVAILABLE
+```
 
 ## 退行（過去コミットへの巻き戻り）の検知と復旧
 

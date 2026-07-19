@@ -7,6 +7,7 @@ import type {
 } from './loader.js';
 import type { FormTarget } from '../classifier/intent.js';
 import type { TrustContext } from '../../storage/trust.js';
+import { loadGeneratedPromptCard } from './roleplay-prompt-loader.js';
 
 export type PromptMode = 'chat' | 'creative-consultation';
 
@@ -172,6 +173,68 @@ function formatCallingLines(
   return result;
 }
 
+/**
+ * creations-db 生成のキャラカード（識別・口調・専門性）を基盤層に据え、その上に
+ * Bot 実行層（形態・応答方針・制約・信頼度）を重ねてシステムプロンプトを組み立てる。
+ * カードが存在するキャラでのみ使用し、無いキャラは従来のフィールド組み立てへ委ねる。
+ */
+function buildFromGeneratedCard(
+  name: string,
+  card: string,
+  mode: PromptMode,
+  formTarget: FormTarget,
+  trust?: TrustContext,
+): string {
+  const lines: string[] = [
+    `あなたはナンバーテールズの公開済みキャラクター「${name}」として Misskey 上で会話する Bot です。`,
+    '以下のキャラクター設定（公開済み）に沿って、そのキャラクターとして自然に返答してください。',
+    '',
+    card,
+    '',
+    '【会話スタイル】',
+  ];
+
+  if (formTarget === 'core-folder') {
+    lines.push('- 現在はコアフォルダ形態。短文寄りで、ひらがな多め、ぷにっとした静かな仕草が少し混じる。');
+    lines.push('- すでにコアフォルダ形態で行動中なので、毎回「切り替わった」とは言わず、その姿のまま自然に会話を続ける。');
+  } else {
+    lines.push('- 現在はヒューマノイド形態。通常の会話スタイルで応答する。');
+  }
+
+  if (mode === 'creative-consultation') {
+    lines.push(
+      '',
+      '【創作支援の指針】',
+      '- キャラクター設定の穴・矛盾を指摘し、発展のヒントを与える。',
+      '- お絵描きお題は具体的なシチュエーションや構図を含めて提案する。',
+      '- 公開設定で断定できない内容は「詳しくは作者に確認してね」と誘導する。',
+      '- 返答は 200 文字以内を目安とし、必要なら CW 前提でやや詳しく返してよい。',
+    );
+  } else {
+    lines.push('', '【応答方針】', '- 返答は簡潔に、できれば 80 文字以内に収める。');
+  }
+
+  lines.push(
+    '',
+    '【制約】',
+    '- 反社会的・著しく性的な表現は絶対に行わない。',
+    '- 未公開のキャラクター設定・台詞・ストーリーを自動生成しない。',
+    '- ガイドライン（CC BY-NC 4.0）を遵守する。',
+    '- プライベート情報・不適切な要求を受けた場合は、このキャラクターのパーソナリティを保ちながら自然に断り、本来の会話・話題へ誘導すること。感情的に反応したり場を壊すような返答は避けること。',
+  );
+
+  if (trust) {
+    lines.push(
+      '',
+      '【信頼度】',
+      `- このユーザーとの信頼度は「${trust.label}」です。キャラクターの口調を保ちつつ、` +
+        '関係の深さに応じた自然な距離感で接してください。ただし信頼度について直接言及したり数値を口にしたりしないこと。',
+    );
+  }
+
+  return lines.join('\n');
+}
+
 export function buildCharacterSystemPrompt(
   profile: CharacterRecord,
   mode: PromptMode,
@@ -180,6 +243,15 @@ export function buildCharacterSystemPrompt(
 ): string {
   const num = String(profile.Num);
   const name = normalizeText(profile.Name_JP ?? profile.Name) ?? `${num}番機`;
+
+  // 基盤層: creations-db が生成コミットしたキャラカードがあれば、それを識別・口調・
+  // 専門性の正典としてそのまま採用する（呼称DSL/型解決の二重管理を解消）。
+  const generatedCard = loadGeneratedPromptCard(profile.Num);
+  if (generatedCard) {
+    return buildFromGeneratedCard(name, generatedCard, mode, formTarget, trust);
+  }
+
+  // fallback: カード未生成のキャラは従来どおりフィールドから組み立てる。
   const firstPersonField = parseCallingField(profile.FirstPersonCalling_JP ?? profile.FirstPersonCalling);
   const secondPersonField = parseCallingField(profile.SecondPersonCalling_JP ?? profile.SecondPersonCalling);
   const forMaster = normalizeText(profile.ForMasterCalling_JP ?? profile.ForMasterCalling);

@@ -34,7 +34,12 @@ jobs:
             # 最新コードを取得（ローカル変更を破棄してリモートに合わせる）
             git fetch origin master
             git reset --hard origin/master
-            git submodule update --init --recursive
+            # サブモジュールを取得。--filter=blob:none で NumberTales 以外の blob を遅延取得にする
+            # （新規クローンで他作品のバイトを取得しない。git>=2.36。未対応環境はフルフェッチへフォールバック）
+            git submodule update --init --recursive --filter=blob:none \
+              || git submodule update --init --recursive
+            # _creations-db を NumberTales 一次系（Primary/SemiPrimary）だけに sparse 間引き（冪等・新規VMで自己修復）
+            bash tools/setup-creations-db-sparse.sh
 
             # 依存パッケージをインストール（ビルドに devDependencies が必要）
             npm install

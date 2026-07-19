@@ -156,7 +156,8 @@ src/
   bot/
     character/                # マルチキャラクター切り替え・動的プロンプト生成
       loader.ts               #   創作DB JSON のロード（実スキーマ value_JP 等に追従）
-      prompt-builder.ts       #   キャラクター別プロンプト生成（専門性セクション含む）
+      roleplay-prompt-loader.ts #   creations-db 生成のキャラ別ロールプレイプロンプトからキャラカードを抽出（見出しアンカー方式・遅延キャッシュ・Numサニタイズ）
+      prompt-builder.ts       #   キャラクター別プロンプト生成（生成カード基盤層 + Bot実行層の二層。未生成キャラは従来のフィールド組み立てにfallback）
       store.ts                #   ユーザーごとのアクティブキャラクター状態（SQLite）
       switch.ts               #   切り替えロジック
     classifier/intent.ts      # 意図分類（戻り値型: ClassificationResult）
@@ -263,6 +264,7 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | F-07       | ハラスメント仲介（L1/L2/L3 分類・担当キャラ・000/10(ミツル) 介入）                               | ✅ 実装済み |
 | —          | マルチキャラクター切り替え                                                                        | ✅ 実装済み |
 | —          | キャラプロンプト個性化（`Hobby`/`SpecialSkill`/`NumerospecAbout` 等を専門性セクションとして追加） | ✅ 実装済み |
+| —          | DB生成ロールプレイプロンプトをキャラ応答の基盤層に採用（二層化: `roleplay-prompt-loader.ts` が `RoleplayPrompts/DB_*/roleplay-prompt-<Num>.md` からキャラカードを抽出→識別/口調/専門性の正典として採用、その上に Bot 実行層=形態/応答方針/文字数/制約/信頼度を重ねる。未生成キャラは従来のフィールド組み立てにfallback。呼称DSLの二重管理を解消し型番/尻尾ユニット/主人呼称等も反映） | ✅ 実装済み |
 | —          | 返答 LLM 化（切替メッセージ・DB呈稱パース・挨拶時間帯・結果フレーミング）                         | ✅ 実装済み |
 | —          | フォローバック（followed イベント受信時に自動フォロー）                                           | ✅ 実装済み |
 | —          | インシデントロガー（ハラスメント検知時に NDJSON ファイル出力）                                    | ✅ 実装済み |
@@ -462,6 +464,15 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 > 前進/退行の見分け方（`fetch` + `merge-base --is-ancestor` による判定）と復旧手順、および追従先ブランチを
 > `develop` から `main` 等へ変更する場合の手順は、[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)
 > の「退行（過去コミットへの巻き戻り）の検知と復旧」「追従先ブランチの変更」節を参照。
+
+### サブモジュール sparse-checkout（作業ツリー間引き）
+
+`_creations-db` は創作サークルの全作品を含むが、本リポジトリで必要なのは **NumberTales の一次系（Primary / SemiPrimary）**だけ。他作品（8 作品）と、NumberTales 内でも他作者が絡む／キャラデザ未着手の種別（`Secondary` / `SelfSecondary` / `UnprocessedSecondary`）は sparse-checkout で作業ツリーから間引く。
+
+- **適用**: `tools/setup-creations-db-sparse.sh`（冪等・ネットワーク非依存）。non-cone/denylist パターンで `Works_NumberTales` を丸ごと include し、非一次系の種別だけを再除外する。適用後に Bot 必須パスの実在をアサートする（間引きミスによる無言フォールバック検知）。
+- **同期への影響なし**: sparse は `SKIP_WORKTREE` を立てるだけで HEAD/ツリー/gitlink を変えない。`git -C _creations-db status` は clean のままなので、上記ゲート（記録 gitlink と作業 HEAD の SHA 比較）・6時間ごとの gitlink 追従コミットは**一切影響を受けない**。
+- **設定はローカル（非コミット）**: sparse 状態は `.git/modules/_creations-db/` に置かれコミットされない。よってクローン毎に一度ブートストラップが要る。`deploy.yml` では `git submodule update --init` の直後に本スクリプトを冪等に呼び、新規 VM でも自己修復する。取得削減には `--filter=blob:none`（部分クローン・git>=2.36）を併用する。
+- 詳細（パターン全文・配線表・破綻ケース対策）は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md) の「サブモジュール sparse-checkout」節を参照。
 
 ---
 
