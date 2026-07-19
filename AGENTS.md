@@ -465,6 +465,15 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 > `develop` から `main` 等へ変更する場合の手順は、[docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)
 > の「退行（過去コミットへの巻き戻り）の検知と復旧」「追従先ブランチの変更」節を参照。
 
+### サブモジュール sparse-checkout（作業ツリー間引き）
+
+`_creations-db` は創作サークルの全作品を含むが、本リポジトリで必要なのは **NumberTales の一次系（Primary / SemiPrimary）**だけ。他作品（8 作品）と、NumberTales 内でも他作者が絡む／キャラデザ未着手の種別（`Secondary` / `SelfSecondary` / `UnprocessedSecondary`）は sparse-checkout で作業ツリーから間引く。
+
+- **適用**: `tools/setup-creations-db-sparse.sh`（冪等・ネットワーク非依存）。non-cone/denylist パターンで `Works_NumberTales` を丸ごと include し、非一次系の種別だけを再除外する。適用後に Bot 必須パスの実在をアサートする（間引きミスによる無言フォールバック検知）。
+- **同期への影響なし**: sparse は `SKIP_WORKTREE` を立てるだけで HEAD/ツリー/gitlink を変えない。`git -C _creations-db status` は clean のままなので、上記ゲート（記録 gitlink と作業 HEAD の SHA 比較）・6時間ごとの gitlink 追従コミットは**一切影響を受けない**。
+- **設定はローカル（非コミット）**: sparse 状態は `.git/modules/_creations-db/` に置かれコミットされない。よってクローン毎に一度ブートストラップが要る。`deploy.yml` では `git submodule update --init` の直後に本スクリプトを冪等に呼び、新規 VM でも自己修復する。取得削減には `--filter=blob:none`（部分クローン・git>=2.36）を併用する。
+- 詳細（パターン全文・配線表・破綻ケース対策）は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md) の「サブモジュール sparse-checkout」節を参照。
+
 ---
 
 ## アンチパターン（禁止事項）
