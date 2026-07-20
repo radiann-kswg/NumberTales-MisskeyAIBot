@@ -23,12 +23,25 @@ Bot が一定時間以上停止した状態から再起動したとき、**000(�
 | ダウンタイム算出 | 起動時、`HeartbeatWriter` 開始**前**に `.cache/heartbeat.json` の前回 `ts` を読み、`now - ts` を停止時間とする |
 | 通知閾値 | `DOWNTIME_NOTICE_THRESHOLD_MS`（env・**既定 30分**）以上のときのみ投稿。未満は無言で復帰（`pm2 reload` デプロイ・ウォッチドッグ再起動の数秒〜数分は対象外にする趣旨） |
 | 多重投稿防止 | `bot-state.ts`（KV）に `last_downtime_notice_at` を記録し、クールダウン（`DOWNTIME_NOTICE_COOLDOWN_MS`・既定 6時間）内は再投稿しない（クラッシュループ対策） |
+| **上限** | `DOWNTIME_NOTICE_MAX_MS`（env・**既定 7日**）を**超えたら投稿しない**。ディスクスナップショットからの復元で古い `heartbeat.json` が蘇るケースを弾く（下記） |
 
 ### エッジケース（投稿しない条件）
 
 - `heartbeat.json` が存在しない／パース不能（初回起動・`.cache` クリア後）→ 通知なし
-- 算出値が負・異常値（時計異常）→ 通知なし
+- 算出値が負（時計が巻き戻った場合）→ 通知なし
+- **算出値が `DOWNTIME_NOTICE_MAX_MS`（既定 7日）を超える → 通知なし**
 - 閾値以上でも Misskey 接続確立前は投稿しない（WebSocket 接続完了後に投稿）
+
+> **⚠️ なぜ上限が要るか（2026-07-20 追記）**
+> [docs/vm-os-upgrade.md](../../docs/vm-os-upgrade.md) のロールバック手順で
+> **ディスクスナップショットから復元すると、`.cache/heartbeat.json` が
+> スナップショット取得時点の古い `ts` を持ったまま復活する。**
+> 実際には停止していないのに「現在時刻 − 古い ts」が巨大値となり、
+> 数日〜数週間のダウンタイムとして誤投稿されてしまう。
+> スナップショット復元は今日整備した正規手順なので、踏む可能性は現実的にある。
+>
+> なお `.cache/` は `.gitignore` 済みのため `git reset --hard`（デプロイ）では消えない
+> ＝通常デプロイでは heartbeat が正しく引き継がれることは 2026-07-20 の実機作業で確認済み。
 
 ---
 
@@ -54,7 +67,8 @@ F-15 実装後は「コアフォルダ形態で丸まって休止 → ぽよん�
 1. `src/utils/heartbeat.ts` — 起動時に前回ハートビートを読む `readLastHeartbeat()` を追加
 2. `src/features/recovery-notice.ts`（新規）— 閾値判定・停止時間整形・文面生成・投稿
 3. `src/index.ts` — `main()` の WebSocket 接続確立後に一度だけ呼び出し（`HeartbeatWriter` 開始前に前回 ts を退避）
-4. `src/config/env.ts` — `DOWNTIME_NOTICE_THRESHOLD_MS` / `DOWNTIME_NOTICE_COOLDOWN_MS` 追加
+4. `src/config/env.ts` — `DOWNTIME_NOTICE_THRESHOLD_MS` / `DOWNTIME_NOTICE_COOLDOWN_MS` /
+   `DOWNTIME_NOTICE_MAX_MS` 追加
 5. `src/storage/bot-state.ts` — KV キー `last_downtime_notice_at` の読み書き
 6. `npm run typecheck` / 単体確認（閾値未満・heartbeat 無し・クールダウン中の各分岐）
 
@@ -64,6 +78,6 @@ F-15 実装後は「コアフォルダ形態で丸まって休止 → ぽよん�
 
 - [ ] 閾値以上のダウンタイム後の起動で 000(チトセ) の復旧通知が 1 回だけ投稿される
 - [ ] デプロイ（`pm2 reload`）・ウォッチドッグ再起動では投稿されない
-- [ ] エッジケース（初回起動・時計異常・クールダウン中）で投稿されない
+- [ ] エッジケース（初回起動・時計異常・クールダウン中・**上限超過**）で投稿されない
 - [ ] `npm run typecheck` 通過・実機確認
 - [ ] AGENTS.md 実装済み機能テーブル・README 更新
