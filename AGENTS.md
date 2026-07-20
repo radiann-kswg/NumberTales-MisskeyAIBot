@@ -370,22 +370,24 @@ logger.enableFileOutput(path2);
 
 ### VM 実機の前提（2026-07-20 実測）
 
-> **🚨 最重要: この VM には Misskey インスタンス本体が同居している。Bot 専用サーバーではない。**
-> PostgreSQL の **`mk1` DB**（Misskey 本番データ）+ nginx（80/443）+ `misskey` ユーザーが稼働中。
-> **`postgresql` / `nginx` を停止・削除してはならない。** Bot 自身は SQLite（`.cache/session.db`）
-> しか使わないため「PostgreSQL は不要」と誤判断しやすいので注意すること。
-> パッケージ掃除（`autoremove` 等）の際は必ず対象外であることを確認する。
-
-- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 22.04.5 LTS (jammy)**。
-  2026-07-20 に 20.04.6 から移行済み。[docs/deployment.md](./docs/deployment.md) の「24.04 推奨」は推奨値。
+- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 24.04.4 LTS (noble)**。
+  2026-07-20 に 20.04.6 → 22.04.5 → 24.04.4 と2段階で移行完了。
 - **git は 2.36 以上が必須**（`sparse-checkout --no-cone` と `submodule --filter=blob:none` が要求）。
   20.04 標準の 2.25.1 では **デプロイが exit 129 で失敗する**（2026-07-19 実障害）。
-  実機は `ppa:git-core/ppa` で 2.50.1。**22.04 標準の 2.34 でも要件割れ**するため PPA を外さないこと。
-- **24.04 への移行は保留中。** PostgreSQL 15→16 のデータ移行（Misskey 停止を伴う）が前提。
-  手順・ブロッカーは [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md)、実施記録は
-  [docs/vm-upgrade-2026-07_worklog.md](./docs/vm-upgrade-2026-07_worklog.md) を参照。
+  実機は `ppa:git-core/ppa`（noble）で **2.54.0**。24.04 標準は 2.43 なので要件は満たすが、
+  PPA を消す場合はダウングレードになる点に注意。
+- **旧 Misskey インスタンスは 2026-07-20 に撤去済み。** かつて同 VM に PostgreSQL（`mk1` DB）+ nginx +
+  `misskey` ユーザーが同居していたが、本番 Misskey は別ホスト（`radiann6631.net` → 162.43.7.161）で
+  稼働しており、VM 上のものは起動していない残骸だった。バックアップは `.cache/vm-backup-20260720/misskey/`
+  とスナップショット `pre-2204-upgrade-20260720` に保全。
 - **SSH のポーリングは 60 秒以上空ける。** ufw が `22/tcp LIMIT IN`（30秒に6接続超でブロック）。
   短間隔のポーリングで自分が締め出され、VM 障害と誤認する事故が実際に起きている。
+- **`apt-get upgrade` で nodejs 系が更新されると pm2 デーモンがプロセスを見失うことがある。**
+  実際に Bot が 13 分間停止した（2026-07-20）。OS/パッケージ更新後は必ず `pm2 list` と
+  `systemctl is-active pm2-$(whoami)` の両方を確認すること。復旧手順は
+  [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md) の「pm2 が systemd 管理から外れたとき」節。
+- 移行手順は [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md)、実施記録・踏んだ地雷は
+  [docs/vm-upgrade-2026-07_worklog.md](./docs/vm-upgrade-2026-07_worklog.md) を参照。
 
 ### `.env` ファイル確認コマンド
 

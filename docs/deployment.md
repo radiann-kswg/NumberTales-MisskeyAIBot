@@ -4,13 +4,11 @@
 > デプロイ方式: GitHub Actions → SSH → PM2
 >
 > **実機の現況（2026-07-20 時点）**: `misskey-bots-group-numbertales`（us-central1-a / e2-small）は
-> **Ubuntu 22.04.5 LTS (jammy)**。同日 20.04.6 から移行した。上記「24.04 推奨」は推奨値。
-> 24.04 への移行は PostgreSQL 15→16 が前提のため保留中
+> **Ubuntu 24.04.4 LTS (noble)** / git **2.54.0**（`ppa:git-core/ppa`）/ Node.js v22.23.1。
+> 同日 20.04.6 → 22.04.5 → 24.04.4 と2段階で移行した
 > （手順: [vm-os-upgrade.md](./vm-os-upgrade.md) / 実施記録: [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)）。
->
-> **🚨 この VM には Misskey インスタンス本体が同居している。** PostgreSQL の `mk1` DB と nginx が
-> 稼働中で、これらを停止・削除すると Misskey が壊れる。Bot 自身は SQLite しか使わないため
-> 誤判断しやすい点に注意すること。**git のバージョン要件は後述の 1-4 を必ず確認すること。**
+> かつて同居していた旧 Misskey インスタンス（PostgreSQL + nginx）は同日撤去済み。
+> **git のバージョン要件は後述の 1-4 を必ず確認すること。**
 
 ---
 

@@ -5,60 +5,42 @@
 
 ---
 
-## 🚨 最重要: この VM には Misskey 本体が同居している
-
-**Bot 専用サーバーではない。** 2026-07-20 の作業で判明した。
-
-| 稼働中のもの | 実体 |
-| --- | --- |
-| **Misskey インスタンス** | PostgreSQL の `mk1` DB（87M）+ nginx（80/443）+ `misskey` ユーザー |
-| NumberTales Bot | pm2 の `numbertales-bot`（SQLite `.cache/session.db` を使用） |
-
-- **`postgresql-15` を削除・停止してはならない。** `mk1` は Misskey の本番データ。
-  Bot 自身は SQLite なので PostgreSQL を使わないが、**同居している Misskey が使っている。**
-- パッケージ掃除（`autoremove` 等）の際は、**必ず `postgresql` / `nginx` が対象外であることを確認**する。
-- OS 作業で `systemctl` を触る場合、`postgresql` と `nginx` の生存を作業後に必ず確認する。
-
-```bash
-# 作業後の必須確認
-systemctl is-active postgresql nginx
-sudo -u postgres psql -lqt | cut -d"|" -f1 | grep mk1   # mk1 が見えること
-```
-
----
-
-## 現在の到達点（2026-07-20 時点）
+## 現在の到達点（2026-07-20 完了）
 
 | 区間 | 状態 |
 | --- | --- |
-| 20.04 → **22.04** | ✅ **完了**（Ubuntu 22.04.5 LTS。CI 緑化・Bot 稼働・Misskey 無傷を確認済み） |
-| 22.04 → 24.04 | ⏸ **保留**。PostgreSQL 15→16 のデータ移行が前提（後述） |
+| 20.04 → 22.04 | ✅ 完了 |
+| 22.04 → **24.04** | ✅ **完了**（Ubuntu 24.04.4 LTS） |
 
-22.04 の標準サポートは 2027年4月、PostgreSQL 15 のサポートは 2027年11月まで。
-**急いで 24.04 へ上げる理由はない。** Misskey のダウンタイムを計画できる日に実施する。
+**最終状態**: Ubuntu 24.04.4 LTS / git 2.54.0（`ppa:git-core/ppa` noble）/ Node.js v22.23.1 /
+`dpkg --audit` クリーン / 更新待ち 0 / Bot online / CI 緑化確認済み。
 
-### 24.04 へ進むためのブロッカー: PostgreSQL
+## 旧 Misskey インスタンスの撤去（2026-07-20 実施）
 
-`do-release-upgrade` は以下で中断する（2026-07-20 に実測）。
+**かつてこの VM には Misskey 本体が同居していた**（GCE で Misskey を立ち上げようとした際の名残）。
+24.04 への移行が `postgresql-15` の削除拒否で中断したことをきっかけに調査し、以下が判明した。
 
-```
-ERROR Could not calculate the upgrade
-ERROR Dist-upgrade failed: 'The package 'postgresql-15' is marked for removal
-  but it is in the removal deny list.
-```
+| 調査項目 | 結果 |
+| --- | --- |
+| `radiann6631.net` の解決先 | **162.43.7.161**（この VM ではない）＝本番 Misskey は別ホスト |
+| nginx の `server_name` | `misskey.numbertales-radiann.net`（別ドメイン・かつての試行） |
+| Misskey アプリ | **未稼働**（port 3000 に何もいない / systemd サービスなし） |
+| nginx アクセスログ | インターネットからの脆弱性スキャンのみ（`/cgi-bin/index2.asp` 等） |
 
-24.04 の標準 PostgreSQL は 16 のため 15 が削除対象になるが、deny list が削除を拒否して
-依存計算が破綻する。**これは保護機構が正しく働いた結果であり、回避してはならない。**
+**結論**: 起動していない残骸であり、80/443 を開けたまま攻撃対象面を広げていた。以下を撤去した。
 
-進めるには先に `pg_upgradecluster` で 15 → 16 へ移行する。**Misskey の停止を伴う。**
-実施時は最低限、以下を先に行うこと。
+- パッケージ: `nginx` / `postgresql-15` ほか計6件 + 孤立22件
+- データ: `mk1` DB とクラスタ、`/var/lib/postgresql` `/etc/postgresql` `/var/log/postgresql` `/var/www`
+- ユーザー: `misskey`
 
-```bash
-# 1. ディスクスナップショット（必須）
-# 2. 論理バックアップも併せて取る
-sudo -u postgres pg_dumpall > ~/pg_dumpall_$(date +%Y%m%d).sql
-# 3. Misskey を停止してから移行
-```
+**バックアップ**（削除前に取得・整合性確認済み）:
+
+- ローカル `.cache/vm-backup-20260720/misskey/` — `mk1_20260720.sql.gz`（`CREATE TABLE` 107件）/
+  `pg_roles_20260720.sql` / `nginx-conf_20260720.tar.gz`
+- ディスクスナップショット `pre-2204-upgrade-20260720` にも当時の全状態が含まれる
+
+> 撤去により **24.04 へのブロッカー（`postgresql-15` が removal deny list に入っていた）が解消**した。
+> deny list による中断は保護機構が正しく働いた結果であり、**回避せず原因を調べたことが正解だった**。
 
 ---
 
@@ -277,6 +259,79 @@ tail -f ~/upgrade-2204.log
 
 > **注意**: 22.04 の標準 git は **2.34** で、本リポジトリの要件 2.36 に**わずかに届かない**。
 > 22.04 段階では PPA の再有効化を忘れないこと。24.04 まで上げれば標準 git が 2.43 になり PPA は不要。
+
+---
+
+## 2-3. 【22.04 → 24.04 特有】設定フェーズが途中で止まる
+
+24.04 への移行は完走したように見えて、**大量のパッケージが「展開済み・未設定」で残ることがある**
+（2026-07-20 の実測では **582 個**）。OS バージョン表記は 24.04 になり Bot も動くため、
+**検証しないと見逃す。**
+
+```bash
+sudo dpkg --audit          # 出力が空でなければ未完了
+dpkg -l | awk '$1=="iU"{c++}END{print c+0}'   # 展開済み・未設定の数
+```
+
+### 原因と対処
+
+`secureboot-db` が `iHR`（half-configured / 要再インストール）で詰まり、以降の設定処理が中断していた。
+
+```bash
+# 1. 標準の修復。582 個なら10分前後かかるので setsid で流す
+sudo setsid nohup dpkg --configure -a > /tmp/dpkg-configure.log 2>&1 < /dev/null &
+
+# 2. 残った secureboot-db は「壊れている」のではなく jammy 版が古いだけ。
+#    -f install が noble 版への更新を提案してくるので、それに従えば直る
+sudo apt-get -f install -y
+
+# 3. 仕上げ
+sudo apt-get upgrade -y
+sudo dpkg --audit          # 空になること
+```
+
+> **強制削除（`dpkg --remove --force-remove-reinstreq`）は不要。**
+> 最初にそれを試みたが、実際には `apt-get -f install` が正規の解決策を持っていた。
+> 強制フラグは最後の手段であり、標準手順を先に尽くすこと。
+> なお本 VM は Secure Boot 無効（`mokutil --sb-state` → `SecureBoot disabled`）なので、
+> 最悪 `secureboot-db` を外しても起動に影響はない。
+
+## 2-4. pm2 が systemd 管理から外れたとき
+
+**`apt-get upgrade` で nodejs 系が更新されると、pm2 デーモンが再起動して管理下のプロセスを失うことがある。**
+2026-07-20 に実際に発生し、**Bot が 13 分間停止した**（`pm2 list` が空・heartbeat が停止）。
+
+```bash
+# 検知（OS/パッケージ更新後は必ず両方を見る）
+pm2 list                                  # numbertales-bot が online か
+systemctl is-active pm2-$(whoami)         # active か
+cat .cache/heartbeat.json                 # ts が現在時刻に近いか
+```
+
+### 復旧手順（順序が重要）
+
+pm2 の systemd unit は `Type=forking` + `PIDFile=~/.pm2/pm2.pid` + `ExecStart=pm2 resurrect`。
+**先に `pm2 start` でデーモンを起動してしまうと、`resurrect` が既存デーモンに接続するだけで
+PID ファイルを作らず、systemd が `Failed with result 'protocol'` で失敗する**（これも実際に踏んだ）。
+
+```bash
+# 1. まず Bot を復旧（緊急なら単体でここまで）
+cd ~/NumberTales-MisskeyAIBot
+pm2 start ecosystem.config.cjs --env production
+pm2 save
+
+# 2. systemd 管理下へ戻す。デーモンを完全に落としてから systemd に起動させるのが要点
+sudo systemctl reset-failed pm2-$(whoami)   # 再試行回数のロックを解除
+pm2 kill                                     # ← Bot が十数秒止まる
+sudo systemctl start pm2-$(whoami)           # resurrect で dump から復元される
+
+# 3. 確認
+systemctl is-active pm2-$(whoami)            # active
+pm2 list                                     # online
+```
+
+> この unit が VM 再起動時の自動復帰を担っている。`inactive` のまま放置すると、
+> **次の再起動で Bot が上がってこない。** OS 作業の最後に必ず `is-active` を確認すること。
 
 ---
 
