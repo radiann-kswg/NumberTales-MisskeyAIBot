@@ -404,6 +404,22 @@ gcloud compute instances start misskey-bots-group-numbertales \
 
 ---
 
+### git だけを PPA から標準版へ戻す
+
+OS 全体のロールバックまでは不要で、**git のバージョンだけ戻したい**場合。
+
+```bash
+sudo apt-get install -y ppa-purge
+sudo ppa-purge -y ppa:git-core/ppa
+git --version   # 24.04 標準の 2.43 系に戻る
+```
+
+> **24.04 標準の git は 2.43 で本リポジトリの要件（2.36+）を満たす**ため、PPA を外しても
+> デプロイは通る。git はデプロイ経路でしか使っていないため Bot 本体の稼働には影響しない。
+> ただし 22.04 以前へ戻す場合は標準 git が 2.34 となり**要件を割る**ので、PPA を残すこと。
+
+---
+
 ## 補足: ホーム直下の `.git`（2026-07-20 に退避済み）
 
 `/home/<user>/.git` に **root 所有の空リポジトリ**（コミット0件・追跡ファイル0件）が存在していた。
