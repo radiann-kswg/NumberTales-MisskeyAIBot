@@ -96,6 +96,71 @@ ls /var/run/reboot-required  # あれば先に再起動しておく
 
 ---
 
+## 1-4. 【必読】20.04 → 22.04 は node-* パッケージで必ず失敗する
+
+**2026-07-20 に実際に踏んだ。対処せずに実行しても `do-release-upgrade` は数十秒で abort する。**
+
+```
+ERROR Could not calculate the upgrade
+  This was likely caused by: * Unofficial software packages not provided by Ubuntu
+ERROR Dist-upgrade failed: 'E:Error, pkgProblemResolver::Resolve generated breaks,
+  this may be caused by held packages.'
+```
+
+### 原因
+
+`/var/log/dist-upgrade/apt.log` に決定的な証拠が出る。
+
+```
+Broken node-yargs-parser Breaks on node-yargs (< 16.2.0~)
+Broken node-yargs Depends on node-escalade < none @un H >    ← jammy に存在しない
+```
+
+distro 由来の `node-*` パッケージが **275 個**入っており、そのうち `node-escalade` が
+22.04 に存在しないため依存解決器が破綻する。20.04 → 22.04 の既知の典型パターン。
+**PPA（git-core 等）は原因ではない。**
+
+### 対処
+
+孤立パッケージを掃除してから再実行する。対象は **384 個**（`node-*` 275 + `python2` 系 + `x11`/`fonts` 系）。
+
+```bash
+# 1. 何が消えるか必ず先に確認する（-s = シミュレーション）
+sudo apt-get -s autoremove | grep "^Remv" | wc -l
+sudo apt-get -s autoremove | grep -E "^Remv (git|nodejs|docker-ce|openssh-server) " \
+  || echo "critical packages are safe"
+
+# 2. 問題なければ実行
+sudo apt-get autoremove --purge -y
+
+# 3. 依存解決が通るか確認してから do-release-upgrade へ
+sudo apt-get -s dist-upgrade
+```
+
+> **確認済み（2026-07-20）**: この 384 個に `git` / `nodejs` / `docker-ce` / `openssh-server` は
+> **含まれない**。`apt-get -s autoremove` の出力を `grep git` すると
+> `gyp [0.1+20180428git4d467626-3ubuntu1]` のバージョン文字列に引っかかるが、これは誤検知。
+> 判定は必ず `grep "^Remv "` で行うこと。
+
+### ⚠️ Node.js の実行系を壊さないこと
+
+**pm2 デーモンは `/usr/bin/node`（nodesource 版 v22.23.1）で動いている。** nvm ではない。
+
+```bash
+sudo ls -l /proc/$(pgrep -f "PM2 v" | head -1)/exe   # -> /usr/bin/node
+nvm version default                                   # -> v22.22.3（pm2 は使っていない）
+```
+
+`ecosystem.config.cjs` は `interpreter` を指定していないため、Bot は
+**pm2 デーモンを起動した node** を継承する。したがって:
+
+- **nodesource の `nodejs` パッケージを削除すると Bot が起動しなくなる。** autoremove 対象外であることを毎回確認する。
+- `deploy.yml` は `nvm use default` するが、これは `npm install` / `npm run build` に効くだけで、
+  pm2 デーモン自体の node は切り替わらない。
+- OS アップグレード後は `node -v` と `pm2 list` の両方を必ず確認する。
+
+---
+
 ## 2. 実行（20.04 → 22.04）
 
 ### 2-1. tmux セッションを張って実行
