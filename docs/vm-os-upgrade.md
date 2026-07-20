@@ -31,6 +31,25 @@
 > このときは `sources.list` の書き換え前だったためシステムは無傷で、
 > pm2 の `startup` 設定により Bot も自動復帰したが、**運が良かっただけ**。
 
+### ⚠️ `pkill -f` を SSH 越しに使わない
+
+中断した実行の残骸（port 1022 の `release-upgrader-sshd`）を掃除しようとして
+`sudo pkill -f "release-upgrader-sshd"` を実行したところ、**自分の SSH セッションごと切断された**
+（2026-07-20 に実際に踏んだ）。
+
+`pkill -f` はプロセスの**コマンドライン全体**を対象にマッチする。SSH 越しに送ったコマンド文字列は
+リモート側のシェルのコマンドラインにそのまま現れるため、**パターンが自分自身を実行しているシェルに
+マッチして自滅する**。掃除は PID 指定で行うこと。
+
+```bash
+# ❌ 自分のセッションごと落ちる
+sudo pkill -f "release-upgrader-sshd"
+
+# ✅ PID ファイル経由で対象だけを止める
+P=$(sudo cat /var/run/release-upgrader-sshd.pid 2>/dev/null)
+[ -n "$P" ] && sudo kill "$P"
+```
+
 ---
 
 ## 1. 事前準備
