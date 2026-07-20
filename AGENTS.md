@@ -365,6 +365,16 @@ logger.enableFileOutput(path2);
 
 ## VM 操作・デプロイ上の注意（重要）
 
+### VM 実機の前提（2026-07-20 実測）
+
+- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 20.04.6 LTS (focal)**。
+  [docs/deployment.md](./docs/deployment.md) の「24.04 推奨」は推奨値であり実機とは異なる。
+- **git は 2.36 以上が必須**（`sparse-checkout --no-cone` と `submodule --filter=blob:none` が要求）。
+  20.04 標準の 2.25.1 では **デプロイが exit 129 で失敗する**（2026-07-19 実障害）。
+  実機は `ppa:git-core/ppa` で 2.50.1 へ更新済み。
+- 24.04 LTS への移行手順・ロールバック手順は [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md) を参照。
+  **LTS は1つずつしか上がれない**（20.04 → 22.04 → 24.04）。スナップショット取得と tmux 内実行は必須。
+
 ### `.env` ファイル確認コマンド
 
 **必ず `-E` フラグを付けること**（なしだと `|` がリテラルとして扱われ全行通過 → シークレット漏洩）。
