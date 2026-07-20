@@ -35,8 +35,9 @@
 
 **バックアップ**（削除前に取得・整合性確認済み）:
 
-- ローカル `.cache/vm-backup-20260720/misskey/` — `mk1_20260720.sql.gz`（`CREATE TABLE` 107件）/
-  `pg_roles_20260720.sql` / `nginx-conf_20260720.tar.gz`
+- リポジトリ外 `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/`（README 付き）—
+  `misskey/mk1_20260720.sql.gz`（`CREATE TABLE` 107件）/ `pg_roles_20260720.sql` /
+  `nginx-conf_20260720.tar.gz` / `env.backup` / `session.db`
 - ディスクスナップショット `pre-2204-upgrade-20260720` にも当時の全状態が含まれる
 
 > 撤去により **24.04 へのブロッカー（`postgresql-15` が removal deny list に入っていた）が解消**した。
@@ -135,16 +136,22 @@ gcloud compute snapshots describe pre-2204-upgrade-$(date +%Y%m%d) \
 
 スナップショットがあれば足りるが、単体復旧が速いので併せて取得する。
 
+> **⚠️ `.cache/` に置かないこと。** [AGENTS.md](../AGENTS.md) で `.cache/` は
+> 「一時生成ファイルの置き場」＝**消していい場所**と定義されている。
+> そこにバックアップを置くと、キャッシュ整理のたびに中身の確認が必要になり、
+> 確認を省いた時に失われる（2026-07-20 に実際にその状態になり、退避し直した）。
+> **リポジトリ外の `_backups/` 配下**（プロジェクト親ディレクトリ）へ保存する。
+
 ```bash
-# ローカルへ退避（.cache/ は git 管轄外）
-mkdir -p .cache/vm-backup-$(date +%Y%m%d)
-scp -i ~/.ssh/deploy_key_gha <user>@<host>:NumberTales-MisskeyAIBot/.env \
-  .cache/vm-backup-$(date +%Y%m%d)/env.backup
-scp -i ~/.ssh/deploy_key_gha <user>@<host>:NumberTales-MisskeyAIBot/.cache/session.db \
-  .cache/vm-backup-$(date +%Y%m%d)/session.db
+# リポジトリ外のバックアップ領域へ退避
+DEST="../_backups/NumberTales-MisskeyAIBot/$(date +%Y-%m-%d)_<用途>"
+mkdir -p "$DEST"
+scp -i ~/.ssh/deploy_key_gha <user>@<host>:NumberTales-MisskeyAIBot/.env          "$DEST/env.backup"
+scp -i ~/.ssh/deploy_key_gha <user>@<host>:NumberTales-MisskeyAIBot/.cache/session.db "$DEST/session.db"
 ```
 
 > `.env` は本番トークンを含む。取得後に中身を `cat` / ログ出力しないこと。
+> 保存先には**何のバックアップかを記した README を添える**（復元手順・関連ドキュメントへのリンク）。
 
 ### 1-3. 健全性チェック
 

@@ -69,7 +69,7 @@ VM の git が **2.25.1**（Ubuntu 20.04 標準）で、`--no-cone`（2.36+）�
 ### 3-1. 事前準備
 
 - ディスクスナップショット `pre-2204-upgrade-20260720`（READY / 256GB / 実データ 30GB）
-- `.env` と `.cache/session.db` をローカル `.cache/vm-backup-20260720/` へ退避
+- `.env` と `.cache/session.db` をローカルへ退避（後にリポジトリ外の `_backups/` へ移設。§8-3）
 - 空だった root 所有の `~/.git`（コミット0件・追跡0件）を `~/.git.bak-20260720` へ退避
 
 ### 3-2. 最初の失敗 — node-* による依存破綻
@@ -160,7 +160,8 @@ ERROR Dist-upgrade failed: 'The package 'postgresql-15' is marked for removal
 バックアップを取得・整合性確認してから、段階的に（停止 → 確認 → 削除）実施した。
 
 - **保全**: `mk1_20260720.sql.gz`（`CREATE TABLE` 107件・gzip 検証済み）/ `pg_roles_20260720.sql` /
-  `nginx-conf_20260720.tar.gz` をローカル `.cache/vm-backup-20260720/misskey/` へ。
+  `nginx-conf_20260720.tar.gz` をリポジトリ外
+  `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/` へ（README 付き）。
   スナップショット `pre-2204-upgrade-20260720` にも当時の全状態が含まれる
 - **削除**: `nginx` / `postgresql-15` ほか6パッケージ + 孤立22件、`mk1` DB とクラスタ、
   `/var/lib/postgresql` `/etc/postgresql` `/var/log/postgresql` `/var/www`、`misskey` ユーザー
@@ -268,7 +269,7 @@ OS バージョン表記は 24.04.4 になり Bot も動いていたが、`dpkg 
 | VM: OS | 20.04.6 → 22.04.5 → **24.04.4 LTS** | スナップショット `pre-2204-upgrade-20260720` から復元可 |
 | VM: git | 2.25.1 → **2.54.0**（`ppa:git-core/ppa` を noble へ張り替え） | PPA 削除＋標準版（2.43）で戻せる |
 | VM: パッケージ | 孤立 384 + 22 個を `autoremove --purge`、582 個を `dpkg --configure -a` | スナップショット |
-| **VM: 旧 Misskey** | **削除**（nginx / postgresql / `mk1` DB / `misskey` ユーザー） | `.cache/vm-backup-20260720/misskey/` とスナップショットから復元可 |
+| **VM: 旧 Misskey** | **削除**（nginx / postgresql / `mk1` DB / `misskey` ユーザー） | `_backups/.../2026-07-20_vm-misskey-removal/` とスナップショットから復元可 |
 | VM: `~/.git` | `~/.git.bak-20260720` へリネーム | リネームで戻せる（中身は空） |
 | VM: pm2 | プロセス再登録・`pm2 save`・systemd 管理へ復帰 | — |
 | repo | docs 3件（`develop`） | git 履歴 |
@@ -285,7 +286,12 @@ OS バージョン表記は 24.04.4 になり Bot も動いていたが、`dpkg 
    - `~/upgrade-2204.log` / `~/upgrade-2404.log` / `~/misskey-backup-20260720/`
    - `/etc/apt/sources.list.d/*.distUpgrade` / `*.save`
    - `~/.git.bak-20260720`（空リポジトリ。不要と確認できれば削除可）
-3. ローカル `.cache/vm-backup-20260720/` の保管方針（git 管轄外。長期保存するなら別途退避）
+3. ~~ローカルバックアップの保管方針~~ → **対応済み（2026-07-20）**。
+   `.cache/` は AGENTS.md 上「消していい場所」と定義されており、そこにバックアップを置くと
+   キャッシュ整理のたびに確認が必要になる（実際、整理依頼を受けた際に危うく消すところだった）。
+   リポジトリ外の `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/` へ
+   README 付きで移設し、`.cache/` は空にした。以後のバックアップも同領域へ取る
+   （手順は [vm-os-upgrade.md](./vm-os-upgrade.md) §1-2）
 
 ### 次に OS を上げるときの注意（24.04 → 26.04 LTS 想定）
 

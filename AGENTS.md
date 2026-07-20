@@ -378,8 +378,10 @@ logger.enableFileOutput(path2);
   PPA を消す場合はダウングレードになる点に注意。
 - **旧 Misskey インスタンスは 2026-07-20 に撤去済み。** かつて同 VM に PostgreSQL（`mk1` DB）+ nginx +
   `misskey` ユーザーが同居していたが、本番 Misskey は別ホスト（`radiann6631.net` → 162.43.7.161）で
-  稼働しており、VM 上のものは起動していない残骸だった。バックアップは `.cache/vm-backup-20260720/misskey/`
-  とスナップショット `pre-2204-upgrade-20260720` に保全。
+  稼働しており、VM 上のものは起動していない残骸だった。バックアップはリポジトリ外の
+  `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/`（README 付き）と
+  スナップショット `pre-2204-upgrade-20260720` に保全。
+  **バックアップを `.cache/` に置かないこと**（同ディレクトリは「消していい場所」と定義されているため）。
 - **SSH のポーリングは 60 秒以上空ける。** ufw が `22/tcp LIMIT IN`（30秒に6接続超でブロック）。
   短間隔のポーリングで自分が締め出され、VM 障害と誤認する事故が実際に起きている。
 - **`apt-get upgrade` で nodejs 系が更新されると pm2 デーモンがプロセスを見失うことがある。**
