@@ -281,10 +281,13 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 
 初期アイデアは [`_rough-idea/`](./_rough-idea/)、詳細仕様・実装計画は [`_ideas/`](./_ideas/) を参照。
 
-- **F-06 Stage B/C**: 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星 → [`_ideas/future-plan/F-06_stage-b-c.md`](./_ideas/future-plan/F-06_stage-b-c.md)
-- **F-06 Stage D-4a 牌引き占い**: 麻雀牌絵文字登録後に着手可能（セッション管理不要）
-- **F-06 Stage D-5 ルーレット**: 麻雀牌絵文字 + CreationsDB 連携
+- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — milestone 昇進済み（着手待ち）
+  → [`_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](./_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md)
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
+- **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋キャラ別親密度（アフィニティ）。検討中
+  → [`_ideas/future-plan/F-14-character-ability-commands.md`](./_ideas/future-plan/F-14-character-ability-commands.md)
+- **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — milestone 昇進済み（着手待ち）
+  → [`_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](./_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
 
@@ -367,13 +370,22 @@ logger.enableFileOutput(path2);
 
 ### VM 実機の前提（2026-07-20 実測）
 
-- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 20.04.6 LTS (focal)**。
-  [docs/deployment.md](./docs/deployment.md) の「24.04 推奨」は推奨値であり実機とは異なる。
+> **🚨 最重要: この VM には Misskey インスタンス本体が同居している。Bot 専用サーバーではない。**
+> PostgreSQL の **`mk1` DB**（Misskey 本番データ）+ nginx（80/443）+ `misskey` ユーザーが稼働中。
+> **`postgresql` / `nginx` を停止・削除してはならない。** Bot 自身は SQLite（`.cache/session.db`）
+> しか使わないため「PostgreSQL は不要」と誤判断しやすいので注意すること。
+> パッケージ掃除（`autoremove` 等）の際は必ず対象外であることを確認する。
+
+- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 22.04.5 LTS (jammy)**。
+  2026-07-20 に 20.04.6 から移行済み。[docs/deployment.md](./docs/deployment.md) の「24.04 推奨」は推奨値。
 - **git は 2.36 以上が必須**（`sparse-checkout --no-cone` と `submodule --filter=blob:none` が要求）。
   20.04 標準の 2.25.1 では **デプロイが exit 129 で失敗する**（2026-07-19 実障害）。
-  実機は `ppa:git-core/ppa` で 2.50.1 へ更新済み。
-- 24.04 LTS への移行手順・ロールバック手順は [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md) を参照。
-  **LTS は1つずつしか上がれない**（20.04 → 22.04 → 24.04）。スナップショット取得と tmux 内実行は必須。
+  実機は `ppa:git-core/ppa` で 2.50.1。**22.04 標準の 2.34 でも要件割れ**するため PPA を外さないこと。
+- **24.04 への移行は保留中。** PostgreSQL 15→16 のデータ移行（Misskey 停止を伴う）が前提。
+  手順・ブロッカーは [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md)、実施記録は
+  [docs/vm-upgrade-2026-07_worklog.md](./docs/vm-upgrade-2026-07_worklog.md) を参照。
+- **SSH のポーリングは 60 秒以上空ける。** ufw が `22/tcp LIMIT IN`（30秒に6接続超でブロック）。
+  短間隔のポーリングで自分が締め出され、VM 障害と誤認する事故が実際に起きている。
 
 ### `.env` ファイル確認コマンド
 

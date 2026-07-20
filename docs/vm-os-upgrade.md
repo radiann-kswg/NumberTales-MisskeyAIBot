@@ -1,7 +1,64 @@
 # VM OS アップグレードガイド — Ubuntu 20.04 → 22.04 → 24.04
 
 > 対象: GCP VM `misskey-bots-group-numbertales`（us-central1-a / e2-small / pd-balanced 256GB）
-> 関連: [deployment.md](./deployment.md)
+> 関連: [deployment.md](./deployment.md) / 実施記録: [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)
+
+---
+
+## 🚨 最重要: この VM には Misskey 本体が同居している
+
+**Bot 専用サーバーではない。** 2026-07-20 の作業で判明した。
+
+| 稼働中のもの | 実体 |
+| --- | --- |
+| **Misskey インスタンス** | PostgreSQL の `mk1` DB（87M）+ nginx（80/443）+ `misskey` ユーザー |
+| NumberTales Bot | pm2 の `numbertales-bot`（SQLite `.cache/session.db` を使用） |
+
+- **`postgresql-15` を削除・停止してはならない。** `mk1` は Misskey の本番データ。
+  Bot 自身は SQLite なので PostgreSQL を使わないが、**同居している Misskey が使っている。**
+- パッケージ掃除（`autoremove` 等）の際は、**必ず `postgresql` / `nginx` が対象外であることを確認**する。
+- OS 作業で `systemctl` を触る場合、`postgresql` と `nginx` の生存を作業後に必ず確認する。
+
+```bash
+# 作業後の必須確認
+systemctl is-active postgresql nginx
+sudo -u postgres psql -lqt | cut -d"|" -f1 | grep mk1   # mk1 が見えること
+```
+
+---
+
+## 現在の到達点（2026-07-20 時点）
+
+| 区間 | 状態 |
+| --- | --- |
+| 20.04 → **22.04** | ✅ **完了**（Ubuntu 22.04.5 LTS。CI 緑化・Bot 稼働・Misskey 無傷を確認済み） |
+| 22.04 → 24.04 | ⏸ **保留**。PostgreSQL 15→16 のデータ移行が前提（後述） |
+
+22.04 の標準サポートは 2027年4月、PostgreSQL 15 のサポートは 2027年11月まで。
+**急いで 24.04 へ上げる理由はない。** Misskey のダウンタイムを計画できる日に実施する。
+
+### 24.04 へ進むためのブロッカー: PostgreSQL
+
+`do-release-upgrade` は以下で中断する（2026-07-20 に実測）。
+
+```
+ERROR Could not calculate the upgrade
+ERROR Dist-upgrade failed: 'The package 'postgresql-15' is marked for removal
+  but it is in the removal deny list.
+```
+
+24.04 の標準 PostgreSQL は 16 のため 15 が削除対象になるが、deny list が削除を拒否して
+依存計算が破綻する。**これは保護機構が正しく働いた結果であり、回避してはならない。**
+
+進めるには先に `pg_upgradecluster` で 15 → 16 へ移行する。**Misskey の停止を伴う。**
+実施時は最低限、以下を先に行うこと。
+
+```bash
+# 1. ディスクスナップショット（必須）
+# 2. 論理バックアップも併せて取る
+sudo -u postgres pg_dumpall > ~/pg_dumpall_$(date +%Y%m%d).sql
+# 3. Misskey を停止してから移行
+```
 
 ---
 
@@ -21,9 +78,33 @@
 
 - **LTS は1つずつしか上がれない。** `20.04 → 22.04 → 24.04` の2段階。直接は飛べない。
 - **必ずスナップショットを取ってから始める。** 唯一の完全なロールバック手段。
-- **必ず `tmux`（または `screen`）の中で実行する。** SSH が切れるとアップグレードが中断し、
-  `sources.list` が書き換わった半端な状態で止まると復旧が面倒になる。
-  `do-release-upgrade` は保険として **port 1022 に専用 sshd** を立てるが、頼らずに済ませるのが正道。
+- **`tmux` / `screen` ではなく `setsid` でセッションから切り離して実行する。**
+  SSH が切れるとアップグレードが中断するため端末から切り離す必要があるが、
+  **`tmux` 自体が OS アップグレードの更新対象に含まれる。**
+  2026-07-20 の 20.04→22.04 で実際に tmux サーバーが落ち、`do-release-upgrade` が端末を失って
+  最後の `confirmRestart()` に応答できず孤児化した（パッケージ適用は完了済みだったので実害はなく、
+  手動 `reboot` で復旧）。
+
+  ```bash
+  # ✅ setsid で切り離す（tmux に依存しない）
+  sudo setsid nohup env DEBIAN_FRONTEND=noninteractive \
+    do-release-upgrade -f DistUpgradeViewNonInteractive > ~/upgrade.log 2>&1 < /dev/null &
+  ```
+
+  `do-release-upgrade` は保険として port 1022 に専用 sshd を立てるが、頼らずに済ませるのが正道。
+
+- **SSH のポーリングは 60 秒以上の間隔を空ける。** この VM の ufw は `22/tcp LIMIT IN`（`ufw limit ssh`）
+  が有効で、**30 秒に 6 接続を超えるとブロックされる**。
+  2026-07-20 に 15 秒間隔の監視スクリプトでこれを踏み、**自分で自分を締め出した**。
+  しかも監視ループが接続を試み続けるためブロックが解除されず、ループを止めるまで回復しなかった。
+  VM 側は正常稼働していたのに SSH だけが不通になるため、**サーバー障害と誤認しやすい**。
+
+  ```bash
+  sudo ufw status verbose            # 22/tcp LIMIT IN を確認
+  # SSH が突然不通になったら、まず GCE シリアルコンソールで生死を確認する
+  gcloud compute instances get-serial-port-output <instance> --zone=<zone> | tail -30
+  # [UFW LIMIT BLOCK] ... DPT=22 が出ていれば自分が原因。接続を止めて数分待てば解除される
+  ```
 - **1段階ごとに検証する。** 22.04 が健全だと確認してから 24.04 へ進む。
 
 > **⚠️ 中断の実例（2026-07-20）**: SSH 越しに素で `do-release-upgrade` を実行した結果、
