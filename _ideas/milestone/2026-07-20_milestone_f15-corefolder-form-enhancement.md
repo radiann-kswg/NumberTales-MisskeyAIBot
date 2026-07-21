@@ -1,7 +1,7 @@
 # F-15: コアフォルダ形態の機能強化 — 実装仕様
 
 > 作成日: 2026-07-20
-> ステータス: **着手待ち** 📋
+> ステータス: **Phase 1+2 実装済み** 🔧（2026-07-21・Phase 3 は F-14 `character_affinity` ストア待ち）
 > 元アイデア: [`future-plan/confirmed-milestone/F-15-corefolder-form-enhancement.md`](../future-plan/confirmed-milestone/F-15-corefolder-form-enhancement.md)
 > 関連: [F-14 キャラ固有コマンド（future-plan・未昇進）](../future-plan/F-14-character-ability-commands.md)（Phase 3 のアフィニティ基盤で依存）
 
@@ -89,7 +89,7 @@
 
 ## 完了条件
 
-- [ ] Phase 1: 身体性コンテキスト注入・変形演出・スケジューラ連動（`npm run typecheck` 通過・実機確認）
-- [ ] Phase 2: 自動変形提案
+- [x] Phase 1: 身体性コンテキスト注入・変形演出・スケジューラ連動（typecheck 通過・描画確認済／実機はデプロイ後に確認）
+- [x] Phase 2: 自動変形提案（項目1の身体性プロンプトで LLM 主導。コアフォルダで手先が要る依頼→ヒューマノイドへの変形提案。決め打ちトリガーは置かない。ヒューマノイド→コアフォルダ化提案の半分はスキンシップ＝Phase 3 依存）
 - [ ] Phase 3: スキンシップ＋お供演出（F-14 Phase 1 完了後）
-- [ ] AGENTS.md 実装済み機能テーブル・README 更新
+- [ ] AGENTS.md 実装済み機能テーブル・README 更新（Phase 3 完了時にまとめて）
