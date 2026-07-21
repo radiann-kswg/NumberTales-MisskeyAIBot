@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'affinity-check' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -223,6 +223,13 @@ const CALCULATE_PATTERNS: RegExp[] = [
   /sqrt|sin|cos|tan|log|factorial|√|∑/i,
 ];
 
+/** F-14 親密度照会: 「78とどれくらい仲良し？」「みんなとの仲良し度を教えて」等 */
+const AFFINITY_CHECK_PATTERNS: RegExp[] = [
+  /(?:仲良し|なかよし|仲いい|親密)度?.*(?:どれくらい|どのくらい|どう|教えて|一覧|ランキング)/,
+  /どれ(?:くらい|だけ).*(?:仲良し|なかよし|仲いい|親密)/,
+  /(?:誰|だれ)と(?:一番|いちばん).*(?:仲良し|なかよし|仲いい)/,
+];
+
 /**
  * ヌメロジー相談型のトリガーパターン。
  * 「悩みコンテキスト × 数字・生年月日」の組み合わせを検出する。
@@ -383,6 +390,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of CALCULATE_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'calculate' };
+  }
+
+  for (const pattern of AFFINITY_CHECK_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'affinity-check' };
   }
 
   const harassmentLevel = detectHarassmentLevel(normalized);

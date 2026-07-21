@@ -18,8 +18,9 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                          | 運用            | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）                                  | レイヤー1・2本番稼働中・GCE外部はgcloud要（クライアント側作業） 🔧 |
 | [2026-07-20_milestone_f06-stage-bc-name-numerology.md](./2026-07-20_milestone_f06-stage-bc-name-numerology.md) | F-06 Stage B/C | 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断                                        | 着手待ち 📋 |
 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) | F-15           | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出）             | Phase 1+2 実装済み 🔧 |
-| [2026-07-20_milestone_downtime-recovery-notice.md](./2026-07-20_milestone_downtime-recovery-notice.md)    | 運用            | 復旧通知（ダウンタイム明けに 000(チトセ) が「寝てました」投稿）                               | 着手待ち 📋 |
+| [2026-07-20_milestone_downtime-recovery-notice.md](./2026-07-20_milestone_downtime-recovery-notice.md)    | 運用            | 復旧通知（ダウンタイム明けに 000(チトセ) が「寝てました」投稿）                               | 実装済み ✅（PR #27 マージ済） |
 | [2026-07-21_milestone_bug-roleplay-quality-task-ops.md](./2026-07-21_milestone_bug-roleplay-quality-task-ops.md) | バグ            | ロールプレイ品質の低下 / タスク登録・一覧の不具合 / タスク登録時のキャラ特有感の欠如（実機報告） | 対応済み ✅（②③修正・①緩和／実機検証待ち） |
+| [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) | F-14 基盤 | キャラ別親密度（character_affinity）ストア＋加算フック＋照会（能力レジストリ本体は後続） | 実装済み 🔧 |
 
 ## フェーズ概要
 
