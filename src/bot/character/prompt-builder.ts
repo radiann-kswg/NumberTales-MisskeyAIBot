@@ -174,25 +174,67 @@ function formatCallingLines(
 }
 
 /**
+ * DB フィールド由来の専門性セクション（趣味・特技・強み・ヌメロジー特性等）を行配列で返す。
+ * カード経路・fallback 経路の双方で同一出力を使うために共通化している（非公開フィールドは除外）。
+ */
+function buildSpecialtySection(profile: CharacterRecord): string[] {
+  const hobby = resolveTextField(profile.Hobby_JP ?? profile.Hobby);
+  const specialSkill = resolveTextField(profile.SpecialSkill_JP ?? profile.SpecialSkill);
+  const favor = resolveTextField(profile.Favor_JP ?? profile.Favor);
+  const numerospecAbout = resolveTextField(profile.NumerospecAbout_JP ?? profile.NumerospecAbout);
+  const strength = normalizeText(profile.Strength_JP ?? profile.Strength);
+  const weakness = normalizeText(profile.Weakness_JP ?? profile.Weakness);
+
+  if (!(hobby || specialSkill || favor || numerospecAbout || strength || weakness)) {
+    return [];
+  }
+
+  const lines = ['', '【このキャラクターの得意なこと・専門性】'];
+  if (hobby) lines.push(`- 趣味: ${hobby}`);
+  if (specialSkill) lines.push(`- 特技: ${specialSkill}`);
+  if (favor) lines.push(`- 好きなもの: ${favor}`);
+  if (strength) lines.push(`- 強み: ${strength}`);
+  if (weakness) lines.push(`- 弱み: ${weakness}`);
+  if (numerospecAbout) lines.push(`- ヌメロジー上の特性: ${numerospecAbout}`);
+  return lines;
+}
+
+/**
  * creations-db 生成のキャラカード（識別・口調・専門性）を基盤層に据え、その上に
- * Bot 実行層（形態・応答方針・制約・信頼度）を重ねてシステムプロンプトを組み立てる。
+ * Bot 実行層（口調厳守・台詞例・形態・応答方針・専門性・制約・信頼度）を重ねて
+ * システムプロンプトを組み立てる。
  * カードが存在するキャラでのみ使用し、無いキャラは従来のフィールド組み立てへ委ねる。
+ *
+ * 二層化でカード経路が旧経路の「一人称/二人称の厳守指示」と「専門性セクション」を落として
+ * いたため、口調のブレ・専門性の希薄化を招いていた（実機バグ 2026-07-21）。呼称 DSL の
+ * 二重管理は復活させず、DB の DialogueExamples（既存台詞）を最優先の手本に据える口調厳守
+ * ブロックと、buildSpecialtySection による専門性の重ね掛けで補う。
  */
 function buildFromGeneratedCard(
+  profile: CharacterRecord,
   name: string,
   card: string,
   mode: PromptMode,
   formTarget: FormTarget,
   trust?: TrustContext,
 ): string {
+  const dialogueExamples = buildDialogueExamples(profile.ConversationPattern);
+
   const lines: string[] = [
     `あなたはナンバーテールズの公開済みキャラクター「${name}」として Misskey 上で会話する Bot です。`,
     '以下のキャラクター設定（公開済み）に沿って、そのキャラクターとして自然に返答してください。',
     '',
     card,
     '',
-    '【会話スタイル】',
+    '【口調・台詞の厳守】',
+    '- 上のキャラクター設定にある一人称・二人称・三人称と「口調の例」（台詞）を最優先で守り、毎回ぶらさないこと。',
+    '- 例に無い一般的で無難な口調へ流れず、台詞例に一番近い言い回し・語尾で話すこと。',
   ];
+  if (dialogueExamples) {
+    lines.push(`- 特に次の台詞の口調・語尾を手本にすること: ${dialogueExamples}`);
+  }
+
+  lines.push('', '【会話スタイル】');
 
   if (formTarget === 'core-folder') {
     lines.push('- 現在はコアフォルダ形態。短文寄りで、ひらがな多め、ぷにっとした静かな仕草が少し混じる。');
@@ -213,6 +255,8 @@ function buildFromGeneratedCard(
   } else {
     lines.push('', '【応答方針】', '- 返答は簡潔に、できれば 80 文字以内に収める。');
   }
+
+  lines.push(...buildSpecialtySection(profile));
 
   lines.push(
     '',
@@ -248,7 +292,7 @@ export function buildCharacterSystemPrompt(
   // 専門性の正典としてそのまま採用する（呼称DSL/型解決の二重管理を解消）。
   const generatedCard = loadGeneratedPromptCard(profile.Num);
   if (generatedCard) {
-    return buildFromGeneratedCard(name, generatedCard, mode, formTarget, trust);
+    return buildFromGeneratedCard(profile, name, generatedCard, mode, formTarget, trust);
   }
 
   // fallback: カード未生成のキャラは従来どおりフィールドから組み立てる。
@@ -343,23 +387,8 @@ export function buildCharacterSystemPrompt(
     lines.push('', '【応答方針】', '- 返答は簡潔に、できれば 80 文字以内に収める。');
   }
 
-  // 専門性セクション
-  const hobby = resolveTextField(profile.Hobby_JP ?? profile.Hobby);
-  const specialSkill = resolveTextField(profile.SpecialSkill_JP ?? profile.SpecialSkill);
-  const favor = resolveTextField(profile.Favor_JP ?? profile.Favor);
-  const numerospecAbout = resolveTextField(profile.NumerospecAbout_JP ?? profile.NumerospecAbout);
-  const strength = normalizeText(profile.Strength_JP ?? profile.Strength);
-  const weakness = normalizeText(profile.Weakness_JP ?? profile.Weakness);
-
-  if (hobby || specialSkill || favor || numerospecAbout || strength || weakness) {
-    lines.push('', '【このキャラクターの得意なこと・専門性】');
-    if (hobby) lines.push(`- 趣味: ${hobby}`);
-    if (specialSkill) lines.push(`- 特技: ${specialSkill}`);
-    if (favor) lines.push(`- 好きなもの: ${favor}`);
-    if (strength) lines.push(`- 強み: ${strength}`);
-    if (weakness) lines.push(`- 弱み: ${weakness}`);
-    if (numerospecAbout) lines.push(`- ヌメロジー上の特性: ${numerospecAbout}`);
-  }
+  // 専門性セクション（カード経路と共通のヘルパーで組み立てる）
+  lines.push(...buildSpecialtySection(profile));
 
   lines.push(
     '',

@@ -1126,14 +1126,41 @@ export async function handleMention(
     }
   }
 
+  /**
+   * タスク系の短い定型応答（確認質問・取りやめ等）をキャラクター口調で AI 生成する。
+   * finalizeTaskCreation と同じく chatSystemPrompt を基盤に据えることで、タスク登録操作の
+   * どの段階でもキャラ特有感を保つ。生成失敗・空文字時は渡された fallback をそのまま返し、
+   * タスク処理自体は止めない。
+   */
+  async function generateTaskLine(instruction: string, fallback: string): Promise<string> {
+    try {
+      const aiResult = await ai.chat(
+        [
+          { role: 'system' as const, content: chatSystemPrompt },
+          { role: 'user' as const, content: instruction },
+        ],
+        { maxTokens: 100, temperature: 0.9 },
+      );
+      const text = aiResult.text.trim();
+      return text.length > 0 ? text : fallback;
+    } catch (err) {
+      logger.error('AI task line generation error:', err);
+      return fallback;
+    }
+  }
+
   // 4-pre-d. タスク登録の優先度/難易度 確認待ちがあれば、この返信を確認結果として処理する
   const pendingTaskDraft: PendingTaskDraft | null = taskStore.getPendingDraft(event.userId);
   if (pendingTaskDraft) {
     if (/やめ|中止|キャンセル/.test(event.text)) {
       taskStore.clearPendingDraft(event.userId);
+      const cancelText = await generateTaskLine(
+        'あなたのキャラクターとして自然な口調で、タスク登録を取りやめる旨を返してください（台詞のみ・40文字以内）。相手を急かさず、また必要なら声をかけてほしいと添えること。',
+        'タスク登録をやめておくね。また気が向いたら教えて。',
+      );
       try {
         await misskeyClient.reply(
-          formatSpeech(activeCharacterNum, 'タスク登録をやめておくね。また気が向いたら教えて。'),
+          formatSpeech(activeCharacterNum, cancelText),
           event.noteId,
         );
         rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
@@ -1562,7 +1589,11 @@ export async function handleMention(
             ]
               .filter((v): v is string => v !== null)
               .join('と');
-            taskReplyText = `「${extracted.title}」だね。${missingLabel}を教えてもらえる？`;
+            taskReplyText = await generateTaskLine(
+              `あなたのキャラクターとして自然な口調で、タスク登録の確認を返してください（台詞のみ・40文字以内）。\n` +
+                `「${extracted.title}」というタスクを受け取ったが、登録には${missingLabel}が必要なので、それを尋ねてください。`,
+              `「${extracted.title}」だね。${missingLabel}を教えてもらえる？`,
+            );
           } else {
             taskReplyText = await finalizeTaskCreation({
               title: extracted.title,

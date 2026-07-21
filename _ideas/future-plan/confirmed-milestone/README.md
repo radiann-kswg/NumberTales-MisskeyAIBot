@@ -14,6 +14,8 @@
 | [F-10-angel-number-fortune.md](./F-10-angel-number-fortune.md) | [`milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](../../milestone/2026-06-23_milestone_f10-angel-number-fortune.md) | F-10 今日のエンジェルナンバー占い（元アイデア） |
 | [F-12-reminder.md](./F-12-reminder.md) | [`milestone/2026-06-23_milestone_f12-reminder.md`](../../milestone/2026-06-23_milestone_f12-reminder.md) | F-12 リマインダー機能（元アイデア。milestone側でタスク管理＋信頼度システムへ拡張済み） |
 | [phase3-followup-features.md](./phase3-followup-features.md) | [`milestone/completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md`](../../milestone/completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md) | Phase 3 後続機能（前提機能A・機能①ヌメロジー相談モード・機能②自発投稿キャラローテーション） |
+| [F-06_stage-b-c.md](./F-06_stage-b-c.md) | [`milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](../../milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md) | F-06 Stage B/C 名前ヌメロジー・月命星・宿曜・姓名判断（枡本つづり式採用でひらがなマッピング問題を解消） |
+| [F-15-corefolder-form-enhancement.md](./F-15-corefolder-form-enhancement.md) | [`milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](../../milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md) | F-15 コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出） |
 
 ## 対象外（部分昇進・未昇進）の扱いについて
 

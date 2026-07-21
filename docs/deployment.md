@@ -2,6 +2,13 @@
 
 > 対象: GCP VM インスタンス（Ubuntu 24.04 LTS 推奨）
 > デプロイ方式: GitHub Actions → SSH → PM2
+>
+> **実機の現況（2026-07-20 時点）**: `misskey-bots-group-numbertales`（us-central1-a / e2-small）は
+> **Ubuntu 24.04.4 LTS (noble)** / git **2.54.0**（`ppa:git-core/ppa`）/ Node.js v22.23.1。
+> 同日 20.04.6 → 22.04.5 → 24.04.4 と2段階で移行した
+> （手順: [vm-os-upgrade.md](./vm-os-upgrade.md) / 実施記録: [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)）。
+> かつて同居していた旧 Misskey インスタンス（PostgreSQL + nginx）は同日撤去済み。
+> **git のバージョン要件は後述の 1-4 を必ず確認すること。**
 
 ---
 
@@ -41,7 +48,26 @@ pm2 -v  # バージョンが表示されれば OK
 
 ### 1-4. Git の設定とリポジトリのクローン
 
+> **⚠️ git 2.36 以上が必須。** Ubuntu 20.04 の標準 git は **2.25.1** で要件を満たさない。
+>
+> | 使用箇所 | 必要バージョン |
+> | -------- | -------------- |
+> | `tools/setup-creations-db-sparse.sh` の `sparse-checkout set --no-cone` | **2.36+** |
+> | 同 `sparse-checkout reapply` | 2.27+ |
+> | `deploy.yml` の `git submodule update --filter=blob:none` | **2.36+** |
+>
+> 満たさないと `usage: git sparse-checkout (init|list|set|disable) <options>` を出して
+> **デプロイが exit 129 で失敗する**（2026-07-19 の実障害。`--filter=blob:none` の方は
+> `||` フォールバックがあるため単独では落ちない）。
+
 ```bash
+# バージョン確認。2.36 未満なら PPA から更新する（Ubuntu 20.04/22.04 とも可）
+git --version
+sudo add-apt-repository -y ppa:git-core/ppa
+sudo apt-get update
+sudo apt-get install -y git
+git --version   # 2.36 以上になっていれば OK
+
 cd ~
 git clone https://github.com/radiann-kswg/NumberTales-MisskeyAIBot.git
 cd NumberTales-MisskeyAIBot
@@ -266,6 +292,32 @@ pm2 logs numbertales-bot --lines 50
 - VM のファイアウォールルールで GitHub Actions のサーバー範囲から SSH が許可されているか確認
   - または GCP のファイアウォールで `0.0.0.0/0` → TCP:22 を一時的に許可して切り分ける
 - SSH 秘密鍵が正しく登録されているか確認（改行を含む全文が Secrets に入っているか）
+
+#### `Process exited with status 129` / `usage: git sparse-checkout ...`
+
+**VM の git が古い**（2.36 未満）。1-4 の手順で PPA から更新する。
+実行ログの見分け方は以下。SSH 接続自体は成功しており、失敗はスクリプト内部で起きている。
+
+```
+git sparse-checkout set --no-cone --stdin
+  → usage: git sparse-checkout (init|list|set|disable) <options>
+  → Process exited with status 129
+```
+
+> 2026-07-19 の `fc9fa60`（PR #25）で発生した実障害。ジョブが十数秒で落ちるため
+> 一見 SSH 接続失敗に見えるが、実際には `git` のオプション非対応が原因だった。
+> 切り分けには `gh run view <run-id> --log-failed` で**実ログを読むこと**（推測しない）。
+
+#### 失敗したデプロイを再実行したい
+
+`deploy.yml` は `push: branches: [master]` のみで `workflow_dispatch` が未設定のため、
+再実行は run ID を指定して行う。
+
+```bash
+gh run list --workflow=deploy.yml --limit 5      # run ID を調べる
+gh run rerun <run-id>
+gh run watch <run-id> --exit-status
+```
 
 ### メンションに返答しない・Bot がリプライを無視する
 
