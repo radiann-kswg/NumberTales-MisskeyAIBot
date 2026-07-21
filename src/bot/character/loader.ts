@@ -63,6 +63,15 @@ export interface HideTextWrapper {
   hideText: string;
 }
 
+/** 尻尾ユニット（$Def_TailsUnit[]）: 形状・本数・注記 */
+export interface CharacterTailsUnit {
+  /** 形状の enum 参照（例: "#TailShape_Cat"）。生成カードでは日本語化済みの文面が使われる */
+  TailShapeType?: string;
+  Count?: number;
+  Note_JP?: string;
+  Note?: string;
+}
+
 export interface CharacterRecord {
   Num: string | number;
   Name_JP?: string;
@@ -104,6 +113,16 @@ export interface CharacterRecord {
   /** 背景・来歴 */
   Backgrounds_JP?: string;
   Backgrounds?: string;
+  /** 身長（cm・ヒューマノイド形態の等身）。F-15 身体性コンテキストで使用 */
+  Height_cm?: number;
+  /** 体重（kg） */
+  Weight_kg?: number;
+  /** 設定年齢 */
+  ConceptAge?: number;
+  /** クラス・分類タグ（例: ["試験用個体","1桁番(ユニデジッツ)"]） */
+  Class?: string[];
+  /** 尻尾ユニット（形状・本数）。F-15 身体性コンテキストで使用 */
+  TailsUnit?: CharacterTailsUnit[];
   /** 三人称での呼び方（他者からの言及時） */
   ThirdPersonCalling_JP?: string;
   ThirdPersonCalling?: string;

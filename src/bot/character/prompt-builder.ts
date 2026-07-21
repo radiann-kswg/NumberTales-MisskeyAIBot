@@ -200,6 +200,32 @@ function buildSpecialtySection(profile: CharacterRecord): string[] {
 }
 
 /**
+ * 現在のフォーム（形態）の「身体性コンテキスト」を行配列で返す（F-15 項目1）。
+ * 従来の口調指示から一歩進めて「いまどの身体で会話しているか」を明示し、話題・仕草へ
+ * 自然に反映させる。コアフォルダは球体型55cm・跳ねる/揺れる（起き上がりこぼし・転がる球ではない）、
+ * ヒューマノイドはキャラ個別の等身（Height_cm）で手先作業ができる。
+ * どの機能もフォームを問わず通す方針のため「使えない」とは書かず、演出の差だけを与える。
+ */
+function buildEmbodimentSection(profile: CharacterRecord, formTarget: FormTarget): string[] {
+  if (formTarget === 'core-folder') {
+    return [
+      '【身体性（コアフォルダ形態）】',
+      '- いまは球体型（コアフォルダ・約55cm）の姿。手足のない丸い身体で、跳ねる・揺れる（起き上がりこぼしのような）動きで移動する。転がるボールではない。',
+      '- 視点は低く、抱えられたり膝に乗せられたりしやすい。手が無いぶん、身体を寄せる・傾ける・跳ねるといった仕草で気持ちや意図を表す。',
+      '- すでにこの姿で行動中なので、毎回「切り替わった」とは言わず、その姿のまま自然に会話を続ける。手先が要る作業を頼まれたら、一度ヒューマノイド形態に戻ることを提案してもよい。',
+      '- 話し方は短文寄り・ひらがな多めで、ぷにっとした静かな仕草がにじむ。',
+    ];
+  }
+
+  const height = typeof profile.Height_cm === 'number' ? `約${profile.Height_cm}cm` : '等身大';
+  return [
+    '【身体性（ヒューマノイド形態）】',
+    `- いまは人型（ヒューマノイド・${height}）の姿。手先を使った細かい作業や、道具・機材の扱いができ、歩く・立つ目線で会話する。`,
+    '- 通常の会話スタイルで応答する。',
+  ];
+}
+
+/**
  * creations-db 生成のキャラカード（識別・口調・専門性）を基盤層に据え、その上に
  * Bot 実行層（口調厳守・台詞例・形態・応答方針・専門性・制約・信頼度）を重ねて
  * システムプロンプトを組み立てる。
@@ -234,14 +260,7 @@ function buildFromGeneratedCard(
     lines.push(`- 特に次の台詞の口調・語尾を手本にすること: ${dialogueExamples}`);
   }
 
-  lines.push('', '【会話スタイル】');
-
-  if (formTarget === 'core-folder') {
-    lines.push('- 現在はコアフォルダ形態。短文寄りで、ひらがな多め、ぷにっとした静かな仕草が少し混じる。');
-    lines.push('- すでにコアフォルダ形態で行動中なので、毎回「切り替わった」とは言わず、その姿のまま自然に会話を続ける。');
-  } else {
-    lines.push('- 現在はヒューマノイド形態。通常の会話スタイルで応答する。');
-  }
+  lines.push('', ...buildEmbodimentSection(profile, formTarget));
 
   if (mode === 'creative-consultation') {
     lines.push(
@@ -339,14 +358,7 @@ export function buildCharacterSystemPrompt(
     lines.push(`- 関係性メモ: ${relationSummary}`);
   }
 
-  lines.push('', '【会話スタイル】');
-
-  if (formTarget === 'core-folder') {
-    lines.push('- 現在はコアフォルダ形態。短文寄りで、ひらがな多め、ぷにっとした静かな仕草が少し混じる。');
-    lines.push('- すでにコアフォルダ形態で行動中なので、毎回「切り替わった」とは言わず、その姿のまま自然に会話を続ける。');
-  } else {
-    lines.push('- 現在はヒューマノイド形態。通常の会話スタイルで応答する。');
-  }
+  lines.push('', ...buildEmbodimentSection(profile, formTarget));
 
   if (pattern) {
     if (normalizeText(pattern.TalkingTone_JP ?? pattern.TalkingTone)) {
