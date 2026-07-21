@@ -176,10 +176,11 @@ export function buildFormSwitchText(
   const firstPerson = normalizeCalling(target.FirstPersonCalling_JP ?? target.FirstPersonCalling, '私');
 
   if (formTarget === 'core-folder') {
-    return `${name}がコアフォルダ形態になったよ。${firstPerson}は ぷにっと待機中。何かあるかな？`;
+    // 変形過程を短い擬音で演出（ぽむっと丸くなる。転がる球ではなく跳ねる/揺れるイメージ）
+    return `ぽむっ…ころん。${name}がコアフォルダ形態になったよ。${firstPerson}は ぷにっと待機中。`;
   }
 
-  return `${name}がヒューマノイド形態に戻ったよ。${firstPerson}の方でそのまま話せる。続けようか。`;
+  return `しゅるるっ…！${name}がヒューマノイド形態に戻ったよ。${firstPerson}の方でそのまま話せる。続けようか。`;
 }
 
 export function buildCharacterSwitchHelpText(options: {

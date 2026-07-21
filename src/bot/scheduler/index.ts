@@ -4,6 +4,7 @@ import type { AIProvider } from '../../ai/index.js';
 import type { MisskeyClient } from '../../misskey/client.js';
 import { getReleasedCharacterByNum, getDefaultCharacterProfile } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
+import type { FormTarget } from '../classifier/intent.js';
 import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
 import type { TaskStore } from '../../storage/task.js';
 import type { TrustStore } from '../../storage/trust.js';
@@ -35,7 +36,7 @@ const TIME_SLOTS: readonly TimeSlot[] = [
     endHour: 8,
     label: '朝',
     promptAddendum:
-      '朝の時間帯（6〜8時）です。元気でテキパキした口調で、軽い挨拶や作業開始の声かけをひとことつぶやいてください。',
+      '朝の時間帯（6〜8時）です。夜のあいだコアフォルダ形態で休んでいたのがヒューマノイド形態に変形して起動したところ、という体で、元気でテキパキした口調の軽い挨拶や作業開始の声かけをひとことつぶやいてください。',
   },
   {
     startHour: 12,
@@ -69,10 +70,10 @@ const TIME_SLOTS: readonly TimeSlot[] = [
  * botState から担当番号を取得し、DB のプロフィールを使って動的生成する。
  * 担当が未設定の場合は 000(チトセ) のデフォルトプロンプトにフォールバックする。
  */
-function buildSchedulerSystemPrompt(botState: BotStateStore): string {
+function buildSchedulerSystemPrompt(botState: BotStateStore, formTarget: FormTarget = 'humanoid'): string {
   const charNum = botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
   const profile = getReleasedCharacterByNum(charNum) ?? getDefaultCharacterProfile();
-  const base = buildCharacterSystemPrompt(profile, 'chat');
+  const base = buildCharacterSystemPrompt(profile, 'chat', formTarget);
 
   return `${base}
 
@@ -199,7 +200,11 @@ export class PostScheduler {
     }
 
     try {
-      const systemPrompt = buildSchedulerSystemPrompt(this.deps.botState);
+      // 深夜スロットはコアフォルダ形態の身体性・口調で投稿する（F-15 項目3）
+      const systemPrompt = buildSchedulerSystemPrompt(
+        this.deps.botState,
+        slot.label === '深夜' ? 'core-folder' : 'humanoid',
+      );
       const charNum = this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
       const result = await this.deps.ai.chat(
         [
