@@ -1,9 +1,40 @@
 # F-06 Stage B/C: 名前ヌメロジー・月命星・宿曜・姓名判断 — 実装仕様
 
 > 作成日: 2026-07-20
-> ステータス: **着手待ち** 📋
+> ステータス: **着手中** 🔧（2026-07-21・Stage B 算出エンジン実装済み／配線・B-3/B-4/C は未着手）
 > 元アイデア: [`future-plan/confirmed-milestone/F-06_stage-b-c.md`](../future-plan/confirmed-milestone/F-06_stage-b-c.md)（検討過程・データ表はこちらを参照）
 > 計算方式の参照元: [数秘術の計算方法・調べ方（マンガ数秘らぼ / 枡本つづり）](https://tsuduri-illust.com/numerotekeisan)
+
+---
+
+## 進捗（2026-07-21）
+
+作業ブランチ: `feature/f06-stage-bc`（commit `345ef64`・未 PR）
+
+### 実装済み
+
+| 項目 | 内容 |
+| --- | --- |
+| **Stage B: ヘボン式変換器** ✅ | `src/features/f06/hepburn.ts`。長音お(末尾のみ O)／長音う(脱落)／っ(子音重ね・CH の前は T)／ん(B・M・P の前は M)／拗音／カタカナ正規化。漢字境界は区切り入力 `hepburnFromSegments` で分割。長音の曖昧検出 `hasLongVowelAmbiguity` も提供（二段構えの判定用）。 |
+| **Stage B: 7ナンバー算出** ✅ | `src/features/f06/name-numerology.ts`。ピタゴラス式（A=1..I=9, J=1..R=9, S=1..Z=8）で D/S/P/IT/LL/M/B を算出。縮約は既存 `reduceToSingleDigit` を流用（11/22/33 ストップ）。 |
+| **テスト基盤** ✅ | vitest 導入済み（PR #29・dist 対象）。hepburn 23件（御園生／大野／氷／佐藤／優香／ほっち／なんば／新奈／松浦 等）＋ name-numerology 15件を含め計 **70件 PASS**。 |
+
+### 未着手（次の作業）
+
+| 項目 | 内容 | 備考 |
+| --- | --- | --- |
+| Stage B-3: 月命星 | `kyuseiPair`（`numerology.ts`）を露出しハンドラへ配線 | 算出ロジックは部分実装済み |
+| Stage B-4: エンジェルナンバー | 静的テーブル `angel-number-data.ts` ＋ LLM 口調生成 | データ表は [`future-plan/confirmed-milestone/F-06_stage-b-c.md`](../future-plan/confirmed-milestone/F-06_stage-b-c.md) に整理済み。実装は牌引き占いと同型 |
+| Stage C-2: 宿曜 | ユリウス通日 mod 28 ＋ 宿名28種テーブル | |
+| Stage C-1: 姓名判断 | 五格（天/地/人/外/総）＋画数辞書 | **画数辞書のソース・ライセンス表記・字体方針（新字体既定）が未決** |
+| 配線 | `intent.ts` の `NumerologyType` 拡張／`f06/index.ts` の別定義／`mention.ts` の分岐・`generateF06Framing` のラベル追加 | 型が2箇所で二重管理のため `npm run typecheck` で一括確認すること |
+
+### 解釈文の扱い（保留）
+
+各ナンバーの解釈文は**キャラ別 DB フィールド待ち**。CreationsDB へ
+[Issue #13](https://github.com/radiann-kswg/100BeautiesLab_CreationsDB/issues/13) を起票済み
+（数秘解説 `NumerologyExamples` ＋ スキンシップ反応 `SkinshipReactions` の2フィールドを提案）。
+Bot 側は当該フィールドを消費する設計とし、**未存在時は数値＋最小限の定型でフォールバック**する。
 
 ---
 

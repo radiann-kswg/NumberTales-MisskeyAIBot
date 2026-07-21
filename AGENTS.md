@@ -276,12 +276,18 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
 | —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
 | —          | 自動復旧: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）。GCE外部ウォッチドッグ（`tools/gce-watchdog/`）はデプロイ待ち | ✅ 実装済み |
+| F-12 修正  | タスク意図分類の取りこぼしを修正（実機バグ 2026-07-21）: 「タスク「〇〇」を…で追加して」の語順と「タスク**の**一覧」の助詞が非マッチで雑談へ落ち、LLM が登録の"フリ"をするだけで DB 未書き込みだった。`TASK_ADD_PATTERNS`/`TASK_LIST_PATTERNS` を拡張。難易度確認の質問文・キャンセル文も `generateTaskLine` でキャラ AI 生成化 | ✅ 実装済み |
+| —          | キャラカード経路の口調・専門性の補強: 二層化で落ちていた「一人称/二人称の厳守指示」と専門性セクションを回復し、`DialogueExamples`（既存台詞）を最優先の手本に据える口調厳守ブロックを追加 | ✅ 実装済み |
+| 運用: 復旧通知 | ダウンタイム明けに 000(チトセ) が停止時間を添えて `home` へ1回だけ自発投稿（閾値30分/上限7日/クールダウン6時間/WS接続/時計巻き戻りを判定）。停止時間はコード算出、フレーバー文のみ LLM＋固定フォールバック（`features/recovery-notice.ts`） | ✅ 実装済み |
+| F-15 Phase 1+2 | コアフォルダ形態の機能強化: 身体性コンテキスト注入（球体型55cm・跳ねる/揺れる ↔ キャラ個別 `Height_cm` の人型）、変形シークエンス演出（擬音）、深夜スロットのコアフォルダ連動＋朝の「変形して起動」、跨ぎ演出（身体性プロンプトによる LLM 主導の変形提案）。Phase 3 はアフィニティ依存 | ✅ 実装済み |
+| F-14 基盤  | キャラ別親密度ストア `character_affinity`（`(user_id, char_num)`・レベル 0/1/2/3 = 0/1/10/30・日次上限）＋加算フック（タスク完了 +3・会話ボーナス +1）＋照会コマンド（`affinity-check`）。能力レジストリ本体（78タロット等）は後続 | ✅ 実装済み |
+| —          | テスト基盤: vitest 導入（`npm test` = build → vitest run、コンパイル済み `dist` を対象）。意図分類の回帰・復旧通知・アフィニティ・ヘボン式・名前ヌメロジーをテストで固定化 | ✅ 実装済み |
 
 ### 検討中・着手待ちのBot機能
 
 初期アイデアは [`_rough-idea/`](./_rough-idea/)、詳細仕様・実装計画は [`_ideas/`](./_ideas/) を参照。
 
-- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — milestone 昇進済み（着手待ち）
+- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — **着手中**（Stage B の算出エンジン＝ヘボン式変換＋7ナンバーは実装済み。B-3/B-4/Stage C と intent 配線が残り、各ナンバーの解釈文は CreationsDB Issue #13 のフィールド追加待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](./_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md)
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
 - **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋キャラ別親密度（アフィニティ）。検討中
