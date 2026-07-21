@@ -126,18 +126,20 @@ export class MisskeyClient {
   }
 
   /**
-   * 自発投稿する（返信なし、パブリック公開）
+   * 自発投稿する（返信なし）。
    *
-   * フォロワー外のユーザーにも届くよう visibility=public を使用する。
-   * 週次担当の就任挨拶や集計結果通知、時間帯スケジューラーからの自発投稿で利用される。
+   * 既定は visibility=public（フォロワー外にも届く）。週次担当の就任挨拶や集計結果通知、
+   * 時間帯スケジューラーからの自発投稿で利用される。復旧通知のように控えめに流したい投稿は
+   * options.visibility='home' を指定する。
    * @param text 投稿本文
    * @param options.cw CW（ContentWarning）テキスト
+   * @param options.visibility 公開範囲（既定 'public'）
    */
-  async post(text: string, options?: { cw?: string }): Promise<void> {
+  async post(text: string, options?: { cw?: string; visibility?: 'public' | 'home' }): Promise<void> {
     await this.apiClient.request('notes/create', {
       text,
       cw: options?.cw ?? undefined,
-      visibility: 'public',
+      visibility: options?.visibility ?? 'public',
     });
   }
 

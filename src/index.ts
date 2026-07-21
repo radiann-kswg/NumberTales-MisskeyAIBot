@@ -18,7 +18,8 @@ import { setEmojiCache } from './bot/responder/emoji.js';
 import { initializeCharacterDB } from './bot/character/loader.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
-import { HeartbeatWriter } from './utils/heartbeat.js';
+import { HeartbeatWriter, readLastHeartbeat } from './utils/heartbeat.js';
+import { postRecoveryNoticeIfNeeded } from './features/recovery-notice.js';
 
 /**
  * イベントハンドラ（onMention/onHomeTL 等）内で発生した未捕捉エラーはこのプロセスの
@@ -150,6 +151,9 @@ async function main(): Promise<void> {
   const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore });
   scheduler.start();
 
+  // ダウンタイム算出用に、HeartbeatWriter が上書きする前の前回 ts を退避しておく
+  const prevHeartbeatTs = readLastHeartbeat(config.storage.heartbeatPath)?.ts ?? null;
+
   // ハートビート開始（VM 内ウォッチドッグによるハング・WS切断検知用）
   const heartbeat = new HeartbeatWriter(
     config.storage.heartbeatPath,
@@ -157,6 +161,16 @@ async function main(): Promise<void> {
     () => misskeyClient.isConnected(),
   );
   heartbeat.start();
+
+  // ダウンタイム明けの復旧通知（WS 接続確立を待って1回だけ home 投稿。起動をブロックしない）
+  void postRecoveryNoticeIfNeeded(prevHeartbeatTs, Date.now(), {
+    ai,
+    misskeyClient,
+    botState,
+    thresholdMs: config.recoveryNotice.thresholdMs,
+    cooldownMs: config.recoveryNotice.cooldownMs,
+    maxMs: config.recoveryNotice.maxMs,
+  }).catch((err: unknown) => logger.error('Recovery notice failed:', err));
 
   // プロセス終了時のクリーンアップ
   const shutdown = (): void => {
