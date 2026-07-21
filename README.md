@@ -305,7 +305,20 @@ tools/                        # 補助スクリプト（Misskey 投稿取得・�
   vm-watchdog.mjs             # VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
   systemd/                    # ウォッチドッグ用 systemd service/timer 雛形
   gce-watchdog/               # GCE外部ウォッチドッグ（Cloud Run functions + Scheduler）
+
+AGENTS.md                     # 【SSOT】AI エージェント共通の設定書（正典）
+CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い設定書
+.github/copilot-instructions.md # GitHub Copilot 向けの薄い設定書
+.agents/skills/               # エージェント共通のスキル（コマンド）定義の正典
+.claude/commands/             # Claude Code スラッシュコマンド（.agents/skills/ への薄いポインタ）
 ```
+
+### AI エージェント設定について
+
+本リポジトリは **Claude / GitHub Copilot / OpenAI Codex** の 3 エージェントで開発しています。
+共通仕様は [AGENTS.md](./AGENTS.md) に一本化されており（SSOT）、各ツール固有の設定書はそこへの参照リンクと
+ツール固有事項のみを持ちます。運用ルールの詳細は
+[AGENTS.md の「設定書の同期ルール」](./AGENTS.md#設定書の同期ルール重要) を参照してください。
 
 ---
 
