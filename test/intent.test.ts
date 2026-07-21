@@ -21,6 +21,10 @@ describe('classifyIntent — タスク意図分類の回帰ガード', () => {
     ['写真をアルバムに追加して', 'chat'],
     ['進捗を教えて', 'task-list'],
     ['ポーカーやって', 'game-poker'],
+    // F-14 親密度照会
+    ['78とどれくらい仲良し？', 'affinity-check'],
+    ['仲良し度ランキングを教えて', 'affinity-check'],
+    ['誰と一番仲良し？', 'affinity-check'],
   ];
 
   it.each(cases)('%s → %s', (text, expected) => {
