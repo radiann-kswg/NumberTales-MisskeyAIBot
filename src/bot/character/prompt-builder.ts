@@ -1,6 +1,7 @@
 import type {
   CharacterConversationPattern,
   CharacterDialogueExample,
+  CharacterMeasureField,
   CharacterRecord,
   CharacterRelationItem,
   HideTextWrapper,
@@ -24,6 +25,54 @@ function resolveTextField(value: string | HideTextWrapper | undefined): string |
   if (value === undefined || value === null) return null;
   if (typeof value === 'object' && 'hideText' in value) return null;
   return normalizeText(value);
+}
+
+/**
+ * 計測系フィールド（身長・体重・設定年齢）を表示用テキストへ解決する。
+ *
+ * upstream の実データは `number` / `{value, about_JP}` / その配列 / `{hideText}` の 4 形態を取る。
+ * 素の値として文字列連結すると `[object Object]` がそのままプロンプトへ載るため、必ず本関数を通す。
+ *
+ * 解決規則（creations-db 側 `unwrapValueLike()` と同一の優先順）:
+ *   1. `hideText`（非公開）は **一切出力しない** → null
+ *   2. `value` があればそれを採用（`0` も有効値）。補足 `about_JP` があれば括弧で添える
+ *   3. `value` が無く補足だけの値（例: `{about_JP:"？"}`）は補足のみを返し、**単位を付けない**
+ *   4. 配列は各要素を解決して `・` で連結（例: `145cm（通常時）・190cm（筋装備時）`）
+ *
+ * @param value 対象フィールド値
+ * @param unit  単位（"cm" / "kg" 等）。補足のみの値には付与しない
+ * @returns 表示用テキスト。非公開・未設定・解決不能なら null
+ */
+export function resolveMeasureField(
+  value: CharacterMeasureField | undefined,
+  unit: string,
+): string | null {
+  if (value === undefined || value === null) return null;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? `${value}${unit}` : null;
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((entry) => resolveMeasureField(entry, unit))
+      .filter((part): part is string => part !== null);
+    return parts.length > 0 ? parts.join('・') : null;
+  }
+
+  if (typeof value !== 'object') return null;
+  // 非公開ラッパーはプロンプトへ絶対に載せない
+  if ('hideText' in value) return null;
+
+  const about = normalizeText(value.about_JP ?? value.about ?? undefined);
+  const raw = value.value;
+  if (raw === undefined || raw === null || raw === '') {
+    // 補足のみの値（"？" / "不詳" 等）。単位を付けると「不詳cm」という壊れた文になる
+    return about;
+  }
+
+  const measure = `${raw}${unit}`;
+  return about ? `${measure}（${about}）` : measure;
 }
 
 function stringifyDialogueExample(example: string | CharacterDialogueExample): string | null {
@@ -217,7 +266,8 @@ function buildEmbodimentSection(profile: CharacterRecord, formTarget: FormTarget
     ];
   }
 
-  const height = typeof profile.Height_cm === 'number' ? `約${profile.Height_cm}cm` : '等身大';
+  const resolvedHeight = resolveMeasureField(profile.Height_cm, 'cm');
+  const height = resolvedHeight ? `約${resolvedHeight}` : '等身大';
   return [
     '【身体性（ヒューマノイド形態）】',
     `- いまは人型（ヒューマノイド・${height}）の姿。手先を使った細かい作業や、道具・機材の扱いができ、歩く・立つ目線で会話する。`,
