@@ -294,12 +294,14 @@ src/
     incident-logger.ts        # インシデントロガー（ハラスメント検知ログ）
     heartbeat.ts              # ハートビートライター（VM内ウォッチドッグの監視対象）
     text.ts                   # 全角数字・丸数字の正規化ヘルパー
+test/                         # vitest テスト（コンパイル済み dist を対象・`npm test`）
 docs/                         # 詳細ドキュメント
   deployment.md               # デプロイ手順（GCP VM + GitHub Actions）
   architecture.md             # 技術アーキテクチャ詳細
   development.md              # ローカル開発ガイド
 _ideas/bot-spec/              # 仕様書・設計ドキュメント
 _roleplay-datas/              # キャラクタープロンプト・AI 連携情報
+_tasks/                       # 自動スケジュールタスクの作業ログ（creations-db-sync / github-triage）
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
 tools/                        # 補助スクリプト（Misskey 投稿取得・同期検知等）
   vm-watchdog.mjs             # VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）

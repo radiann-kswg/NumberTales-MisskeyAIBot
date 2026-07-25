@@ -114,9 +114,9 @@ docs/
 
 ## 参照ドキュメント
 
-- [技術アーキテクチャ案](../bot-spec/03_tech-architecture.md)
-- [機能仕様案](../bot-spec/01_feature-specs.md)
-- [インタラクション設計](../bot-spec/02_interaction-design.md)
+- [技術アーキテクチャ案](../../bot-spec/03_tech-architecture.md)
+- [機能仕様案](../../bot-spec/01_feature-specs.md)
+- [インタラクション設計](../../bot-spec/02_interaction-design.md)
 
 ---
 

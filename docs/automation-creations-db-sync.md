@@ -20,7 +20,7 @@ Cowork の実行サンドボックスは外部ネットワークがブロック�
 | --- | --- |
 | `tools/check-creations-db-update.sh` | サブモジュール作業ツリー HEAD と、スーパープロジェクトが記録済みの gitlink を比較する**ネットワーク非依存**のゲート |
 | スケジュールタスク `creations-db-sync-optimize` | 6時間ごと（cron `0 */6 * * *`）にゲートを実行し、追従待ち更新がある時だけ本処理を走らせる |
-| `_tasks/` | 最適化作業ログの出力先（[_tasks/README.md](../_tasks/README.md)） |
+| `_tasks/creations-db-sync/` | 最適化作業ログの出力先。`_tasks/` は自動スケジュールタスクのログ置き場を種類別サブフォルダで束ねる（[_tasks/README.md](../_tasks/README.md)） |
 
 ## ゲートスクリプトの判定（ネットワーク非依存）
 
@@ -51,7 +51,7 @@ bash tools/check-creations-db-update.sh
    2. 影響を受けるリポジトリ側の機能（例: `src/bot/character/loader.ts` のフィールドマッピング、
       `src/features/f06/` のヌメロジー参照など）を最適化。
    3. `npm run typecheck` で型整合を確認。
-   4. `_tasks/YYYY-MM-DD-HHmm-creations-db-sync.md` に作業ログを生成。
+   4. `_tasks/creations-db-sync/YYYY-MM-DD-HHmm-creations-db-sync.md` に作業ログを生成。
    5. 関連ドキュメントを整理。
    6. コード・ドキュメント・ログ・`_creations-db` のポインタ更新をステージして `git commit`（**push しない**）。
 

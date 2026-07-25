@@ -1,7 +1,8 @@
 # バグレポート: ロールプレイ品質の低下 / タスク登録・一覧の不具合 / タスク登録時のキャラ特有感の欠如 — 不具合報告
 
 > 作成日: 2026-07-21
-> ステータス: **対応済み** ✅（2026-07-21・②③はコード修正＋検証済み／①は緩和・実機での主観検証待ち。**本番VMへのデプロイは未実施**）
+> ステータス: 完了 ✅（2026-07-21・②③はコード修正＋検証済み／①は緩和・実機での主観検証待ち。**本番VMへのデプロイは未実施**）
+> 完了根拠: ②③は typecheck・実装確認済み、①は口調厳守ブロック追加で緩和。2026-07-26 に `completed/` へ棚卸し。
 > 対象機能: F-12・F-12B（タスク＆スケジュール管理） / キャラクタープロンプト（ロールプレイ口調・キャラ特有感）
 > 出典: 実機（[@APHR_NTs](https://radiann6631.net/@APHR_NTs)）運用中に受領したバグ報告
 
@@ -23,7 +24,7 @@
 - 一覧「`タスクの一覧は確認できる？`」— 助詞「の」が挟まり `/タスク(?:を?見せて|一覧|…)/` に非マッチ → `chat`。
 - 一覧「`タスク一覧を教えて`」— マッチするが、上記のとおり登録自体が無かったため空を返答。
 
-修正（[intent.ts](../../src/bot/classifier/intent.ts)）：
+修正（[intent.ts](../../../src/bot/classifier/intent.ts)）：
 
 - `TASK_ADD_PATTERNS` に `/タスク[\s\S]*(?:追加|登録)(?:して|お願い|…)/` を追加（題名・パラメータが動詞の
   手前に挟まる明示的な登録依頼を拾う。完了報告「追加した」・質問「追加方法」は非マッチのまま）。
@@ -33,7 +34,7 @@
 
 ### ③ タスク登録時のキャラ特有感の欠如
 
-[mention.ts](../../src/bot/handlers/mention.ts) の難易度確認ワークフローの質問文・キャンセル文がハードコードの
+[mention.ts](../../../src/bot/handlers/mention.ts) の難易度確認ワークフローの質問文・キャンセル文がハードコードの
 テンプレで、キャラAI生成（`finalizeTaskCreation` 相当）を通っていなかった。優先度/難易度を明示しない登録依頼は
 必ずこのテンプレを先に通るため、登録操作が無個性に見えていた。共通ヘルパー `generateTaskLine`
 （`chatSystemPrompt` 基盤・AI失敗時は従来テンプレへフォールバック）経由に変更。
@@ -43,7 +44,7 @@
 DB生成カードを基盤層に採用した二層化（PR #24, `78f552e`）で、`buildFromGeneratedCard` が旧経路にあった
 「一人称/二人称の厳守指示」と「専門性セクション（Hobby/SpecialSkill/NumerospecAbout 等）」を落としており、
 口調のブレ・専門性の希薄化を招いていた（自発投稿で 96番機の一人称が「あたしゃ」↔無難口調でブレる兆候）。
-呼称DSLの二重管理は復活させず、次で緩和（[prompt-builder.ts](../../src/bot/character/prompt-builder.ts)）：
+呼称DSLの二重管理は復活させず、次で緩和（[prompt-builder.ts](../../../src/bot/character/prompt-builder.ts)）：
 
 - 【口調・台詞の厳守】ブロックを追加し、DBの `DialogueExamples`（既存台詞）を最優先の手本として明示。
 - 専門性セクションをカード経路・fallback経路で共通化（`buildSpecialtySection`）し、カード経路にも復活。
@@ -141,11 +142,11 @@ DB生成カードを基盤層に採用した二層化（PR #24, `78f552e`）で�
 
 ## 関連
 
-- [completed/2026-07-05_milestone_bug-task-add-roleplay.md](./completed/2026-07-05_milestone_bug-task-add-roleplay.md)
+- [completed/2026-07-05_milestone_bug-task-add-roleplay.md](./2026-07-05_milestone_bug-task-add-roleplay.md)
   — 「タスク追加ができない」「タスク追加時だけロールプレイが中途半端」の既報バグ（2026-07-05 に対応済み）。
   本レポートの「タスク登録/一覧の不具合」「タスク登録時のキャラ特有感の欠如」は同種事象の再発・関連の
   可能性が高い。統合はせず本欄で相互参照する。
-- [completed/2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./completed/2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md)
+- [completed/2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md)
   — F-12・F-12B のタスク管理に関する既知の要望・改修、および `DialogueExamples`（キャラ会話例）に関する
   改修を扱う別 milestone。ロールプレイ品質・キャラ特有感の低下は `DialogueExamples` まわりと関連する
   可能性がある。統合はせず本欄で相互参照する。

@@ -274,6 +274,7 @@ src/
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
     heartbeat.ts              #   ハートビートライター（VM内ウォッチドッグの監視対象）
     text.ts                   #   全角数字・丸数字の正規化ヘルパー（toHalfWidthDigits/matchCircledDigit）
+test/                         # vitest テスト（コンパイル済み `dist` を対象。`npm test` = build → vitest run）
 docs/                         # 詳細ドキュメント
   architecture.md / development.md / deployment.md
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
@@ -289,7 +290,9 @@ _rough-idea/                  # アイデア検討メモ（ChatGPT/Geminiとの�
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
   data/                       # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
   docs/                       # DB仕様ドキュメント
-_tasks/                       # creations-db 同期の自動最適化タスク作業ログ
+_tasks/                       # 自動スケジュールタスクの作業ログ（種類別サブフォルダ）
+  creations-db-sync/          #   creations-db 追従・最適化ログ
+  github-triage/              #   GitHub 未解決問題トリアージの調査ログ（読み取りのみ）
 _session-archives/            # 過去の対話アーカイブ（_agent-chats / diary）
 tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
   vm-watchdog.mjs             #   VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
@@ -365,7 +368,7 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 | —          | Bot 状態の永続ストレージ（`storage/bot-state.ts`・KV 形式 SQLite）                               | ✅ 実装済み |
 | —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
 | —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
-| —          | 自動復旧: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）。GCE外部ウォッチドッグ（`tools/gce-watchdog/`）はデプロイ待ち | ✅ 実装済み |
+| —          | 自動復旧（3層ウォッチドッグ）: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）＋ GCE外部ウォッチドッグ（`tools/gce-watchdog/`）。**レイヤー1〜3 すべて本番稼働中**（2026-07-09 デプロイ・動作確認済み／`automaticRestart` 有効化済み。残るは障害注入テストのみ） | ✅ 実装済み |
 | F-12 修正  | タスク意図分類の取りこぼしを修正（実機バグ 2026-07-21）: 「タスク「〇〇」を…で追加して」の語順と「タスク**の**一覧」の助詞が非マッチで雑談へ落ち、LLM が登録の"フリ"をするだけで DB 未書き込みだった。`TASK_ADD_PATTERNS`/`TASK_LIST_PATTERNS` を拡張。難易度確認の質問文・キャンセル文も `generateTaskLine` でキャラ AI 生成化 | ✅ 実装済み |
 | —          | キャラカード経路の口調・専門性の補強: 二層化で落ちていた「一人称/二人称の厳守指示」と専門性セクションを回復し、`DialogueExamples`（既存台詞）を最優先の手本に据える口調厳守ブロックを追加 | ✅ 実装済み |
 | 運用: 復旧通知 | ダウンタイム明けに 000(チトセ) が停止時間を添えて `home` へ1回だけ自発投稿（閾値30分/上限7日/クールダウン6時間/WS接続/時計巻き戻りを判定）。停止時間はコード算出、フレーバー文のみ LLM＋固定フォールバック（`features/recovery-notice.ts`） | ✅ 実装済み |
@@ -380,9 +383,12 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 - **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — **着手中**（Stage B の算出エンジン＝ヘボン式変換＋7ナンバーは実装済み。B-3/B-4/Stage C と intent 配線が残り、各ナンバーの解釈文は CreationsDB Issue #13 のフィールド追加待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](./_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md)
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
-- **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋キャラ別親密度（アフィニティ）。検討中
-  → [`_ideas/future-plan/F-14-character-ability-commands.md`](./_ideas/future-plan/F-14-character-ability-commands.md)
-- **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — milestone 昇進済み（着手待ち）
+- **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋能力レジストリ（78タロット等） — **基盤のみ実装済み**
+  （キャラ別親密度ストアは実装済み。能力レジストリ本体・ゲスト召喚は未着手）
+  → 基盤: [`_ideas/milestone/2026-07-21_milestone_f14-character-affinity.md`](./_ideas/milestone/2026-07-21_milestone_f14-character-affinity.md)
+  ／ 構想全体: [`_ideas/future-plan/F-14-character-ability-commands.md`](./_ideas/future-plan/F-14-character-ability-commands.md)
+- **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — **Phase 1+2 実装済み**
+  （Phase 3 は F-14 `character_affinity` ストア連携待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](./_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
@@ -574,12 +580,18 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
   サブモジュール作業ツリーを upstream の最新へ進める。
 - **Cowork スケジュールタスク `creations-db-sync-optimize`（6時間ごと・ネットワーク不要）**:
   ゲート `tools/check-creations-db-update.sh` で「作業ツリー HEAD ≠ 記録済み gitlink」を検知し、
-  追従すべき更新がある時だけ既存機能を最適化して `_tasks/` にログを生成し、
+  追従すべき更新がある時だけ既存機能を最適化して `_tasks/creations-db-sync/` にログを生成し、
   gitlink 更新を含めてコミット（push 無し）する。
 
 ゲートは fetch せず作業 HEAD と記録 gitlink を比較するだけなので、サンドボックスのネットワーク制限に
 依存しない。詳細は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)、
-作業ログ書式は [_tasks/README.md](./_tasks/README.md) を参照。
+作業ログ書式・置き場のルールは [_tasks/README.md](./_tasks/README.md) を参照。
+
+> **自動スケジュールタスクのログ置き場**: `_tasks/` は creations-db 同期専用ではなく、
+> **自動スケジュールタスクの作業ログ全般**の置き場である（種類別サブフォルダ）。恒久ドキュメント
+> （設計・運用手順）は `docs/`、時系列の作業記録は `_tasks/<タスク名>/` と役割を分ける。
+> 新しい種類のログを追加するときは、まず [_tasks/README.md](./_tasks/README.md) にサブフォルダの行を
+> 追加すること（置き場が未定のまま `docs/` へ退避すると同種のログが分散する）。
 
 > **注意（ゲートの盲点）**: ゲートは **前進と退行を区別しない**。作業ツリーが記録 gitlink の過去コミットへ
 > 巻き戻った「退行」も `UPDATE_AVAILABLE` として拾うため、鵜呑みで追従すると廃止済み設定が復活し得る。

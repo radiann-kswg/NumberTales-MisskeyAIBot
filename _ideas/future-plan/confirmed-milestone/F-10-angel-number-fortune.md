@@ -2,7 +2,7 @@
 
 > 作成日: 2026-06-22  
 > ステータス: **仕様策定中**（前向きに検討）  
-> 関連: [F-06 Stage B-4 エンジェルナンバー照会](./F-06_stage-b-c.md) / [F-06 Stage D ミニゲーム](./F-06_stage-d-minigames.md)  
+> 関連: [F-06 Stage B-4 エンジェルナンバー照会](./F-06_stage-b-c.md) / [F-06 Stage D ミニゲーム](../F-06_stage-d-minigames.md)  
 > 参考: https://www.timeless-edition.com/angel-numbers/
 
 ---

@@ -12,7 +12,7 @@
 | ファイル | 昇進先（正式仕様） | 概要 |
 | --- | --- | --- |
 | [F-10-angel-number-fortune.md](./F-10-angel-number-fortune.md) | [`milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](../../milestone/2026-06-23_milestone_f10-angel-number-fortune.md) | F-10 今日のエンジェルナンバー占い（元アイデア） |
-| [F-12-reminder.md](./F-12-reminder.md) | [`milestone/2026-06-23_milestone_f12-reminder.md`](../../milestone/2026-06-23_milestone_f12-reminder.md) | F-12 リマインダー機能（元アイデア。milestone側でタスク管理＋信頼度システムへ拡張済み） |
+| [F-12-reminder.md](./F-12-reminder.md) | [`milestone/2026-06-23_milestone_f12-reminder.md`](../../milestone/completed/2026-06-23_milestone_f12-reminder.md) | F-12 リマインダー機能（元アイデア。milestone側でタスク管理＋信頼度システムへ拡張済み） |
 | [phase3-followup-features.md](./phase3-followup-features.md) | [`milestone/completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md`](../../milestone/completed/2026-06-16_milestone_character-specialization-and-numerology-consultation.md) | Phase 3 後続機能（前提機能A・機能①ヌメロジー相談モード・機能②自発投稿キャラローテーション） |
 | [F-06_stage-b-c.md](./F-06_stage-b-c.md) | [`milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](../../milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md) | F-06 Stage B/C 名前ヌメロジー・月命星・宿曜・姓名判断（枡本つづり式採用でひらがなマッピング問題を解消） |
 | [F-15-corefolder-form-enhancement.md](./F-15-corefolder-form-enhancement.md) | [`milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](../../milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md) | F-15 コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出） |
@@ -23,7 +23,7 @@
 
 - [`F-06_stage-d-minigames.md`](../F-06_stage-d-minigames.md): D3-1・D3-2・D3-2c・D3-6・D3-7・D3-4a・D3-4b は
   milestone ドキュメントへ昇進済み（各 milestone ドキュメント参照。D3-4a/D3-4b は
-  [`milestone/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md`](../../milestone/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md)）。
+  [`milestone/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md`](../../milestone/completed/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md)）。
   D3-8（ポーカー・麻雀の手札/手牌交換、2026-07-05）・D3-5（キャラ番号ルーレット、2026-07-08）は実装済みだが、
   独立した milestone ドキュメントは作成せず本ファイル上でステータス更新のみ行ったため未昇進扱い。
 - [`creations-db-reference-expansion.md`](../creations-db-reference-expansion.md): 実装完了 ✅ の記録はあるが、

@@ -403,7 +403,7 @@ Fediverseで人気の `@remindme@mstdn.social` との差別化は、この「キ
 - **Phase B**: 信頼度演出（F-12B基礎。`user_trust` テーブル・`TrustContext` を `buildCharacterSystemPrompt()` に注入）
 - **Phase C**: 将来拡張（未定。Numerospecカバラ加護・キャラクター趣味特技連携・Lv.4固有演出）
 
-詳細仕様（正式）: [_ideas/milestone/2026-06-23_milestone_f12-reminder.md](../milestone/2026-06-23_milestone_f12-reminder.md)
+詳細仕様（正式）: [_ideas/milestone/2026-06-23_milestone_f12-reminder.md](../milestone/completed/2026-06-23_milestone_f12-reminder.md)
 元アイデア（簡易版・拡張前の初期構想）: [_ideas/future-plan/confirmed-milestone/F-12-reminder.md](../future-plan/confirmed-milestone/F-12-reminder.md)
 
 ---

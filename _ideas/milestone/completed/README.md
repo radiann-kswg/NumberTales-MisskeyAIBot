@@ -29,5 +29,8 @@
 | [2026-06-23_milestone_f12-reminder.md](./2026-06-23_milestone_f12-reminder.md)                                                   | F-12 / F-12B        | タスク＆スケジュール管理（優先度/難易度/進捗%）＋信頼度システム（F-12 MVP を置き換え） |
 | [2026-07-05_milestone_bug-task-add-roleplay.md](./2026-07-05_milestone_bug-task-add-roleplay.md)                                 | F-12・F-12B / ロールプレイ | バグ報告: タスク追加の失敗／タスク追加時のロールプレイ劣化（対応済み・実機ログ突き合わせ未実施） |
 | [2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md](./2026-07-04_milestone_operational-feedback-hitblow-task-dialogue.md) | F-06 D3 / F-12・F-12B / 会話 | 実運用フィードバック改修（ヒット＆ブロウ／タスク管理／会話パターン。難易度確認ワークフロー・メンション直列化を含め全対応済み） |
+| [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                                                 | 運用               | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）。レイヤー1〜3 すべて本番稼働中 |
+| [2026-07-20_milestone_downtime-recovery-notice.md](./2026-07-20_milestone_downtime-recovery-notice.md)                           | 運用               | 復旧通知（ダウンタイム明けに 000(チトセ) が停止時間を添えて自発投稿）           |
+| [2026-07-21_milestone_bug-roleplay-quality-task-ops.md](./2026-07-21_milestone_bug-roleplay-quality-task-ops.md)                 | バグ / F-12・F-12B  | ロールプレイ品質の低下・タスク登録/一覧の不具合・タスク登録時のキャラ特有感の欠如（実機報告） |
 
 進行中・未着手のマイルストーンは [`_ideas/milestone/README.md`](../README.md) を参照してください。
