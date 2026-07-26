@@ -174,9 +174,9 @@ export function parseRerollCommand(text: string, dice: number[]): RerollParseRes
 
   // 「振り直し 1 3 5」「1 3 を振り直し」など 1-indexed の位置指定（明示 → 即実行）
   const prefixMatch =
-    /(?:振り直し|ふりなおし|reroll)[\s　]*([1-5](?:[\s　,、]+[1-5])*)/i.exec(normalized);
+    /(?:振り直し|ふりなおし|reroll)[\s\u3000]*([1-5](?:[\s\u3000,、]+[1-5])*)/i.exec(normalized);
   const suffixMatch =
-    /([1-5](?:[\s　,、]+[1-5])*)[\s　]を?(?:振り直し|ふりなおし|reroll)/i.exec(normalized);
+    /([1-5](?:[\s\u3000,、]+[1-5])*)[\s\u3000]を?(?:振り直し|ふりなおし|reroll)/i.exec(normalized);
   const positionMatch = prefixMatch?.[1] ?? suffixMatch?.[1];
   const positionIndices = positionMatch
     ? [...new Set([...positionMatch.matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1))]
@@ -199,7 +199,7 @@ export function parseRerollCommand(text: string, dice: number[]): RerollParseRes
   }
 
   // 数字のみ（1〜5）のテキストも振り直し指定として許容する（キーワードなし → 曖昧指定・確認必須）
-  const numbersOnly = /^[\s　]*([1-5](?:[\s　,、]+[1-5])*)[\s　]*$/.exec(normalized);
+  const numbersOnly = /^[\s\u3000]*([1-5](?:[\s\u3000,、]+[1-5])*)[\s\u3000]*$/.exec(normalized);
   if (numbersOnly?.[1]) {
     const indices = [
       ...new Set([...numbersOnly[1].matchAll(/[1-5]/g)].map((m) => parseInt(m[0], 10) - 1)),

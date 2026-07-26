@@ -226,7 +226,7 @@ grep '"level":"error"' .cache/error.log  # error のみ
 ## 5. 自動復旧（ウォッチドッグ）
 
 障害レイヤーごとに3層で自動復旧する。詳細設計は
-[`_ideas/milestone/2026-07-04_milestone_auto-recovery.md`](../_ideas/milestone/2026-07-04_milestone_auto-recovery.md) を参照。
+[`_ideas/milestone/2026-07-04_milestone_auto-recovery.md`](../_ideas/milestone/completed/2026-07-04_milestone_auto-recovery.md) を参照。
 
 | レイヤー | 障害 | 復旧手段 |
 | -------- | ---- | -------- |

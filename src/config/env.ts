@@ -52,4 +52,12 @@ export const config = {
   features: {
     enableGlobalTL: optionalEnv('ENABLE_GLOBAL_TL', 'false') === 'true',
   },
+  recoveryNotice: {
+    /** ダウンタイム通知の下限閾値（これ未満は無言復帰。reload やウォッチドッグ再起動の数分を除外）。既定30分 */
+    thresholdMs: parseInt(optionalEnv('DOWNTIME_NOTICE_THRESHOLD_MS', String(30 * 60 * 1000)), 10),
+    /** ダウンタイム通知のクールダウン（クラッシュループでの連投を防ぐ）。既定6時間 */
+    cooldownMs: parseInt(optionalEnv('DOWNTIME_NOTICE_COOLDOWN_MS', String(6 * 60 * 60 * 1000)), 10),
+    /** ダウンタイム通知の上限（スナップショット復元で古い heartbeat が蘇る誤検知を弾く）。既定7日 */
+    maxMs: parseInt(optionalEnv('DOWNTIME_NOTICE_MAX_MS', String(7 * 24 * 60 * 60 * 1000)), 10),
+  },
 } as const;

@@ -15,6 +15,8 @@ import {
   TASK_MAX_ACTIVE,
 } from '../../storage/task.js';
 import { type TrustStore, type TrustContext } from '../../storage/trust.js';
+import { type CharacterAffinityStore } from '../../storage/character-affinity.js';
+import { toHalfWidthDigits } from '../../utils/text.js';
 import {
   extractTaskRequest,
   calculateProgress,
@@ -136,7 +138,22 @@ export interface MentionHandlerDeps {
   botState: BotStateStore;
   taskStore: TaskStore;
   trustStore: TrustStore;
+  characterAffinityStore: CharacterAffinityStore;
 }
+
+/** アフィニティ加算量（F-14 Phase 1・暫定値。実運用で調整） */
+const AFFINITY_TASK_COMPLETE = 3;
+const AFFINITY_DAILY_CHAT = 1;
+/** 1日にアクティブキャラへ加算できるアフィニティ上限（スパム防止） */
+const AFFINITY_DAILY_CAP = 10;
+
+/** 親密度照会での表示ラベル（AffinityLevel 0-3 に対応） */
+const AFFINITY_LEVEL_LABELS: Record<0 | 1 | 2 | 3, string> = {
+  0: 'まだこれから',
+  1: '顔なじみ',
+  2: '仲良し',
+  3: '大の仲良し',
+};
 
 /**
  * キャラクター切替・フォーム切替の応答を LLM で生成する。
@@ -371,7 +388,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -580,8 +597,8 @@ export async function handleMention(
         : buildCharacterSwitchText(switchTarget, alreadyActive);
       const switchScenario = requestedFormTarget
         ? requestedFormTarget === 'core-folder'
-          ? 'コアフォルダ形態（球体型）に切り替わりました。ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
-          : 'ヒューマノイド形態に戻りました。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。'
+          ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+          : 'ヒューマノイド形態（人型）へ変形して戻りました。しゅるっと人型に戻る過程を短く演出しつつ、あなたのキャラクターとして自然に一言どうぞ（60文字以内）。'
         : alreadyActive
           ? 'ユーザーが再度あなたを指名しました。すでにあなたが担当中であることを、あなたのキャラクターとして短く伝えてください（60文字以内）。'
           : 'ユーザーがあなたを担当キャラクターに指名しました。あなたのキャラクターとして短い一言で挨拶してください（70文字以内）。';
@@ -1229,7 +1246,14 @@ export async function handleMention(
   // 4a-post. F-12B 会話ボーナス（1日1回+3pt）: 意味のある交流インテントのみ対象。
   // 挨拶・フォーム切替・ハラスメント対応・キャラ切替は対象外。
   if (TRUST_BONUS_INTENTS.has(effectiveIntent)) {
-    trustStore.maybeAddDailyChatBonus(event.userId, getJstDateString(Date.now()));
+    const today = getJstDateString(Date.now());
+    if (trustStore.maybeAddDailyChatBonus(event.userId, today)) {
+      // 会話ボーナスが発生した日は、アクティブキャラのアフィニティも少し加算する（F-14）
+      characterAffinityStore.addPoints(event.userId, activeCharacterNum, AFFINITY_DAILY_CHAT, {
+        dailyCap: AFFINITY_DAILY_CAP,
+        todayJstDateStr: today,
+      });
+    }
   }
 
   // 4b. ハラスメント検知 → 仲介ロジック（F-07）
@@ -1505,6 +1529,10 @@ export async function handleMention(
           } else if (isDone) {
             taskStore.markDone(resolved.id, Date.now());
             trustStore.recordTaskCompletion(event.userId, resolved.priority, resolved.difficulty);
+            characterAffinityStore.addPoints(event.userId, activeCharacterNum, AFFINITY_TASK_COMPLETE, {
+              dailyCap: AFFINITY_DAILY_CAP,
+              todayJstDateStr: getJstDateString(Date.now()),
+            });
             taskReplyText = `「${resolved.title}」、おつかれ！ちゃんと終わったんだね。`;
           } else {
             taskStore.markCancelled(resolved.id);
@@ -1515,6 +1543,10 @@ export async function handleMention(
           if (isDone) {
             taskStore.markDone(t.id, Date.now());
             trustStore.recordTaskCompletion(event.userId, t.priority, t.difficulty);
+            characterAffinityStore.addPoints(event.userId, activeCharacterNum, AFFINITY_TASK_COMPLETE, {
+              dailyCap: AFFINITY_DAILY_CAP,
+              todayJstDateStr: getJstDateString(Date.now()),
+            });
             taskReplyText = `「${t.title}」、おつかれ！ちゃんと終わったんだね。`;
           } else {
             taskStore.markCancelled(t.id);
@@ -1631,6 +1663,46 @@ export async function handleMention(
     // taskReplyText === '' の場合（task-done で該当タスクなし）は通常の雑談応答へフォールスルーする
   }
 
+  // 4e. 親密度照会（F-14）: 「78とどれくらい仲良し？」「仲良し度ランキング教えて」等
+  if (effectiveIntent === 'affinity-check') {
+    const numMatch = toHalfWidthDigits(event.text).match(/(\d+)\s*番?/);
+    let affinityReply: string;
+    if (numMatch?.[1]) {
+      const targetNum = String(parseInt(numMatch[1], 10));
+      const target = getReleasedCharacterByNum(targetNum);
+      if (!target) {
+        affinityReply = 'そのキャラは見つからなかったな。番号か名前で教えてくれる？';
+      } else {
+        const name = target.Name_JP ?? target.Name ?? `${targetNum}番機`;
+        const level = characterAffinityStore.getLevel(event.userId, targetNum);
+        affinityReply =
+          `${name}との仲良し度は「${AFFINITY_LEVEL_LABELS[level]}」だよ。` +
+          (level > 0 ? '一緒に過ごした分だけ深まってるね。' : 'これから仲良くなっていこう！');
+      }
+    } else {
+      const list = characterAffinityStore.listByAffinity(event.userId).slice(0, 5);
+      if (list.length === 0) {
+        affinityReply =
+          'まだ誰とも仲良し度が育ってないみたい。タスクを一緒にこなしたり話しかけたりすると深まるよ。';
+      } else {
+        const lines = list.map((e, i) => {
+          const c = getReleasedCharacterByNum(e.charNum);
+          const nm = c?.Name_JP ?? c?.Name ?? `${e.charNum}番機`;
+          return `${i + 1}. ${nm}（${AFFINITY_LEVEL_LABELS[e.level]}）`;
+        });
+        affinityReply = `今の仲良し度ランキングはこんな感じだよ。\n${lines.join('\n')}`;
+      }
+    }
+    try {
+      await misskeyClient.reply(formatSpeech(activeCharacterNum, affinityReply), event.noteId);
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (affinity-check) to ${event.userId}`);
+    } catch (err) {
+      logger.error('Failed to post affinity-check reply:', err);
+    }
+    return;
+  }
+
   // 5. 応答生成 → 000(チトセ) 発言書式に整形
   let speechText: string;
   if (effectiveIntent === 'greeting') {
@@ -1643,8 +1715,8 @@ export async function handleMention(
     activeCharacterStore.setForm(event.userId, targetForm);
     const formScenario =
       targetForm === 'core-folder'
-        ? 'コアフォルダ形態（球体型）に切り替わりました。ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
-        : 'ヒューマノイド形態に戻りました。あなたのキャラクターとして自然に一言どうぞ（60文字以内）。';
+        ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+        : 'ヒューマノイド形態（人型）へ変形して戻りました。しゅるっと人型に戻る過程を短く演出しつつ、あなたのキャラクターとして自然に一言どうぞ（60文字以内）。';
     const formFallback = buildFormSwitchText(activeCharacter, targetForm);
     speechText = formatSpeech(
       activeCharacterNum,

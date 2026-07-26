@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { logger } from './logger.js';
 
@@ -72,5 +72,27 @@ export class HeartbeatWriter {
       // 書き込み失敗で Bot 本体を止めない（ログのみ）
       logger.warn('Failed to write heartbeat file:', err);
     }
+  }
+}
+
+/**
+ * 直近のハートビートファイルを読み取り、前回プロセスが最後に生存していた状態を返す。
+ * 復旧通知のダウンタイム算出に使う。**必ず HeartbeatWriter.start() が最初の beat() で
+ * 上書きする前に呼ぶこと**（さもないと今回起動の ts を読んでしまいダウンタイムが 0 になる）。
+ * ファイル無し・パース不能・`ts` が数値でない等はすべて null を返す。
+ */
+export function readLastHeartbeat(filePath: string): HeartbeatStatus | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(filePath, 'utf-8'));
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as HeartbeatStatus).ts === 'number'
+    ) {
+      return parsed as HeartbeatStatus;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }

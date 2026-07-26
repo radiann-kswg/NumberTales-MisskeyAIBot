@@ -2,8 +2,10 @@
 
 > 更新日: 2026-07-09（gcloud CLI 導入によりレイヤー3〔GCE外部ウォッチドッグ〕をデプロイ・
 > 動作確認まで完了。`automaticRestart` 確認も完了）
-> ステータス: レイヤー1・2・3 すべて本番稼働中 ✅／`automaticRestart` も有効化済みと確認 ✅
+> ステータス: 完了 ✅（レイヤー1・2・3 すべて本番稼働中／`automaticRestart` も有効化済みと確認）
 > （残るは障害注入テストのみ。詳細は「残作業」参照）
+> 完了根拠: 2026-07-09 にレイヤー3（GCE外部ウォッチドッグ）のデプロイ・動作確認まで完了。
+> 2026-07-26 に `completed/` へ棚卸し。
 
 ## 背景・目的
 
@@ -43,10 +45,10 @@ VM インスタンス上の Bot がエラー落ち・処理落ち（ハング）
 ## 残作業（VM・GCP 側セットアップ）
 
 - [x] develop → master デプロイ後、VM で systemd timer を導入（2026-07-08）
-      （手順: [docs/deployment.md](../../docs/deployment.md) §5-2）。
+      （手順: [docs/deployment.md](../../../docs/deployment.md) §5-2）。
       `systemctl is-enabled` / `is-active` とも確認済み、次回トリガーも正常に予約されていることを確認。
       VM側リポジトリは `git status` クリーン・`git log -1` が `d4426d3`（develop→master マージ済み最新）。
-- [x] GCE外部ウォッチドッグのデプロイ（手順: [tools/gce-watchdog/README.md](../../tools/gce-watchdog/README.md)）
+- [x] GCE外部ウォッチドッグのデプロイ（手順: [tools/gce-watchdog/README.md](../../../tools/gce-watchdog/README.md)）
       — 実機: プロジェクト `numbertales-misskey-surver` / ゾーン `us-central1-a` /
       インスタンス `misskey-bots-group-numbertales`。2026-07-09、ローカル開発機に導入された
       `gcloud` CLI（575.0.1、`snine9801@gmail.com` 認証済み。100(モモ)がAPHRNTs_100リポジトリ側で

@@ -16,7 +16,7 @@
 | 前提 B | 週次担当キャラクター選出         | なし           | 高     |
 | 機能③  | ハラスメント仲介（F-07）         | 前提 A（推奨） | 高     |
 
-詳細コンセプトは [\_ideas/bot-spec/04_next-feature-concepts.md](../bot-spec/04_next-feature-concepts.md) を参照。
+詳細コンセプトは [\_ideas/bot-spec/04_next-feature-concepts.md](../../bot-spec/04_next-feature-concepts.md) を参照。
 
 ---
 

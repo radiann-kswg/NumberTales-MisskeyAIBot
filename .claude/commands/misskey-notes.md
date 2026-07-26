@@ -2,11 +2,10 @@
 description: Botの直近Misskey投稿をAPIから取得してデバッグ表示する
 ---
 
-以下のコマンドを実行して、Botの直近10件のMisskey投稿を取得・表示してください。
-件数を変えたい場合は `--limit N` を引数に追加してください。
+Bot の直近 Misskey 投稿を取得してデバッグ表示します。
 
-```bash
-node tools/fetch-misskey-notes.mjs
-```
+**手順の正典は [.agents/skills/misskey-notes/SKILL.md](../../.agents/skills/misskey-notes/SKILL.md) です。**
+このファイルは薄いポインタなので、同 SKILL.md を読み込み、そこに書かれた手順に従って実行してください
+（手順をこのファイルに複製しないこと。詳細は [AGENTS.md の「スキル定義の同期ルール」](../../AGENTS.md#スキル定義の同期ルール)）。
 
-取得結果を確認して、必要であればデバッグに役立つ情報（投稿内容・日時・visibility 等）を解説してください。
+引数が渡された場合（例: `--limit 30`）は、SKILL.md のコマンドにそのまま引き継いでください: $ARGUMENTS

@@ -1,10 +1,17 @@
 # 運用: 復旧通知（ダウンタイム明けの「寝てました」投稿） — 実装仕様
 
 > 作成日: 2026-07-20
-> ステータス: **着手待ち** 📋
+> ステータス: 完了 ✅（2026-07-21・PR #27 で develop へマージ済み。**本番デプロイ後の実機確認は未実施**）
+> 完了根拠: 実装＋vitest による検証まで完了（下記「検証」）。2026-07-26 に `completed/` へ棚卸し。
+>
+> 実装: `src/features/recovery-notice.ts`（新規）／`utils/heartbeat.ts` に `readLastHeartbeat()` 追加／
+> `index.ts` で HeartbeatWriter 生成前に前回 ts を退避し起動後に非ブロッキング発火／
+> `misskey/client.ts` の `post()` に `visibility` オプション追加（復旧通知は `home`）／
+> `config/env.ts`・`.env.example` に `DOWNTIME_NOTICE_{THRESHOLD,COOLDOWN,MAX}_MS` を追加。
+> 検証: `formatDowntime` 7件＋判定分岐8件（初回・負値・閾値未満・上限超過・クールダウン内外・WS未接続・正常）を vitest で固定化。
 > 着想: Misskey Bot「藍ちゃん」の復帰時自動投稿（「ん、私、寝てた…？」）
 > 関連: [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)（ハートビート基盤を流用）、
-> [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md)（演出連携・任意）
+> [2026-07-20_milestone_f15-corefolder-form-enhancement.md](../2026-07-20_milestone_f15-corefolder-form-enhancement.md)（演出連携・任意）
 
 ---
 
@@ -33,7 +40,7 @@ Bot が一定時間以上停止した状態から再起動したとき、**000(�
 - 閾値以上でも Misskey 接続確立前は投稿しない（WebSocket 接続完了後に投稿）
 
 > **⚠️ なぜ上限が要るか（2026-07-20 追記）**
-> [docs/vm-os-upgrade.md](../../docs/vm-os-upgrade.md) のロールバック手順で
+> [docs/vm-os-upgrade.md](../../../docs/vm-os-upgrade.md) のロールバック手順で
 > **ディスクスナップショットから復元すると、`.cache/heartbeat.json` が
 > スナップショット取得時点の古い `ts` を持ったまま復活する。**
 > 実際には停止していないのに「現在時刻 − 古い ts」が巨大値となり、

@@ -63,6 +63,49 @@ export interface HideTextWrapper {
   hideText: string;
 }
 
+/**
+ * 補足付きの値（`{ value, about_JP, about_EN }` 形式）。
+ * `value` を持たず補足だけのレコードも実在する（例: ConceptAge が `{ about_JP: "？" }`）。
+ */
+export interface CharacterValueLike {
+  value?: number | string | null;
+  about_JP?: string | null;
+  about_EN?: string | null;
+  /** 備考（旧フィールド名・後方互換用） */
+  about?: string | null;
+}
+
+/**
+ * 身長・体重・設定年齢のような計測系フィールド。
+ *
+ * 「素の数値」だけでなく補足付き値・その配列・非公開ラッパーも取りうる（upstream 実データで確認）。
+ * 例: `Height_cm` #67 = `[{value:145,about_JP:"通常時"},{value:190,about_JP:"筋装備時"}]`、
+ * `Weight_kg` は released 92 件中 35 件が `{hideText:"非公開"}`。
+ * 素の `number` 前提で扱うと表示が欠落する（`String(obj)` で `[object Object]` 化する）ため、
+ * 参照側は必ず `resolveMeasureField()` 経由で解決すること。
+ */
+export type CharacterMeasureField =
+  | number
+  | CharacterValueLike
+  | CharacterValueLike[]
+  | HideTextWrapper;
+
+/** 尻尾ユニット（$Def_TailsUnit[]）: 形状・本数・注記 */
+export interface CharacterTailsUnit {
+  /** 形状の enum 参照（例: "#TailShape_Cat"）。生成カードでは日本語化済みの文面が使われる */
+  TailShapeType?: string;
+  Count?: number;
+  /** 分岐数（複数股の尻尾）。released 92 件中 65 件が保持 */
+  Branches?: number;
+  /** 節の数（分節構造を持つ尻尾） */
+  Segment?: number;
+  /** 尻尾ユニット画像のファイル名（Bot 側では未使用） */
+  TailsUnit_PNGName?: string;
+  Note_JP?: string;
+  Note_EN?: string;
+  Note?: string;
+}
+
 export interface CharacterRecord {
   Num: string | number;
   Name_JP?: string;
@@ -104,6 +147,16 @@ export interface CharacterRecord {
   /** 背景・来歴 */
   Backgrounds_JP?: string;
   Backgrounds?: string;
+  /** 身長（cm・ヒューマノイド形態の等身）。F-15 身体性コンテキストで使用 */
+  Height_cm?: CharacterMeasureField;
+  /** 体重（kg） */
+  Weight_kg?: CharacterMeasureField;
+  /** 設定年齢 */
+  ConceptAge?: CharacterMeasureField;
+  /** クラス・分類タグ（例: ["試験用個体","1桁番(ユニデジッツ)"]） */
+  Class?: string[];
+  /** 尻尾ユニット（形状・本数）。F-15 身体性コンテキストで使用 */
+  TailsUnit?: CharacterTailsUnit[];
   /** 三人称での呼び方（他者からの言及時） */
   ThirdPersonCalling_JP?: string;
   ThirdPersonCalling?: string;

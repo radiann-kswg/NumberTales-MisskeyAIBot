@@ -11,7 +11,7 @@
   `TASK_DONE_PATTERNS`（「完了」）が語単独でもマッチする広いパターンだったため、「進捗管理のためにタスク登録して」
   のような追加依頼が `task-list`/`task-done` に誤分類され、タスクが登録されないまま雑談応答へフォールスルーして
   いた。`TASK_ADD_PATTERNS` の判定順を `task-list`/`task-done`/`task-cancel` より先に変更し、明示的な追加トリガー
-  語がある場合はそちらを優先するよう修正（[intent.ts](../../src/bot/classifier/intent.ts)）。
+  語がある場合はそちらを優先するよう修正（[intent.ts](../../../src/bot/classifier/intent.ts)）。
 - **タスク追加時だけロールプレイが中途半端**: `src/bot/handlers/mention.ts` のタスク登録確認メッセージ生成プロンプトに、
   他の応答経路（F-06結果・挨拶・キャラ切替等）と同様の「あなたのキャラクターとして自然に」という明示指示が
   欠けていたため修正。

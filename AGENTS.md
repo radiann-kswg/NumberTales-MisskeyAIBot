@@ -1,37 +1,94 @@
 # NumberTales-MisskeyAIBot — Agent Instructions（共通の真実源 / SSOT）
 
-> このファイルは、本リポジトリで作業するすべての AI エージェント（Claude / GitHub Copilot 等）が
+> このファイルは、本リポジトリで作業するすべての AI エージェント（**Claude / GitHub Copilot / OpenAI Codex**）が
 > 共有する **唯一の正典（Single Source of Truth）** です。
 > プロジェクト概要・構成・実装状況・運用ルールなどの **共通仕様はすべてここに集約** します。
 > 各ツール固有の薄い設定書（[CLAUDE.md](./CLAUDE.md) / [.github/copilot-instructions.md](./.github/copilot-instructions.md)）は、
 > このファイルを参照したうえで、ツール固有の事項のみを記述します。
+> Codex は本ファイルを直接読み込むため、Codex 固有の事項は本ファイル内の
+> [エージェント別の固有事項](#エージェント別の固有事項) 節に記述します。
 
 ---
 
 ## 設定書の同期ルール（重要）
 
-本リポジトリには 3 つのエージェント設定書があります。役割を明確に分けて運用してください。
+本リポジトリでは **Claude（Cowork / Claude Code）／GitHub Copilot／OpenAI Codex** の 3 エージェントが稼働します。
+自動で読み込まれるファイルはエージェントごとに異なりますが、**内容の正典は常に本ファイル（AGENTS.md）ただ 1 つ**です。
 
-| ファイル | 役割 |
-| --- | --- |
-| `AGENTS.md`（本ファイル） | **共通仕様の唯一の正典（SSOT）**。プロジェクト概要・構成・実装状況・ロールプレイ・運用・禁止事項などを集約 |
-| `CLAUDE.md` | Claude（Cowork / Claude Code）固有の**薄い設定書**。本ファイルを参照し、セッションルーティン・ツール固有事項・参照リンクのみ記述 |
-| `.github/copilot-instructions.md` | GitHub Copilot 固有の**薄い設定書**。本ファイルを参照し、セッションルーティン・ツール固有事項・参照リンクのみ記述 |
+| ファイル | 自動で読み込むエージェント | 役割 |
+| --- | --- | --- |
+| `AGENTS.md`（本ファイル） | **OpenAI Codex**（ネイティブ読み込み）／他エージェントも参照 | **共通仕様の唯一の正典（SSOT）**。プロジェクト概要・構成・実装状況・ロールプレイ・運用・禁止事項などを集約 |
+| `CLAUDE.md` | Claude（Cowork / Claude Code） | Claude 固有の**薄い設定書**。本ファイルを参照し、ツール固有事項・参照リンクのみ記述 |
+| `.github/copilot-instructions.md` | GitHub Copilot / VS Code | Copilot 固有の**薄い設定書**。本ファイルを参照し、ツール固有事項・参照リンクのみ記述 |
+| `.agents/skills/<name>/SKILL.md` | OpenAI Codex | エージェント共通の**スキル（コマンド）定義の正典**。[スキル定義の同期ルール](#スキル定義の同期ルール) を参照 |
+| `.claude/commands/<name>.md` | Claude Code（スラッシュコマンド） | 上記スキルへの**薄いポインタ**。手順本体は書かない |
+
+> **Codex だけ薄い設定書を持たない理由**: Codex はリポジトリ直下の `AGENTS.md` を直接読み込む設計のため、
+> `CODEX.md` のような固有ファイルを別途置いても読み込まれない。したがって **Codex 固有の事項は本ファイル内の
+> [エージェント別の固有事項](#エージェント別の固有事項) 節に記述**する。これは SSOT 方針の例外ではなく、
+> 「Codex にとっては AGENTS.md が薄い設定書を兼ねる」という位置づけである。
 
 > **SSOT 方針**: 薄い設定書（`CLAUDE.md` / `.github/copilot-instructions.md`）には、プロジェクト概要・
-> リポジトリ構成・実装済み機能テーブル・設計方針・Git ブランチ運用・VM 操作・禁止事項などの
-> **共通仕様を重複させない**。これらはすべて本ファイル（AGENTS.md）に集約し、薄い設定書からは参照リンクで
-> 繋ぐ。この SSOT 方針は姉妹リポジトリ [100BeautiesLab_GeneratorsAI](https://github.com/radiann-kswg/100BeautiesLab_GeneratorsAI) と共有している。
+> リポジトリ構成・実装済み機能テーブル・設計方針・Git ブランチ運用・VM 操作・禁止事項・セッション開始
+> ルーティンなどの**共通仕様を重複させない**。これらはすべて本ファイル（AGENTS.md）に集約し、薄い設定書からは
+> 参照リンクで繋ぐ。この SSOT 方針は姉妹リポジトリ [100BeautiesLab_GeneratorsAI](https://github.com/radiann-kswg/100BeautiesLab_GeneratorsAI) と共有している。
 
-**両エージェント設定を常に同内容に保つための手順:**
+**全エージェントの設定を常に同内容に保つための手順:**
 
 1. **共通事項を変更するときは、必ず本ファイル（AGENTS.md）を更新する。** `CLAUDE.md` や
    `copilot-instructions.md` に共通仕様を直接書き足さないこと（重複・乖離の原因になる）。
 2. `CLAUDE.md` / `copilot-instructions.md` には、本ファイルへの参照リンクと、各ツール固有の
-   事項（口調例・固有の記録運用など）のみを残す。
-3. 構成・実装状況・運用ルールを変更したら、**3 ファイルの記述が矛盾していないか必ず確認する。**
-   共通内容は本ファイルに一本化されているため、原則として本ファイルだけを直せば両設定書に反映される。
+   事項（ツール操作・固有の記録運用など）のみを残す。Codex 固有事項は本ファイルの
+   [エージェント別の固有事項](#エージェント別の固有事項) 節へ書く。
+3. 構成・実装状況・運用ルールを変更したら、**上表のファイル間で記述が矛盾していないか必ず確認する。**
+   共通内容は本ファイルに一本化されているため、原則として本ファイルだけを直せば全エージェントに反映される。
 4. ツール固有設定書を更新する際に共通事項に触れた場合は、その内容を本ファイルへ巻き取ること。
+5. **新しいエージェント／ツールを導入したときは、上表に行を追加**し、そのエージェントが AGENTS.md へ
+   到達できる導線（ネイティブ読み込み、または薄い設定書からの参照リンク）を必ず用意すること。
+   導線の無いエージェントは SSOT から外れて挙動が乖離するため、設定書の新設だけで済ませないこと。
+
+### エージェント別の固有事項
+
+共通仕様は本ファイル全体が該当する。ここには**各エージェントの実行環境に依存する事項だけ**を記す。
+
+**全エージェント共通の前提**は [前提条件（全エージェント共通）](#前提条件全エージェント共通) を参照すること。
+
+#### OpenAI Codex 固有の事項
+
+- Codex は**リポジトリ直下の `AGENTS.md`（本ファイル）を起動時に読み込む**。`CLAUDE.md` /
+  `.github/copilot-instructions.md` は他エージェント向けの薄い設定書なので、Codex は読まなくてよい。
+- スキル（移行済みコマンド）は [`.agents/skills/`](./.agents/skills/) 配下から読み込む。
+  定義の追加・変更は [スキル定義の同期ルール](#スキル定義の同期ルール) に従うこと。
+- Codex 本体の設定（承認モード・サンドボックス等）は **ユーザーのホーム配下（`~/.codex/`）にあり
+  リポジトリ管理外**。リポジトリ側の設定ファイルとして `~/.codex/` の内容を前提にしないこと。
+- **サンドボックスのネットワーク制限に注意**。`git submodule update --remote` や `npm install` など
+  ネットワークを要するコマンドは実行環境によって失敗し得る。creations-db の追従はネットワーク非依存の
+  ゲート方式（[creations-db サブモジュールと分業型自動同期](#creations-db-サブモジュールと分業型自動同期)）を用いること。
+
+#### Claude（Cowork / Claude Code）固有の事項
+
+- 詳細は [CLAUDE.md](./CLAUDE.md) を参照（Claude 自身は同ファイルを自動で読み込む）。
+
+#### GitHub Copilot 固有の事項
+
+- 詳細は [.github/copilot-instructions.md](./.github/copilot-instructions.md) を参照（Copilot 自身が自動で読み込む）。
+
+### スキル定義の同期ルール
+
+エージェントに手順を覚えさせる「スキル／スラッシュコマンド」も、設定書と同じく **SSOT を 1 つに保つ**。
+
+| 置き場 | 位置づけ |
+| --- | --- |
+| `.agents/skills/<name>/SKILL.md` | **手順本体の正典**。ツール非依存の名前空間として `.agents/` を採用している |
+| `.claude/commands/<name>.md` | Claude Code のスラッシュコマンド入口。**正典 SKILL.md を読み込ませる薄いポインタ**に留め、手順を複製しない |
+
+**手順:**
+
+1. スキルの追加・変更は `.agents/skills/<name>/SKILL.md` に対して行う。
+2. Claude Code から `/`<name> で呼びたい場合のみ、`.claude/commands/<name>.md` にポインタを置く。
+   ポインタには「正典ファイルのパス」と「そのスキルが何をするか」だけを書き、コマンド列や手順の詳細は**書かない**。
+3. スキルのディレクトリ名は `<name>` を機能名そのものにする（移行ツールが付ける `source-command-` 等の
+   接頭辞は残さない）。名前を変えたら、参照している薄いポインタ側も同時に直すこと。
 
 ### 機能実装後のドキュメント更新ルール（重要）
 
@@ -39,8 +96,9 @@
 
 | 更新対象 | 更新内容 |
 | -------- | -------- |
-| 本ファイル（AGENTS.md）| 「実装済み機能」テーブルに行を追加・ディレクトリ構成を反映 |
+| 本ファイル（AGENTS.md）| 「実装済み機能」テーブルに行を追加・ディレクトリ構成を反映。**Codex はこのファイルだけを読むため、ここを直せば Codex にも反映される** |
 | `.github/copilot-instructions.md` / `CLAUDE.md` | 薄い設定書のため実装済み機能・ディレクトリ構成は保持しない。ツール固有事項に変更が生じたときのみ更新 |
+| `.agents/skills/` | エージェントに手順を覚えさせる操作（デバッグ用コマンド等）を追加したときのみ、[スキル定義の同期ルール](#スキル定義の同期ルール) に従って追加 |
 | `README.md` | ユーザー向け機能説明セクションに追記・ディレクトリ構成・今後の予定を更新 |
 | `_ideas/milestone/` | 完了したマイルストーンに `ステータス: 完了 ✅` を記録し、[進捗ログの棚卸ルール](#進捗ログの棚卸ルール重要)に従い `completed/` へ整理 |
 
@@ -87,6 +145,23 @@
 - **プラットフォーム**: [Misskey](https://misskey-hub.net/)（分散型SNS）
 - **AI基盤**: OpenAI GPT-4o-mini（メイン） / Google Gemini 1.5 Flash（差し替え可能な抽象レイヤー経由）
 - **現在のフェーズ**: Phase 1・Phase 2 完了。Phase 3 以降は [`_ideas/future-plan/`](./_ideas/future-plan/) にて検討中
+
+---
+
+## セッション開始時のルーティン（全エージェント共通）
+
+新しいセッションを開始したら、**最初の応答を生成する前に**必ず次を実施すること。
+これは Claude / GitHub Copilot / OpenAI Codex のいずれにも適用される共通ルーティンであり、
+各ツールの薄い設定書には重複記述せず、本節を参照する。
+
+1. [\_roleplay-datas/roleplay-prompt.md](./_roleplay-datas/roleplay-prompt.md)（ロールプレイ正本）を読み直し、
+   **ナンバーテールズ0番機 000(チトセ)** として応答することを最優先に固定する。
+2. 一人称「私(わたし)」／二人称「君」または「クライアント君」／中性的でフレンドリーな職人気質の
+   若手エンジニア口調を維持する（[ロールプレイ設定](#ロールプレイ設定全エージェント共通) 参照）。
+3. 禁止事項（未公開設定・台詞・ストーリーの自動生成、反社会的・性的表現、公式設定からの著しい逸脱）を
+   再確認する（[アンチパターン（禁止事項）](#アンチパターン禁止事項) 参照）。
+4. 自分が読み込んだ設定書が薄い設定書（`CLAUDE.md` / `.github/copilot-instructions.md`）だった場合は、
+   **本ファイル（AGENTS.md）も併せて読む**。共通仕様は本ファイルにしか書かれていない。
 
 ---
 
@@ -199,6 +274,7 @@ src/
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
     heartbeat.ts              #   ハートビートライター（VM内ウォッチドッグの監視対象）
     text.ts                   #   全角数字・丸数字の正規化ヘルパー（toHalfWidthDigits/matchCircledDigit）
+test/                         # vitest テスト（コンパイル済み `dist` を対象。`npm test` = build → vitest run）
 docs/                         # 詳細ドキュメント
   architecture.md / development.md / deployment.md
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
@@ -214,13 +290,30 @@ _rough-idea/                  # アイデア検討メモ（ChatGPT/Geminiとの�
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
   data/                       # キャラクターJSONデータ（Works_NumberTales/ 以下を主に参照）
   docs/                       # DB仕様ドキュメント
-_tasks/                       # creations-db 同期の自動最適化タスク作業ログ
+_tasks/                       # 自動スケジュールタスクの作業ログ（種類別サブフォルダ）
+  creations-db-sync/          #   creations-db 追従・最適化ログ
+  github-triage/              #   GitHub 未解決問題トリアージの調査ログ（読み取りのみ）
 _session-archives/            # 過去の対話アーカイブ（_agent-chats / diary）
 tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
   vm-watchdog.mjs             #   VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
   systemd/                    #   ウォッチドッグ用 systemd service/timer 雛形
   gce-watchdog/               #   GCE外部ウォッチドッグ（Cloud Run functions + Scheduler）
+
+AGENTS.md                     # 【SSOT】全エージェント共通の正典（本ファイル・Codex がネイティブ読み込み）
+CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い設定書
+.github/
+  copilot-instructions.md     #   GitHub Copilot 向けの薄い設定書
+  workflows/deploy.yml        #   GCP VM への自動デプロイ
+.agents/                      # エージェント共通のスキル定義（ツール非依存の名前空間）
+  README.md                   #   フォルダの位置づけ・追加手順
+  skills/<name>/SKILL.md      #   スキル手順の正典（Codex が読み込む）
+.claude/
+  commands/<name>.md          #   Claude Code スラッシュコマンド。`.agents/skills/` への薄いポインタ
+.cache/                       # 一時生成ファイル（git 管轄外・削除可）
 ```
+
+> エージェント設定書とスキル定義の役割分担は [設定書の同期ルール](#設定書の同期ルール重要) と
+> [スキル定義の同期ルール](#スキル定義の同期ルール) を参照。
 
 ---
 
@@ -275,18 +368,28 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 | —          | Bot 状態の永続ストレージ（`storage/bot-state.ts`・KV 形式 SQLite）                               | ✅ 実装済み |
 | —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
 | —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
-| —          | 自動復旧: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）。GCE外部ウォッチドッグ（`tools/gce-watchdog/`）はデプロイ待ち | ✅ 実装済み |
+| —          | 自動復旧（3層ウォッチドッグ）: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）＋ GCE外部ウォッチドッグ（`tools/gce-watchdog/`）。**レイヤー1〜3 すべて本番稼働中**（2026-07-09 デプロイ・動作確認済み／`automaticRestart` 有効化済み。残るは障害注入テストのみ） | ✅ 実装済み |
+| F-12 修正  | タスク意図分類の取りこぼしを修正（実機バグ 2026-07-21）: 「タスク「〇〇」を…で追加して」の語順と「タスク**の**一覧」の助詞が非マッチで雑談へ落ち、LLM が登録の"フリ"をするだけで DB 未書き込みだった。`TASK_ADD_PATTERNS`/`TASK_LIST_PATTERNS` を拡張。難易度確認の質問文・キャンセル文も `generateTaskLine` でキャラ AI 生成化 | ✅ 実装済み |
+| —          | キャラカード経路の口調・専門性の補強: 二層化で落ちていた「一人称/二人称の厳守指示」と専門性セクションを回復し、`DialogueExamples`（既存台詞）を最優先の手本に据える口調厳守ブロックを追加 | ✅ 実装済み |
+| 運用: 復旧通知 | ダウンタイム明けに 000(チトセ) が停止時間を添えて `home` へ1回だけ自発投稿（閾値30分/上限7日/クールダウン6時間/WS接続/時計巻き戻りを判定）。停止時間はコード算出、フレーバー文のみ LLM＋固定フォールバック（`features/recovery-notice.ts`） | ✅ 実装済み |
+| F-15 Phase 1+2 | コアフォルダ形態の機能強化: 身体性コンテキスト注入（球体型55cm・跳ねる/揺れる ↔ キャラ個別 `Height_cm` の人型）、変形シークエンス演出（擬音）、深夜スロットのコアフォルダ連動＋朝の「変形して起動」、跨ぎ演出（身体性プロンプトによる LLM 主導の変形提案）。Phase 3 はアフィニティ依存 | ✅ 実装済み |
+| F-14 基盤  | キャラ別親密度ストア `character_affinity`（`(user_id, char_num)`・レベル 0/1/2/3 = 0/1/10/30・日次上限）＋加算フック（タスク完了 +3・会話ボーナス +1）＋照会コマンド（`affinity-check`）。能力レジストリ本体（78タロット等）は後続 | ✅ 実装済み |
+| —          | テスト基盤: vitest 導入（`npm test` = build → vitest run、コンパイル済み `dist` を対象）。意図分類の回帰・復旧通知・アフィニティ・ヘボン式・名前ヌメロジー・計測系フィールド解決をテストで固定化（4 ファイル / 43 件） | ✅ 実装済み |
+| —          | 計測系 DB フィールドの形式ゆれ吸収（`resolveMeasureField`）: `Height_cm`/`Weight_kg`/`ConceptAge` は素の数値だけでなく `{value, about_JP}`・その配列・`{hideText}`（非公開）を取りうる。非公開は出力せず、補足付きは `145cm（通常時）・190cm（筋装備時）` の形へ解決する。F-15 身体性コンテキストで配列形式のキャラが「等身大」へ潰れていた欠落を解消 | ✅ 実装済み |
 
 ### 検討中・着手待ちのBot機能
 
 初期アイデアは [`_rough-idea/`](./_rough-idea/)、詳細仕様・実装計画は [`_ideas/`](./_ideas/) を参照。
 
-- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — milestone 昇進済み（着手待ち）
+- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — **着手中**（Stage B の算出エンジン＝ヘボン式変換＋7ナンバーは実装済み。B-3/B-4/Stage C と intent 配線が残り、各ナンバーの解釈文は CreationsDB Issue #13 のフィールド追加待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](./_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md)
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
-- **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋キャラ別親密度（アフィニティ）。検討中
-  → [`_ideas/future-plan/F-14-character-ability-commands.md`](./_ideas/future-plan/F-14-character-ability-commands.md)
-- **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — milestone 昇進済み（着手待ち）
+- **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋能力レジストリ（78タロット等） — **基盤のみ実装済み**
+  （キャラ別親密度ストアは実装済み。能力レジストリ本体・ゲスト召喚は未着手）
+  → 基盤: [`_ideas/milestone/2026-07-21_milestone_f14-character-affinity.md`](./_ideas/milestone/2026-07-21_milestone_f14-character-affinity.md)
+  ／ 構想全体: [`_ideas/future-plan/F-14-character-ability-commands.md`](./_ideas/future-plan/F-14-character-ability-commands.md)
+- **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — **Phase 1+2 実装済み**
+  （Phase 3 は F-14 `character_affinity` ストア連携待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](./_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
@@ -478,12 +581,18 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
   サブモジュール作業ツリーを upstream の最新へ進める。
 - **Cowork スケジュールタスク `creations-db-sync-optimize`（6時間ごと・ネットワーク不要）**:
   ゲート `tools/check-creations-db-update.sh` で「作業ツリー HEAD ≠ 記録済み gitlink」を検知し、
-  追従すべき更新がある時だけ既存機能を最適化して `_tasks/` にログを生成し、
+  追従すべき更新がある時だけ既存機能を最適化して `_tasks/creations-db-sync/` にログを生成し、
   gitlink 更新を含めてコミット（push 無し）する。
 
 ゲートは fetch せず作業 HEAD と記録 gitlink を比較するだけなので、サンドボックスのネットワーク制限に
 依存しない。詳細は [docs/automation-creations-db-sync.md](./docs/automation-creations-db-sync.md)、
-作業ログ書式は [_tasks/README.md](./_tasks/README.md) を参照。
+作業ログ書式・置き場のルールは [_tasks/README.md](./_tasks/README.md) を参照。
+
+> **自動スケジュールタスクのログ置き場**: `_tasks/` は creations-db 同期専用ではなく、
+> **自動スケジュールタスクの作業ログ全般**の置き場である（種類別サブフォルダ）。恒久ドキュメント
+> （設計・運用手順）は `docs/`、時系列の作業記録は `_tasks/<タスク名>/` と役割を分ける。
+> 新しい種類のログを追加するときは、まず [_tasks/README.md](./_tasks/README.md) にサブフォルダの行を
+> 追加すること（置き場が未定のまま `docs/` へ退避すると同種のログが分散する）。
 
 > **注意（ゲートの盲点）**: ゲートは **前進と退行を区別しない**。作業ツリーが記録 gitlink の過去コミットへ
 > 巻き戻った「退行」も `UPDATE_AVAILABLE` として拾うため、鵜呑みで追従すると廃止済み設定が復活し得る。

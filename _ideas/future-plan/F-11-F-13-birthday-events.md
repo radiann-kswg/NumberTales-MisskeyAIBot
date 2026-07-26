@@ -2,7 +2,7 @@
 
 > 作成日: 2026-06-22  
 > ステータス: **将来実装**（構想段階・F-12以降に着手）  
-> 関連: [F-10 エンジェルナンバー占い](./F-10-angel-number-fortune.md)
+> 関連: [F-10 エンジェルナンバー占い](./confirmed-milestone/F-10-angel-number-fortune.md)
 
 ---
 

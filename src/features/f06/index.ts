@@ -73,7 +73,6 @@ import {
 import {
   generateSecret,
   calculateHitBlow,
-  parseGuess,
   hitBlowCwBody,
   symbolLabel,
   HITBLOW_MIN_DIGITS,
@@ -109,7 +108,7 @@ export interface F06Result {
 // ----------------------------------------------------------------
 
 // YYYY年M月D日 / YYYY/MM/DD / YYYYMMDD / YYYY-MM-DD
-const DATE_PATTERN = /(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})日?|(\d{8})/;
+const DATE_PATTERN = /(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?|(\d{8})/;
 
 // 年のみ抽出（生年指定）
 const YEAR_PATTERN = /(\d{4})年?/;

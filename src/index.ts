@@ -9,6 +9,7 @@ import { GameSessionStore } from './storage/game-session.js';
 import { BotStateStore } from './storage/bot-state.js';
 import { TaskStore } from './storage/task.js';
 import { TrustStore } from './storage/trust.js';
+import { CharacterAffinityStore } from './storage/character-affinity.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createGlobalTLHandler } from './bot/handlers/global-tl.js';
@@ -18,7 +19,8 @@ import { setEmojiCache } from './bot/responder/emoji.js';
 import { initializeCharacterDB } from './bot/character/loader.js';
 import { logger } from './utils/logger.js';
 import { IncidentLogger } from './utils/incident-logger.js';
-import { HeartbeatWriter } from './utils/heartbeat.js';
+import { HeartbeatWriter, readLastHeartbeat } from './utils/heartbeat.js';
+import { postRecoveryNoticeIfNeeded } from './features/recovery-notice.js';
 
 /**
  * イベントハンドラ（onMention/onHomeTL 等）内で発生した未捕捉エラーはこのプロセスの
@@ -95,6 +97,10 @@ async function main(): Promise<void> {
   const trustStore = new TrustStore(config.storage.dbPath);
   logger.info('Trust store ready');
 
+  // キャラ別親密度ストア初期化（F-14 Phase 1 基盤）
+  const characterAffinityStore = new CharacterAffinityStore(config.storage.dbPath);
+  logger.info('Character affinity store ready');
+
   // ユーザーごとのアクティブキャラクター状態（Phase A 基盤）
   const activeCharacterStore = new ActiveCharacterStore(
     config.storage.dbPath,
@@ -125,7 +131,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -150,6 +156,9 @@ async function main(): Promise<void> {
   const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore });
   scheduler.start();
 
+  // ダウンタイム算出用に、HeartbeatWriter が上書きする前の前回 ts を退避しておく
+  const prevHeartbeatTs = readLastHeartbeat(config.storage.heartbeatPath)?.ts ?? null;
+
   // ハートビート開始（VM 内ウォッチドッグによるハング・WS切断検知用）
   const heartbeat = new HeartbeatWriter(
     config.storage.heartbeatPath,
@@ -157,6 +166,16 @@ async function main(): Promise<void> {
     () => misskeyClient.isConnected(),
   );
   heartbeat.start();
+
+  // ダウンタイム明けの復旧通知（WS 接続確立を待って1回だけ home 投稿。起動をブロックしない）
+  void postRecoveryNoticeIfNeeded(prevHeartbeatTs, Date.now(), {
+    ai,
+    misskeyClient,
+    botState,
+    thresholdMs: config.recoveryNotice.thresholdMs,
+    cooldownMs: config.recoveryNotice.cooldownMs,
+    maxMs: config.recoveryNotice.maxMs,
+  }).catch((err: unknown) => logger.error('Recovery notice failed:', err));
 
   // プロセス終了時のクリーンアップ
   const shutdown = (): void => {
@@ -170,6 +189,7 @@ async function main(): Promise<void> {
     botState.close();
     taskStore.close();
     trustStore.close();
+    characterAffinityStore.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
