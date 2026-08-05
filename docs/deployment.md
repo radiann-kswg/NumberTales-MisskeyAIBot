@@ -389,16 +389,28 @@ git sparse-checkout set --no-cone --stdin
 > 一見 SSH 接続失敗に見えるが、実際には `git` のオプション非対応が原因だった。
 > 切り分けには `gh run view <run-id> --log-failed` で**実ログを読むこと**（推測しない）。
 
-#### 失敗したデプロイを再実行したい
+#### 失敗したデプロイを再実行したい / 疎通だけ確認したい
 
-`deploy.yml` は `push: branches: [master]` のみで `workflow_dispatch` が未設定のため、
-再実行は run ID を指定して行う。
+`deploy.yml` は `workflow_dispatch` に対応しているので、**master への push を伴わずに手動実行できる**。
+VM を入れ替えたときや GitHub Secrets（`GCP_SSH_HOST` 等）を更新したときの疎通確認に使う。
+
+```bash
+# 手動実行（実行内容は push 時と同一。VM へ反映されるのは master の内容）
+gh workflow run deploy.yml
+gh run watch "$(gh run list --workflow=deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+```
+
+特定の run をやり直す場合は run ID を指定する。
 
 ```bash
 gh run list --workflow=deploy.yml --limit 5      # run ID を調べる
 gh run rerun <run-id>
 gh run watch <run-id> --exit-status
 ```
+
+> **Secrets の設定ミスは接続段階で落ちるため、Bot 実機には影響しない。**
+> `GCP_SSH_HOST` が誤っていれば SSH 接続に失敗してジョブが終了し、VM 上では何も実行されない
+> （`git reset` も `pm2 reload` も走らない）。稼働中の Bot を巻き込まずに検証できる。
 
 ### メンションに返答しない・Bot がリプライを無視する
 

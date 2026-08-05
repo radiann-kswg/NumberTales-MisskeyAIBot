@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+  # 手動実行。VM の入れ替え・Secrets 更新後の疎通確認を、master への push を伴わずに行うため。
+  # 実行内容は push 時と同一（スクリプトが `git reset --hard origin/master` するため、
+  # どのブランチから起動しても VM へ反映されるのは master の内容）。
+  # ※ GitHub の仕様上、この定義がデフォルトブランチ（master）に取り込まれるまで手動実行はできない。
+  workflow_dispatch:
 
 jobs:
   deploy:
