@@ -5,6 +5,11 @@
 > 対象: GCP VM `misskey-bots-group-numbertales`（`numbertales-misskey-surver` / us-central1-a / e2-small）
 > 関連: [deployment.md](./deployment.md) / [vm-os-upgrade.md](./vm-os-upgrade.md)
 
+> **⚠️ この文書は撤去済みの旧 VM に対する作業記録である（2026-08-05 追記）。**
+> 2026-08-05 のインフラ統合で Bot は **`misskey-bots-unified`（Debian 12 / Spot / 共用）** へ移設され、
+> 本文書の対象 VM は停止済み。**記録として保持するが、手順を現行 VM に適用しないこと。**
+> 現行 VM の前提は [AGENTS.md の「VM 実機の前提」](../AGENTS.md#vm-操作デプロイ上の注意重要) を正とする。
+
 ---
 
 ## 1. 結論（先出し）

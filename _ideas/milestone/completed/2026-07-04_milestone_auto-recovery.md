@@ -7,6 +7,21 @@
 > 完了根拠: 2026-07-09 にレイヤー3（GCE外部ウォッチドッグ）のデプロイ・動作確認まで完了。
 > 2026-07-26 に `completed/` へ棚卸し。
 
+> **⚠️ 前提の一部が失効している（2026-08-05 追記）。** 本ドキュメントは**当時の記録として保持**し
+> 書き換えないが、同日のインフラ統合（GCP 料金軽減）で対象 VM が
+> `misskey-bots-group-numbertales`（専有・通常 VM）から **`misskey-bots-unified`（共用・Spot VM）**
+> へ移設されたため、次の2点は現況と異なる。
+>
+> - **3c の `automaticRestart: true` / `onHostMaintenance: MIGRATE` は失効。**
+>   Spot では `automaticRestart` を有効化できず、`False` 固定・`onHostMaintenance=TERMINATE` となる。
+>   ホスト障害・プリエンプションからの復帰は 3a（`TERMINATED` → `instances.start()`）＋
+>   `pm2 startup`/`pm2 save` による起動時復帰が担う。
+> - **3b の `instances.reset()` は共用 VM では同居 Bot も巻き添えにする。**
+>   共用環境向けの再設計は
+>   [`2026-08-05_milestone_shared-vm-unified-watchdog.md`](../2026-08-05_milestone_shared-vm-unified-watchdog.md) を参照。
+>
+> 現行 VM の前提は [AGENTS.md の「VM 実機の前提」](../../../AGENTS.md#vm-操作デプロイ上の注意重要) を正とすること。
+
 ## 背景・目的
 
 VM インスタンス上の Bot がエラー落ち・処理落ち（ハング）した際に、人手を介さず

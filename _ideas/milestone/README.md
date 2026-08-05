@@ -18,6 +18,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-07-20_milestone_f06-stage-bc-name-numerology.md](./2026-07-20_milestone_f06-stage-bc-name-numerology.md) | F-06 Stage B/C | 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断                                        | 着手中 🔧（Stage B 算出エンジン実装済み） |
 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) | F-15           | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出）             | Phase 1+2 実装済み 🔧（Phase 3 は F-14 アフィニティ待ち） |
 | [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) | F-14 基盤 | キャラ別親密度（character_affinity）ストア＋加算フック＋照会（能力レジストリ本体は後続） | 実装済み 🔧 |
+| [2026-08-05_milestone_shared-vm-unified-watchdog.md](./2026-08-05_milestone_shared-vm-unified-watchdog.md) | 運用 | 共用 Spot VM 向け統合ウォッチドッグ再設計（reset の巻き添え抑止・プリエンプション対応） | 未着手 ⏳ |
 
 ## フェーズ概要
 
@@ -60,6 +61,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-12 MVP                   | シンプルリマインダー（後日 F-12/F-12B 本実装により置き換え・削除済み） | 完了 ✅ | [completed/2026-07-03_milestone_f12-mvp-reminder.md](./completed/2026-07-03_milestone_f12-mvp-reminder.md) |
 | F-12 / F-12B               | タスク＆スケジュール管理（優先度/難易度/進捗%）＋信頼度システム   | 完了 ✅   | [completed/2026-06-23_milestone_f12-reminder.md](./completed/2026-06-23_milestone_f12-reminder.md)     |
 | 運用: 自動復旧             | 3層ウォッチドッグ（ハートビート・VM内監視・GCE外部復旧）          | 完了 ✅   | [completed/2026-07-04_milestone_auto-recovery.md](./completed/2026-07-04_milestone_auto-recovery.md)                       |
+| 運用: 統合ウォッチドッグ   | 共用 Spot VM 向け再設計（reset の巻き添え抑止・プリエンプション事前ハンドリング） | 未着手 ⏳ | [2026-08-05_milestone_shared-vm-unified-watchdog.md](./2026-08-05_milestone_shared-vm-unified-watchdog.md) |
 | F-14 基盤                  | キャラ別親密度（character_affinity）ストア＋加算フック＋照会      | 実装済み 🔧（能力レジストリ本体は後続） | [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) |
 | F-15                       | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出） | Phase 1+2 実装済み 🔧 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) |
 | 運用: 復旧通知             | ダウンタイム明けに 000(チトセ) が復旧通知を自発投稿（ハートビート流用・閾値30分）  | 完了 ✅ | [completed/2026-07-20_milestone_downtime-recovery-notice.md](./completed/2026-07-20_milestone_downtime-recovery-notice.md) |

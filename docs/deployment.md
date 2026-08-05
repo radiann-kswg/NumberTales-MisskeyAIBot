@@ -1,14 +1,23 @@
 # デプロイガイド — GCP VM 本番環境
 
-> 対象: GCP VM インスタンス（Ubuntu 24.04 LTS 推奨）
+> 対象: GCP VM インスタンス（Debian 12 / Ubuntu 22.04 以降）
 > デプロイ方式: GitHub Actions → SSH → PM2
 >
-> **実機の現況（2026-07-20 時点）**: `misskey-bots-group-numbertales`（us-central1-a / e2-small）は
-> **Ubuntu 24.04.4 LTS (noble)** / git **2.54.0**（`ppa:git-core/ppa`）/ Node.js v22.23.1。
-> 同日 20.04.6 → 22.04.5 → 24.04.4 と2段階で移行した
-> （手順: [vm-os-upgrade.md](./vm-os-upgrade.md) / 実施記録: [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)）。
-> かつて同居していた旧 Misskey インスタンス（PostgreSQL + nginx）は同日撤去済み。
-> **git のバージョン要件は後述の 1-4 を必ず確認すること。**
+> **実機の現況（2026-08-05 時点）**: **`misskey-bots-unified`**（us-central1-a / **e2-medium** /
+> メモリ 4GB + swap 2GB）は **Debian 12 (bookworm)** / git **2.39.5**（Debian 標準）/
+> Node.js **v22.23.2**（`/usr/bin/node`・nvm ではない）/ pm2 **7.0.3**。外部 IP は静的予約済み。
+>
+> **2026-08-05 のインフラ統合で構成が大きく変わった。** 旧実機
+> `misskey-bots-group-numbertales`（Ubuntu 24.04 / e2-small）は停止済みで、本ガイドの記述は
+> すべて新しい統合 VM を対象とする。特に次の3点は旧構成との差が大きい。
+>
+> 1. **Spot（プリエンプティブル）インスタンス** — 予告なく停止し得る。`automaticRestart` は使えない（後述 5-3）
+> 2. **他 Bot と同居する共用 VM** — VM 全体に効く操作は同居 Bot を巻き添えにする（後述「共用 VM での作業原則」）
+> 3. **Debian であって Ubuntu ではない** — `add-apt-repository ppa:...` は使えない（後述 1-4）
+>
+> 旧 VM の Ubuntu 移行手順・記録（[vm-os-upgrade.md](./vm-os-upgrade.md) /
+> [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)）は履歴として残しているが、
+> **現行 VM には適用しないこと**。
 
 ---
 
@@ -17,6 +26,28 @@
 - GCP VM が起動済みで SSH 接続できる状態
 - VM のパブリック IP が固定（静的外部 IP アドレスを割り当て済み）
 - GCP のファイアウォールで SSH (TCP:22) が許可されている
+
+---
+
+## 0. 共用 VM での作業原則（重要）
+
+統合 VM `misskey-bots-unified` では、本 Bot 以外に別 Bot が同居している。
+
+| プロセス | 管理方式 | 所有 |
+| -------- | -------- | ---- |
+| `numbertales-bot` | **pm2**（`pm2-snine9801.service`） | 本リポジトリ |
+| `aphrnts-100-bot.service` | systemd 直管理 | 別リポジトリ |
+| `ai_bot.service` | systemd 直管理 | 別リポジトリ |
+
+- **安全な操作**: `pm2` 配下の操作（`pm2 reload/restart/logs/list`）と `~/NumberTales-MisskeyAIBot` 配下の
+  ファイル操作。これらは本 Bot にしか影響しない。通常のデプロイはすべてこの範囲に収まる。
+- **同居 Bot を巻き添えにする操作**（単独判断で実施しない）:
+  - VM の再起動・停止・リセット（`gcloud compute instances reset/stop`、GCE 外部ウォッチドッグの `reset`）
+  - `apt-get upgrade` など OS パッケージ更新
+  - ファイアウォール・sshd・システム全体の systemd 設定変更
+  - ディスクのリサイズ・アンマウント
+- **リソースは共有**。メモリ 4GB を3 Bot で分け合う。`ecosystem.config.cjs` の
+  `max_memory_restart`（現行 512M）を引き上げるときは、同居 Bot の取り分を潰さないか確認すること。
 
 ---
 
@@ -39,6 +70,11 @@ node -v  # v22.x.x が表示されれば OK
 > **Note**: Bot は Node.js v24 で開発しているが、v22 LTS でも動作する。
 > v24 を使いたい場合は `setup_24.x` に変更すること。
 
+> **⚠️ nvm は使わない。** 統合 VM の Node.js は NodeSource による**システム導入**（`/usr/bin/node`）で、
+> `~/.nvm` は存在しない。[`deploy.yml`](../.github/workflows/deploy.yml) は `nvm.sh` があるときだけ
+> 読み込む条件分岐にしてあるため両対応だが、**無条件に `nvm use` を書き足さないこと**
+> （nvm 不在の環境では `command not found` = exit 127 となり、`set -e` でデプロイが丸ごと失敗する）。
+
 ### 1-3. PM2 のグローバルインストール
 
 ```bash
@@ -48,7 +84,7 @@ pm2 -v  # バージョンが表示されれば OK
 
 ### 1-4. Git の設定とリポジトリのクローン
 
-> **⚠️ git 2.36 以上が必須。** Ubuntu 20.04 の標準 git は **2.25.1** で要件を満たさない。
+> **⚠️ git 2.36 以上が必須。**
 >
 > | 使用箇所 | 必要バージョン |
 > | -------- | -------------- |
@@ -59,14 +95,24 @@ pm2 -v  # バージョンが表示されれば OK
 > 満たさないと `usage: git sparse-checkout (init|list|set|disable) <options>` を出して
 > **デプロイが exit 129 で失敗する**（2026-07-19 の実障害。`--filter=blob:none` の方は
 > `||` フォールバックがあるため単独では落ちない）。
+>
+> **現行の統合 VM（Debian 12）は標準の 2.39.5 で要件を満たすので、追加作業は不要。**
+>
+> **⚠️ Debian で `ppa:git-core/ppa` を使わないこと。** PPA は Ubuntu 専用の仕組みで、Debian に
+> `add-apt-repository -y ppa:git-core/ppa` を実行すると **apt のソース設定が壊れる**。
+> 旧 VM（Ubuntu）向けの手順が古いドキュメントに残っているが、現行 VM には適用しない。
+> Debian で要件を割った場合は backports（`bookworm-backports`）から入れること。
 
 ```bash
-# バージョン確認。2.36 未満なら PPA から更新する（Ubuntu 20.04/22.04 とも可）
+# バージョン確認（Debian 12 標準は 2.39.5 で要件を満たす）
 git --version
-sudo add-apt-repository -y ppa:git-core/ppa
-sudo apt-get update
-sudo apt-get install -y git
-git --version   # 2.36 以上になっていれば OK
+
+# ── 2.36 未満だった場合のみ。ディストリごとに手段が違う ──
+# Debian: backports を使う（PPA は使えない）
+#   echo "deb http://deb.debian.org/debian bookworm-backports main" | sudo tee /etc/apt/sources.list.d/backports.list
+#   sudo apt-get update && sudo apt-get -t bookworm-backports install -y git
+# Ubuntu のみ: PPA が使える
+#   sudo add-apt-repository -y ppa:git-core/ppa && sudo apt-get update && sudo apt-get install -y git
 
 cd ~
 git clone https://github.com/radiann-kswg/NumberTales-MisskeyAIBot.git
@@ -129,10 +175,21 @@ pm2 list  # "online" になっていれば OK
 
 ### 1-9. PM2 をシステム起動時に自動起動させる
 
+> **⚠️ Spot VM では省略不可の手順。** 統合 VM はプリエンプションで予告なく停止し、GCE 外部
+> ウォッチドッグが再起動をかける。この2コマンドを実施していないと、**VM は復帰するのに Bot だけ
+> 上がってこない**という状態になる。VM を作り直したときも必ず実施すること。
+
 ```bash
 pm2 startup
 # 表示されたコマンドを実行（sudo が必要）
 pm2 save
+```
+
+確認方法（両方が期待値でなければ復旧経路が切れている）:
+
+```bash
+systemctl is-enabled pm2-$(whoami)   # enabled
+ls -la ~/.pm2/dump.pm2               # 存在すること（pm2 save の成果物）
 ```
 
 ---
@@ -178,8 +235,9 @@ SSH で VM に接続
        │
        ├─ git fetch origin master
        ├─ git reset --hard origin/master   ← git pull ではなくこちらを使用
-       ├─ npm install --omit=dev
+       ├─ npm install                      ← devDependencies 込み（ビルドに必要）
        ├─ npm run build
+       ├─ npm prune --omit=dev             ← ビルド後に本番用へ最適化
        └─ pm2 reload ecosystem.config.cjs
               │
               ▼
@@ -232,7 +290,7 @@ grep '"level":"error"' .cache/error.log  # error のみ
 | -------- | ---- | -------- |
 | 1 | プロセスの即死・クラッシュ | PM2 `autorestart`（既存） |
 | 2 | プロセスハング / WS切断継続 / PM2 `errored` 放置 | VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer） |
-| 3 | VMごとフリーズ・停止 | GCE外部ウォッチドッグ（Cloud Scheduler + Cloud Run functions → reset/start） |
+| 3 | VMごとフリーズ・停止 / **Spot のプリエンプション** | GCE外部ウォッチドッグ（Cloud Scheduler + Cloud Run functions → reset/start）＋ `pm2 startup`/`pm2 save` による起動時復帰 |
 
 ### 5-1. Bot ハートビート
 
@@ -271,8 +329,31 @@ tail -n 20 .cache/watchdog.log         # 異常検知・再起動の記録
 
 VM そのものが落ちた場合の復旧。セットアップ手順・gcloud コマンドは
 [`tools/gce-watchdog/README.md`](../tools/gce-watchdog/README.md) を参照。
-併せて GCE インスタンスの `automaticRestart`（ホスト障害時の自動再起動）が
-有効になっているかも確認すること。
+
+> **⚠️ Spot 化でこのレイヤーの役割が変わった（2026-08-05）。**
+>
+> - 統合 VM は Spot のため **`automaticRestart` を有効化できない**（`False` 固定・
+>   `onHostMaintenance=TERMINATE`）。旧構成の「`automaticRestart` も併せて確認する」という
+>   指示は**現行 VM では無効**なので実行しないこと。
+> - その結果、**プリエンプションからの復帰はレイヤー3が一手に担う**。
+>   関数は `TERMINATED` を検知して `instances.start()` を呼ぶ。ここが止まると Bot は落ちたままになる。
+> - **共用 VM のため `instances.reset()` は同居 Bot も強制再起動する。** 現行の関数は
+>   「無応答かつ `RUNNING`」で `reset()` を撃つ実装のままなので、共用環境向けの再設計を
+>   [`_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md`](../_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md)
+>   に起票済み。再設計が入るまでは、`reset` が走ったら同居 Bot の生死も確認すること。
+
+現行の向き先（2026-08-05 時点で更新済み）:
+
+```bash
+gcloud functions describe numbertales-gce-watchdog \
+  --project=numbertales-misskey-surver --region=us-central1 --gen2 \
+  --format="value(serviceConfig.environmentVariables)"
+# GCE_INSTANCE=misskey-bots-unified / GCE_ZONE=us-central1-a / TARGET_IP=<統合VMの静的IP>
+```
+
+> **VM を作り替えたら、この関数の `GCE_INSTANCE` / `TARGET_IP` と GitHub Secrets の
+> `GCP_SSH_HOST` を必ず同時に更新すること。** 旧インスタンスを指したまま放置すると、関数が
+> 停止済み VM を `TERMINATED` と判定して **`start()` で叩き起こし続け、課金が止まらない**。
 
 ---
 
@@ -342,7 +423,30 @@ grep -vE "TOKEN|KEY|SECRET" .env
 ### メモリ不足で再起動が頻発する
 
 `ecosystem.config.cjs` の `max_memory_restart` を調整するか、VM のスペックをアップグレードする。
-e2-micro（メモリ 1GB）の場合、`256M` 程度に設定するのが安全。
+現行の統合 VM は e2-medium（4GB + swap 2GB）で、設定値は `512M`（実測の常用は 130MB 前後）。
+
+> **⚠️ 共用 VM なのでメモリは 3 Bot で分け合っている。** 上限を上げる前に `free -m` と
+> 同居 Bot の使用量を確認すること。参考として、旧構成の e2-micro（1GB）では `256M` が目安だった。
+
+### Bot が突然落ちて、しばらくして復帰していた
+
+**Spot インスタンスのプリエンプションを疑う。** 統合 VM は Spot のため GCE 都合で予告なく停止する。
+この場合 VM ごと `TERMINATED` になり、GCE 外部ウォッチドッグが最大5分後に `start()` で復帰させる。
+
+```bash
+# インスタンスの状態と直近のオペレーション履歴を確認
+gcloud compute instances describe misskey-bots-unified \
+  --project=numbertales-misskey-surver --zone=us-central1-a --format="value(status)"
+
+gcloud compute operations list --project=numbertales-misskey-surver \
+  --filter="targetLink~misskey-bots-unified" --sort-by=~insertTime --limit=10 \
+  --format="table(operationType,status,insertTime)"
+# compute.instances.preempted が出ていればプリエンプション
+```
+
+復帰後に Bot が上がってこない場合は 1-9 の `pm2 startup` / `pm2 save` が効いているかを確認する
+（`systemctl is-enabled pm2-$(whoami)` と `~/.pm2/dump.pm2` の存在）。
+なお停止が30分を超えた場合のみ、Bot 自身が復旧通知を1回投稿する（`features/recovery-notice.ts`）。
 
 ### インシデントログが生成されない
 

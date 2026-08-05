@@ -15,7 +15,7 @@
 | 稼働インスタンス | `radiann6631.net`（お一人様 Misskey）             |
 | ランタイム       | Node.js v22 / TypeScript 5.x / ESM                |
 | AI エンジン      | OpenAI GPT-4o-mini（Gemini 1.5 Flash にも切替可） |
-| デプロイ先       | GCP VM（Ubuntu 20.04）/ PM2 管理                  |
+| デプロイ先       | GCP VM（Debian 12・Spot・他 Bot と共用）/ PM2 管理 |
 | CI/CD            | GitHub Actions → SSH → `pm2 reload`               |
 
 ---

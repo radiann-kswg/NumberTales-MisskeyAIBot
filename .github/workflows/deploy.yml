@@ -21,10 +21,16 @@ jobs:
           debug: true
           script: |
             set -e
-            # NVM を初期化して正しい Node.js バージョン (v22) を使用する
+            # Node.js を解決する。統合 VM（misskey-bots-unified / Debian 12）は nvm を持たず、
+            # システム導入の /usr/bin/node (v22) を使う。nvm を持つ環境でも動くよう、
+            # nvm.sh が存在するときだけ読み込む（無条件に `nvm use` すると exit 127 でデプロイが落ちる）。
             export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            nvm use default
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+              nvm use default
+            fi
+            # 解決できた Node.js を記録（見つからなければここで落ちる）
+            node -v
 
             # root 所有ファイルが混在する場合に備えて所有権を修正
             sudo chown -R "$(whoami)" ~/NumberTales-MisskeyAIBot/ 2>/dev/null || true
