@@ -14,7 +14,7 @@
 | AI API         | **OpenAI GPT-4o-mini**（推奨）  | 差し替え可能な抽象レイヤーを経由して呼び出す。Gemini 1.5 Flash をセカンダリ候補として維持 |
 | 軽量分類       | ルールベース（正規表現 + 辞書） | 意図分類・感情カテゴリ判定に使用。APIコスト削減                                           |
 | 一時ストレージ | **better-sqlite3**              | **確定。** 会話履歴を TTL 30分・最大3往復で保持。`.cache/session.db` に保存               |
-| デプロイ先     | **GCP VM (Ubuntu 20.04)**       | **確定。** SSH + GitHub Actions による自動デプロイ。PM2 (cluster mode) でプロセス管理     |
+| デプロイ先     | **GCP VM (Debian 12 / Spot・共用)** | **確定。** SSH + GitHub Actions による自動デプロイ。PM2 (cluster mode) でプロセス管理。2026-08-05 のインフラ統合で Ubuntu 20.04 の専有 VM から移設（→ [AGENTS.md の VM 実機の前提](../../AGENTS.md#vm-操作デプロイ上の注意重要)） |
 
 ---
 
@@ -224,7 +224,8 @@ LLM呼び出し時は常に以下を含む:
 - [x] **AI API (プライマリ)**: OpenAI GPT-4o-mini
 - [x] **AI API (セカンダリ)**: Google Gemini 1.5 Flash（差し替え可能な抽象レイヤー経由）
 - [x] **稼働インスタンス**: `radiann6631.net`（お一人様 Misskey インスタンス）
-- [x] **デプロイ先**: GCP VM (Ubuntu 20.04)。master push → GitHub Actions → SSH デプロイ
+- [x] **デプロイ先**: GCP VM。master push → GitHub Actions → SSH デプロイ
+      （決定当時は Ubuntu 20.04 の専有 VM。2026-08-05 のインフラ統合で Debian 12 の共用 Spot VM へ移設）
 - [x] **プロセス管理**: PM2 v7 (cluster mode, `ecosystem.config.cjs`)
 - [x] **ロギング方針**: PM2 経由でファイル出力 (`logs/out.log`, `logs/error.log`)。ユーザー投稿内容は保存しない
 - [x] **セッションストレージ**: better-sqlite3。TTL 30分・最大6メッセージ（3往復）

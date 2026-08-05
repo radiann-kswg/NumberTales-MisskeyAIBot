@@ -3,6 +3,15 @@
 > 対象: GCP VM `misskey-bots-group-numbertales`（us-central1-a / e2-small / pd-balanced 256GB）
 > 関連: [deployment.md](./deployment.md) / 実施記録: [vm-upgrade-2026-07_worklog.md](./vm-upgrade-2026-07_worklog.md)
 
+> **⚠️ この文書は撤去済みの旧 VM に対する記録である（2026-08-05 追記）。**
+> 2026-08-05 のインフラ統合（GCP 料金軽減）で Bot は **`misskey-bots-unified`（Debian 12 / Spot /
+> 他 Bot と共用）** へ移設され、本文書の対象 `misskey-bots-group-numbertales` は停止済み。
+> **本文書の Ubuntu 向け手順（特に `add-apt-repository ppa:...`）を現行 VM に適用しないこと。**
+> Debian では PPA が使えず、実行すると apt 設定を壊す。
+> 現行 VM の前提は [AGENTS.md の「VM 実機の前提」](../AGENTS.md#vm-操作デプロイ上の注意重要)、
+> 運用手順は [deployment.md](./deployment.md) を正とすること。
+> なお「pm2 が systemd 管理から外れたとき」の復旧手順はディストリ非依存で、現行 VM でも有効。
+
 ---
 
 ## 現在の到達点（2026-07-20 完了）

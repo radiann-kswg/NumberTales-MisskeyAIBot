@@ -278,6 +278,8 @@ test/                         # vitest テスト（コンパイル済み `dist` 
 docs/                         # 詳細ドキュメント
   architecture.md / development.md / deployment.md
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
+  gcp-cost-cleanup.md         # 旧 VM・ディスクの棚卸し手順（破壊的操作・実行は所有者）
+  vm-os-upgrade.md / vm-upgrade-2026-07_worklog.md  # 旧 VM(Ubuntu) の移行記録。現行 VM には非適用
 _ideas/
   bot-spec/                   # 仕様書・設計ドキュメント
   milestone/                  # 実装予定マイルストーン（着手待ち・進行中）
@@ -368,7 +370,7 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 | —          | Bot 状態の永続ストレージ（`storage/bot-state.ts`・KV 形式 SQLite）                               | ✅ 実装済み |
 | —          | 管理者コマンド: 自発投稿担当切り替え（投票結果告知と同形式で公開投稿）                             | ✅ 実装済み |
 | —          | デバッグツール: `tools/fetch-misskey-notes.mjs`（Bot の直近投稿を API から取得して表示）          | ✅ 追加済み |
-| —          | 自動復旧（3層ウォッチドッグ）: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）＋ GCE外部ウォッチドッグ（`tools/gce-watchdog/`）。**レイヤー1〜3 すべて本番稼働中**（2026-07-09 デプロイ・動作確認済み／`automaticRestart` 有効化済み。残るは障害注入テストのみ） | ✅ 実装済み |
+| —          | 自動復旧（3層ウォッチドッグ）: ハートビート出力（`utils/heartbeat.ts`）＋ VM内ウォッチドッグ（`tools/vm-watchdog.mjs` + systemd timer）＋ GCE外部ウォッチドッグ（`tools/gce-watchdog/`）。**レイヤー1〜3 すべて本番稼働中**（2026-07-09 デプロイ・動作確認済み。2026-08-05 に統合 VM `misskey-bots-unified` へ移設・向き先更新済み）。**Spot 化に伴い `automaticRestart` は有効化できなくなり**、プリエンプション復帰はレイヤー3（`TERMINATED` → `start()`）＋ `pm2 startup`/`pm2 save` が担う。共用 VM 向けの統合ウォッチドッグ再設計は milestone 化済み | ✅ 実装済み |
 | F-12 修正  | タスク意図分類の取りこぼしを修正（実機バグ 2026-07-21）: 「タスク「〇〇」を…で追加して」の語順と「タスク**の**一覧」の助詞が非マッチで雑談へ落ち、LLM が登録の"フリ"をするだけで DB 未書き込みだった。`TASK_ADD_PATTERNS`/`TASK_LIST_PATTERNS` を拡張。難易度確認の質問文・キャンセル文も `generateTaskLine` でキャラ AI 生成化 | ✅ 実装済み |
 | —          | キャラカード経路の口調・専門性の補強: 二層化で落ちていた「一人称/二人称の厳守指示」と専門性セクションを回復し、`DialogueExamples`（既存台詞）を最優先の手本に据える口調厳守ブロックを追加 | ✅ 実装済み |
 | 運用: 復旧通知 | ダウンタイム明けに 000(チトセ) が停止時間を添えて `home` へ1回だけ自発投稿（閾値30分/上限7日/クールダウン6時間/WS接続/時計巻き戻りを判定）。停止時間はコード算出、フレーバー文のみ LLM＋固定フォールバック（`features/recovery-notice.ts`） | ✅ 実装済み |
@@ -391,6 +393,9 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 - **F-15 コアフォルダ形態強化**: 身体性コンテキスト・変形演出・スキンシップ・お供演出 — **Phase 1+2 実装済み**
   （Phase 3 は F-14 `character_affinity` ストア連携待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md`](./_ideas/milestone/2026-07-20_milestone_f15-corefolder-form-enhancement.md)
+- **運用: 統合ウォッチドッグ再設計**: 共用 Spot VM 化に伴い、`reset()` が同居 Bot を巻き添えにする問題と
+  プリエンプションの事前ハンドリングに対応する — **未着手**（設計のみ）
+  → [`_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md`](./_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
 
@@ -471,28 +476,53 @@ logger.enableFileOutput(path2);
 
 ## VM 操作・デプロイ上の注意（重要）
 
-### VM 実機の前提（2026-07-20 実測）
+### VM 実機の前提（2026-08-05 実測）
 
-- 実機 `misskey-bots-group-numbertales`（us-central1-a / e2-small）は **Ubuntu 24.04.4 LTS (noble)**。
-  2026-07-20 に 20.04.6 → 22.04.5 → 24.04.4 と2段階で移行完了。
+> **2026-08-05 のインフラ統合（GCP 料金軽減）で、Bot は専有 VM から共用 Spot VM へ移設された。**
+> 旧実機 `misskey-bots-group-numbertales`（Ubuntu 24.04 / e2-small）は停止済み。
+> 以下はすべて**新しい統合 VM の前提**であり、旧 VM 向けの手順を現行 VM に適用しないこと。
+
+- 実機は **`misskey-bots-unified`**（us-central1-a / **e2-medium** / メモリ 4GB + swap 2GB）。
+  外部 IP は**静的予約済み**（アドレス名 `misskey-bots-unified-ip`）なので、再起動・
+  プリエンプションを挟んでも変わらない。
+- OS は **Debian 12 (bookworm)**。**Ubuntu ではない。**
+  `add-apt-repository ppa:...` は **Ubuntu 専用で Debian では使えない**（apt を壊すため実行禁止）。
+- **Spot（プリエンプティブル）インスタンスである。** 料金軽減のための構成で、次の制約が付く。
+  - GCE の都合で**予告なくいつでも `TERMINATED` にされ得る**。
+  - **`automaticRestart` は Spot では有効化できない**（`False` 固定・`onHostMaintenance=TERMINATE`）。
+    かつて「有効化済み」としていた前提は**失効している**。
+  - 復旧は **GCE 外部ウォッチドッグ**（5分間隔・`TERMINATED` → `instances.start()`）が担う。
+    起動後は `pm2-<user>.service`（systemd enabled）＋ `~/.pm2/dump.pm2` により Bot も自動復帰する。
+    **この2つが欠けるとプリエンプション後に Bot が上がってこない。** VM を作り直したら必ず
+    `pm2 startup` と `pm2 save` を実施すること。
+- **他の Bot と同居する共用 VM である。** 同一 VM 上で次が稼働している。
+  - `numbertales-bot` — 本 Bot。ユーザー `snine9801` の **pm2** 管理（`pm2-snine9801.service`）
+  - `aphrnts-100-bot.service` / `ai_bot.service` — 別 Bot。**systemd 直管理**（pm2 配下ではない）
+  - `pm2` 操作は本 Bot にしか効かないので通常作業は安全。ただし **VM 全体の再起動・OS パッケージ更新・
+    ファイアウォール変更・ディスク操作は同居 Bot を巻き添えにする**。単独判断で実施せず、必ず確認を取ること。
 - **git は 2.36 以上が必須**（`sparse-checkout --no-cone` と `submodule --filter=blob:none` が要求）。
-  20.04 標準の 2.25.1 では **デプロイが exit 129 で失敗する**（2026-07-19 実障害）。
-  実機は `ppa:git-core/ppa`（noble）で **2.54.0**。24.04 標準は 2.43 なので要件は満たすが、
-  PPA を消す場合はダウングレードになる点に注意。
-- **旧 Misskey インスタンスは 2026-07-20 に撤去済み。** かつて同 VM に PostgreSQL（`mk1` DB）+ nginx +
-  `misskey` ユーザーが同居していたが、本番 Misskey は別ホスト（`radiann6631.net` → 162.43.7.161）で
-  稼働しており、VM 上のものは起動していない残骸だった。バックアップはリポジトリ外の
-  `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/`（README 付き）と
-  スナップショット `pre-2204-upgrade-20260720` に保全。
-  **バックアップを `.cache/` に置かないこと**（同ディレクトリは「消していい場所」と定義されているため）。
-- **SSH のポーリングは 60 秒以上空ける。** ufw が `22/tcp LIMIT IN`（30秒に6接続超でブロック）。
-  短間隔のポーリングで自分が締め出され、VM 障害と誤認する事故が実際に起きている。
+  実機は Debian 12 標準の **2.39.5** で要件を満たす（PPA 追加は不要かつ不可）。
+  要件を割ると **デプロイが exit 129 で失敗する**（2026-07-19 に旧 VM で発生した実障害）。
+- **Node.js は nvm ではなくシステム導入**（`/usr/bin/node` v22）。pm2 は 7.0.3。
+  `deploy.yml` は nvm.sh が存在するときだけ読み込む条件分岐にしてある
+  （**無条件の `nvm use` は `command not found` = exit 127 で `set -e` に引っかかりデプロイが落ちる**）。
+- **ufw は導入されていない。** 旧 VM にあった `22/tcp LIMIT IN`（30秒に6接続超でブロック）という
+  SSH レート制限は**現行 VM には存在しない**。ただし短間隔の SSH ポーリングは同居 Bot と接続枠を
+  分け合う行為なので、必要以上に繰り返さないこと。
 - **`apt-get upgrade` で nodejs 系が更新されると pm2 デーモンがプロセスを見失うことがある。**
-  実際に Bot が 13 分間停止した（2026-07-20）。OS/パッケージ更新後は必ず `pm2 list` と
+  実際に Bot が 13 分間停止した（2026-07-20・旧 VM）。OS/パッケージ更新後は必ず `pm2 list` と
   `systemctl is-active pm2-$(whoami)` の両方を確認すること。復旧手順は
   [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md) の「pm2 が systemd 管理から外れたとき」節。
-- 移行手順は [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md)、実施記録・踏んだ地雷は
-  [docs/vm-upgrade-2026-07_worklog.md](./docs/vm-upgrade-2026-07_worklog.md) を参照。
+  **共用 VM ではパッケージ更新自体が同居 Bot へ波及する**点にも注意。
+- 停止済みの旧 VM・未使用ディスクの棚卸し手順は [docs/gcp-cost-cleanup.md](./docs/gcp-cost-cleanup.md) を参照。
+  **VM を停止してもディスク課金は止まらない。**
+- 旧 Misskey インスタンス（PostgreSQL + nginx）は 2026-07-20 に旧 VM 上で撤去済み。本番 Misskey は
+  別ホスト（`radiann6631.net` → 162.43.7.161）で稼働しており、VM 上のものは残骸だった。バックアップは
+  リポジトリ外の `_backups/NumberTales-MisskeyAIBot/2026-07-20_vm-misskey-removal/`（README 付き）に保全。
+  **バックアップを `.cache/` に置かないこと**（同ディレクトリは「消していい場所」と定義されているため）。
+- 旧 VM で実施した Ubuntu 移行の手順・記録は [docs/vm-os-upgrade.md](./docs/vm-os-upgrade.md) /
+  [docs/vm-upgrade-2026-07_worklog.md](./docs/vm-upgrade-2026-07_worklog.md) に残してあるが、
+  **いずれも撤去済みの旧 VM に対する記録**である。現行 VM の前提は本節を正とすること。
 
 ### `.env` ファイル確認コマンド
 
