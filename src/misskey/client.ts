@@ -135,12 +135,13 @@ export class MisskeyClient {
    * @param options.cw CW（ContentWarning）テキスト
    * @param options.visibility 公開範囲（既定 'public'）
    */
-  async post(text: string, options?: { cw?: string; visibility?: 'public' | 'home' }): Promise<void> {
-    await this.apiClient.request('notes/create', {
+  async post(text: string, options?: { cw?: string; visibility?: 'public' | 'home' }): Promise<string> {
+    const res = await this.apiClient.request('notes/create', {
       text,
       cw: options?.cw ?? undefined,
       visibility: options?.visibility ?? 'public',
     });
+    return (res as unknown as { createdNote: { id: string } }).createdNote.id;
   }
 
   /**

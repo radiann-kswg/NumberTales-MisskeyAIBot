@@ -63,6 +63,19 @@ import {
   type MahjongQuizState,
 } from './mahjong-quiz.js';
 import {
+  generateQuestion,
+  generateNumberQuestion,
+  questionText,
+  answerCwBody,
+  streakResultCwBody,
+  levelForStreak,
+  CALC_QUIZ_CW_LABEL,
+  CALC_QUIZ_TIME_LIMIT_MS,
+  type CalcLevel,
+  type CalcQuestion,
+  type CalcQuizState,
+} from './calc-quiz.js';
+import {
   rollDice,
   rerollDice,
   yachtInitialMessage,
@@ -89,7 +102,7 @@ import {
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
 
-export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState };
+export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState, CalcQuizState };
 
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
 
@@ -508,6 +521,187 @@ export function handleMahjongQuizAnswer(
 export function handleMahjongQuizAbandon(state: MahjongQuizState, store: GameSessionStore, userId: string): F06Result {
   store.deleteSession(userId, 'mahjong-quiz');
   return { text: '手役クイズ、終了したよ', cwBody: quizAbandonCwBody(state), cwLabel: MAHJONG_QUIZ_CW_LABEL };
+}
+
+// ----------------------------------------------------------------
+// 計算問題チャレンジ（F-16）
+// ----------------------------------------------------------------
+
+/** 番号モードで正解したときのキャラ開示（D3-5 ルーレットと同じ体裁） */
+export function calcQuizCharacterReveal(charNum: string, characters: CharacterRecord[]): string | null {
+  const found = characters.find((entry) => String(entry.Num).trim() === charNum);
+  if (!found) return null;
+  const name = (found.Name_JP ?? found.Name) || `${charNum}番機`;
+  const flavor = found.Character_JP ?? found.Character ?? null;
+  const numEmojiLine = coloredNumberEmoji(characterDiceColor(charNum), charNum);
+  return `${numEmojiLine}
+✦ 答えの番号: ${charNum}(${name})${flavor ? `
+
+${flavor}` : ''}`;
+}
+
+/** 次の問題を作る（番号モードで作れなければ通常出題へフォールバック） */
+function nextCalcQuestion(
+  level: CalcLevel,
+  numberMode: boolean,
+  characters: CharacterRecord[],
+): CalcQuestion {
+  if (!numberMode) return generateQuestion(level);
+  return generateNumberQuestion(level, characters) ?? generateQuestion(level);
+}
+
+/** 計算問題を開始する。既存セッションは上書き。 */
+export function handleCalcQuizStart(
+  userId: string,
+  store: GameSessionStore,
+  opts: {
+    level: CalcLevel;
+    mode: 'single' | 'streak';
+    numberMode: boolean;
+    characters: CharacterRecord[];
+  },
+): F06Result {
+  const question = nextCalcQuestion(opts.level, opts.numberMode, opts.characters);
+  const state: CalcQuizState = {
+    question,
+    mode: opts.mode,
+    numberMode: opts.numberMode,
+    startLevel: opts.level,
+    streak: 0,
+    continued: false,
+    awaitingContinue: false,
+    askedAt: Date.now(),
+  };
+  store.setSession(userId, 'calc-quiz', state);
+  return { text: questionText(question) };
+}
+
+/**
+ * 回答を判定する。
+ *
+ * - 単発モード: 正誤に関わらずセッションを削除して答え合わせ
+ * - 連続正解チャレンジ: 正解なら次の問題、不正解なら 1 回だけコンティニューを聞く
+ * - 制限時間を過ぎた回答は不正解（時間切れ）として扱う
+ */
+export function handleCalcQuizAnswer(
+  state: CalcQuizState,
+  given: number,
+  store: GameSessionStore,
+  userId: string,
+  characters: CharacterRecord[],
+): F06Result {
+  const timedOut = Date.now() - state.askedAt > CALC_QUIZ_TIME_LIMIT_MS;
+  const correct = !timedOut && given === state.question.answer;
+  const answered = timedOut ? null : given;
+  const reveal =
+    state.question.charNum !== undefined
+      ? calcQuizCharacterReveal(state.question.charNum, characters)
+      : null;
+
+  if (correct) {
+    if (state.mode === 'single') {
+      store.deleteSession(userId, 'calc-quiz');
+      const body = answerCwBody(state.question, given, true);
+      return {
+        text: '答え合わせするね……',
+        cwBody: reveal ? `${body}
+
+${reveal}` : body,
+        cwLabel: CALC_QUIZ_CW_LABEL,
+      };
+    }
+
+    const streak = state.streak + 1;
+    const question = nextCalcQuestion(
+      levelForStreak(state.startLevel, streak),
+      state.numberMode,
+      characters,
+    );
+    store.setSession(userId, 'calc-quiz', { ...state, question, streak, askedAt: Date.now() });
+    return {
+      text: `正解！
+${questionText(question, { streak })}`,
+      cwBody: reveal ?? undefined,
+      cwLabel: reveal ? CALC_QUIZ_CW_LABEL : undefined,
+    };
+  }
+
+  // 単発モード、またはコンティニュー済みで再び不正解 → ここで終了
+  if (state.mode === 'single') {
+    store.deleteSession(userId, 'calc-quiz');
+    const body = answerCwBody(state.question, answered, false);
+    return {
+      text: '答え合わせするね……',
+      cwBody: reveal ? `${body}
+
+${reveal}` : body,
+      cwLabel: CALC_QUIZ_CW_LABEL,
+    };
+  }
+
+  if (state.continued) {
+    store.deleteSession(userId, 'calc-quiz');
+    return {
+      text: 'ここまでだね。記録を見てみよう',
+      cwBody: streakResultCwBody(state.question, answered, state.streak, true),
+      cwLabel: CALC_QUIZ_CW_LABEL,
+    };
+  }
+
+  // 1 回だけコンティニューを提案する（返事待ちの間もセッションは残す）
+  store.setSession(userId, 'calc-quiz', { ...state, awaitingContinue: true });
+  return {
+    text: `残念、不正解……${state.streak}問連続で止まっちゃった。コンティニューする？`,
+    cwBody: answerCwBody(state.question, answered, false),
+    cwLabel: CALC_QUIZ_CW_LABEL,
+  };
+}
+
+/** コンティニューの可否に答えたときの処理（accept=true で同じ難易度の新しい問題へ） */
+export function handleCalcQuizContinue(
+  state: CalcQuizState,
+  accept: boolean,
+  store: GameSessionStore,
+  userId: string,
+  characters: CharacterRecord[],
+): F06Result {
+  if (!accept) {
+    store.deleteSession(userId, 'calc-quiz');
+    return {
+      text: 'お疲れさま。記録を見てみよう',
+      cwBody: streakResultCwBody(state.question, null, state.streak, false),
+      cwLabel: CALC_QUIZ_CW_LABEL,
+    };
+  }
+
+  const question = nextCalcQuestion(
+    levelForStreak(state.startLevel, state.streak),
+    state.numberMode,
+    characters,
+  );
+  store.setSession(userId, 'calc-quiz', {
+    ...state,
+    question,
+    continued: true,
+    awaitingContinue: false,
+    askedAt: Date.now(),
+  });
+  return { text: `コンティニュー！
+${questionText(question, { streak: state.streak })}` };
+}
+
+/** 中断・放棄（正解を明かして終了する） */
+export function handleCalcQuizAbandon(
+  state: CalcQuizState,
+  store: GameSessionStore,
+  userId: string,
+): F06Result {
+  store.deleteSession(userId, 'calc-quiz');
+  const body =
+    state.mode === 'streak'
+      ? streakResultCwBody(state.question, null, state.streak, state.continued)
+      : answerCwBody(state.question, null, false);
+  return { text: '計算問題、終了したよ', cwBody: body, cwLabel: CALC_QUIZ_CW_LABEL };
 }
 
 // ----------------------------------------------------------------

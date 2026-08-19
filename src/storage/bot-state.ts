@@ -20,6 +20,10 @@ export const STATE_KEY_POLL_NOTE_ID = 'current_poll_note_id';
 export const STATE_KEY_POLL_CANDIDATES = 'current_poll_candidates';
 /** 前週の Poll 候補キャラクター番号（JSON 配列文字列）を格納するキー（連続選出防止用） */
 export const STATE_KEY_PREV_POLL_CANDIDATES = 'prev_poll_candidates';
+/** F-16 定期出題を最後に投稿したスロット（'YYYY-MM-DD:HH'）を格納するキー */
+export const STATE_KEY_CALC_QUIZ_LAST_SLOT = 'calc_quiz_last_slot';
+/** F-16 定期出題の現在の公開問題（JSON 文字列）を格納するキー */
+export const STATE_KEY_CALC_QUIZ_PUBLIC = 'calc_quiz_public_question';
 
 // ----------------------------------------------------------------
 // BotStateStore クラス

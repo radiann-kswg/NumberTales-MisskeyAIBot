@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'affinity-check' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-calc-quiz' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'affinity-check' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -102,6 +102,19 @@ const MAHJONG_PATTERNS: RegExp[] = [
   /まーじゃん/,
   /\/mahjong\b/i,
   /\/mj\b/i,
+];
+
+/**
+ * 計算問題チャレンジ（F-16）。
+ * 「12+5を計算して」のような素の式計算（CALCULATE_PATTERNS）と食い合わないよう、
+ * 「計算」単独ではなく「計算問題／計算クイズ／計算チャレンジ」の形でのみ拾う。
+ */
+const CALC_QUIZ_PATTERNS: RegExp[] = [
+  /計算(?:問題|クイズ|チャレンジ|勝負)/,
+  /暗算(?:問題|クイズ|チャレンジ|勝負)?/,
+  /四則演算/,
+  /連続正解/,
+  //calcquiz/i,
 ];
 
 /**
@@ -348,6 +361,10 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of ROULETTE_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'game-roulette' };
+  }
+
+  for (const pattern of CALC_QUIZ_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'game-calc-quiz' };
   }
 
   for (const pattern of REPEAT_PATTERNS) {

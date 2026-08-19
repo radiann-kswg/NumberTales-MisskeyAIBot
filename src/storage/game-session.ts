@@ -9,10 +9,10 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export type GameType = 'yacht' | 'hitblow' | 'hitblow-pending' | 'poker' | 'mahjong' | 'mahjong-quiz';
+export type GameType = 'yacht' | 'hitblow' | 'hitblow-pending' | 'poker' | 'mahjong' | 'mahjong-quiz' | 'calc-quiz';
 
 /** 「もう一回」継続コマンド（D3-7）の対象となるゲーム */
-export type RecentGameType = 'yacht' | 'hitblow' | 'slot' | 'poker' | 'mahjong' | 'roulette' | 'mahjong-quiz' | 'tile-fortune';
+export type RecentGameType = 'yacht' | 'hitblow' | 'slot' | 'poker' | 'mahjong' | 'roulette' | 'mahjong-quiz' | 'tile-fortune' | 'calc-quiz';
 
 /** ゲームセッションの有効期間（60分） */
 const GAME_SESSION_TTL_MS = 60 * 60 * 1000;

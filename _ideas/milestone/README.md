@@ -19,6 +19,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) | F-15           | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出）             | Phase 1+2 実装済み 🔧（Phase 3 は F-14 アフィニティ待ち） |
 | [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) | F-14 基盤 | キャラ別親密度（character_affinity）ストア＋加算フック＋照会（能力レジストリ本体は後続） | 実装済み 🔧 |
 | [2026-08-05_milestone_shared-vm-unified-watchdog.md](./2026-08-05_milestone_shared-vm-unified-watchdog.md) | 運用 | 共用 Spot VM 向け統合ウォッチドッグ再設計（reset の巻き添え抑止・プリエンプション対応） | 未着手 ⏳ |
+| [2026-08-20_milestone_f16-calc-quiz-challenge.md](./2026-08-20_milestone_f16-calc-quiz-challenge.md) | F-16 | 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・定期出題） | 実装済み 🔧（実機確認待ち） |
 
 ## フェーズ概要
 
@@ -64,6 +65,7 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | 運用: 統合ウォッチドッグ   | 共用 Spot VM 向け再設計（reset の巻き添え抑止・プリエンプション事前ハンドリング） | 未着手 ⏳ | [2026-08-05_milestone_shared-vm-unified-watchdog.md](./2026-08-05_milestone_shared-vm-unified-watchdog.md) |
 | F-14 基盤                  | キャラ別親密度（character_affinity）ストア＋加算フック＋照会      | 実装済み 🔧（能力レジストリ本体は後続） | [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) |
 | F-15                       | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出） | Phase 1+2 実装済み 🔧 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) |
+| F-16                       | 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・定期出題） | 実装済み 🔧（実機確認待ち） | [2026-08-20_milestone_f16-calc-quiz-challenge.md](./2026-08-20_milestone_f16-calc-quiz-challenge.md) |
 | 運用: 復旧通知             | ダウンタイム明けに 000(チトセ) が復旧通知を自発投稿（ハートビート流用・閾値30分）  | 完了 ✅ | [completed/2026-07-20_milestone_downtime-recovery-notice.md](./completed/2026-07-20_milestone_downtime-recovery-notice.md) |
 | バグ対応                   | ロールプレイ品質の低下 / タスク登録・一覧の不具合 / キャラ特有感の欠如（実機報告） | 完了 ✅ | [completed/2026-07-21_milestone_bug-roleplay-quality-task-ops.md](./completed/2026-07-21_milestone_bug-roleplay-quality-task-ops.md) |
 | テスト基盤                 | vitest 導入（`npm test` = build → vitest run）・意図分類/復旧通知/アフィニティ等の回帰固定 | 完了 ✅ | PR #29 で導入 |

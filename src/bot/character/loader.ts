@@ -80,7 +80,7 @@ export interface CharacterValueLike {
  *
  * 「素の数値」だけでなく補足付き値・その配列・非公開ラッパーも取りうる（upstream 実データで確認）。
  * 例: `Height_cm` #67 = `[{value:145,about_JP:"通常時"},{value:190,about_JP:"筋装備時"}]`、
- * `Weight_kg` は released 92 件中 35 件が `{hideText:"非公開"}`。
+ * `Weight_kg` は released 93 件中 35 件が `{hideText:"非公開"}`。
  * 素の `number` 前提で扱うと表示が欠落する（`String(obj)` で `[object Object]` 化する）ため、
  * 参照側は必ず `resolveMeasureField()` 経由で解決すること。
  */
@@ -95,7 +95,7 @@ export interface CharacterTailsUnit {
   /** 形状の enum 参照（例: "#TailShape_Cat"）。生成カードでは日本語化済みの文面が使われる */
   TailShapeType?: string;
   Count?: number;
-  /** 分岐数（複数股の尻尾）。released 92 件中 65 件が保持 */
+  /** 分岐数（複数股の尻尾）。released 93 件中 65 件が保持 */
   Branches?: number;
   /** 節の数（分節構造を持つ尻尾） */
   Segment?: number;
@@ -153,7 +153,7 @@ export interface CharacterRecord {
   Weight_kg?: CharacterMeasureField;
   /** 設定年齢 */
   ConceptAge?: CharacterMeasureField;
-  /** クラス・分類タグ（例: ["試験用個体","1桁番(ユニデジッツ)"]） */
+  /** クラス・分類タグ（例: ["試験用個体","1桁番"]。dict_Class.json はコード(Class)と表示名(Class_JP)を分離済みで、本フィールドにはコード側が入る） */
   Class?: string[];
   /** 尻尾ユニット（形状・本数）。F-15 身体性コンテキストで使用 */
   TailsUnit?: CharacterTailsUnit[];

@@ -5,7 +5,21 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import { getReleasedCharacterByNum, getDefaultCharacterProfile } from '../character/loader.js';
 import { buildCharacterSystemPrompt } from '../character/prompt-builder.js';
 import type { FormTarget } from '../classifier/intent.js';
-import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import {
+  BotStateStore,
+  STATE_KEY_SCHEDULER_CHAR,
+  STATE_KEY_CALC_QUIZ_LAST_SLOT,
+  STATE_KEY_CALC_QUIZ_PUBLIC,
+} from '../../storage/bot-state.js';
+import { getReleasedCharacters } from '../character/loader.js';
+import {
+  generateQuestion,
+  generateNumberQuestion,
+  publicQuestionText,
+  parsePublicCalcQuiz,
+  type CalcLevel,
+  type PublicCalcQuiz,
+} from '../../features/f06/calc-quiz.js';
 import type { TaskStore } from '../../storage/task.js';
 import type { TrustStore } from '../../storage/trust.js';
 import type { ActiveCharacterStore } from '../character/store.js';
@@ -61,6 +75,21 @@ const TIME_SLOTS: readonly TimeSlot[] = [
   },
 ];
 
+/**
+ * F-16 計算問題の定期出題スロット（JST）。
+ *
+ * 8時・16時・20時は TIME_SLOTS のどれにも属さないため、tick() では
+ * getActiveSlot() の判定より**必ず前**にこの分岐を置くこと。
+ * 12時だけは昼スロット（12〜13時）と重なるので、出題したら lastPostedAt を更新して
+ * その日の昼の自発投稿を抑止する（連投回避）。
+ */
+const CALC_QUIZ_SLOTS: readonly { hour: number; level: CalcLevel; numberMode: boolean }[] = [
+  { hour: 8, level: 1, numberMode: false },
+  { hour: 12, level: 2, numberMode: true },
+  { hour: 16, level: 3, numberMode: false },
+  { hour: 20, level: 4, numberMode: true },
+];
+
 // ----------------------------------------------------------------
 // AI プロンプト
 // ----------------------------------------------------------------
@@ -91,6 +120,15 @@ function buildSchedulerSystemPrompt(botState: BotStateStore, formTarget: FormTar
 /** 現在の JST 時刻（時）を返す */
 function getJSTHour(): number {
   return (new Date().getUTCHours() + 9) % 24;
+}
+
+/** 現在の JST 日付とスロット時刻を 'YYYY-MM-DD:HH' 形式で返す（定期出題の重複防止キー） */
+function getCalcQuizSlotKey(hour: number): string {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(jst.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}:${String(hour).padStart(2, '0')}`;
 }
 
 /** 1〜2時間のランダムなクールダウン（ms）を返す */
@@ -179,18 +217,73 @@ export class PostScheduler {
     this.taskScheduler.stop();
   }
 
+  /**
+   * F-16 定期出題を公開ノートで投稿する。
+   * 出題は担当キャラの口調で行い、回答は「このノートへのリプライ」で受け付ける
+   * （現在の問題は BotStateStore に1件だけ保持し、次の出題で上書きする）。
+   */
+  private async postCalcQuiz(
+    slot: { hour: number; level: CalcLevel; numberMode: boolean },
+    slotKey: string,
+  ): Promise<void> {
+    try {
+      const charNum =
+        this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
+      const question = slot.numberMode
+        ? (generateNumberQuestion(slot.level, getReleasedCharacters()) ??
+           generateQuestion(slot.level))
+        : generateQuestion(slot.level);
+
+      const previous = parsePublicCalcQuiz(
+        this.deps.botState.getState(STATE_KEY_CALC_QUIZ_PUBLIC),
+      );
+      const body = publicQuestionText(question, previous?.answer ?? null);
+      const noteId = await this.deps.misskeyClient.post(formatSpeech(charNum, body));
+
+      const record: PublicCalcQuiz = {
+        noteId,
+        expr: question.expr,
+        answer: question.answer,
+        level: question.level,
+        charNum: question.charNum ?? null,
+        posterNum: charNum,
+        postedAt: Date.now(),
+        answeredUserIds: [],
+      };
+      this.deps.botState.setState(STATE_KEY_CALC_QUIZ_PUBLIC, JSON.stringify(record));
+      this.deps.botState.setState(STATE_KEY_CALC_QUIZ_LAST_SLOT, slotKey);
+      logger.info(`[計算問題] Scheduled quiz posted (${slotKey}): ${question.expr}`);
+    } catch (err) {
+      logger.error('Calc quiz scheduled post error:', err);
+    }
+  }
+
   private isOnCooldown(): boolean {
     if (this.lastPostedAt === null) return false;
     return Date.now() - this.lastPostedAt < this.nextCooldownMs;
   }
 
   private async tick(): Promise<void> {
-    const slot = getActiveSlot(getJSTHour());
+    const hour = getJSTHour();
+
+    // F-16 定期出題（8/12/16/20時）。8時・16時・20時は TIME_SLOTS に属さないため、
+    // getActiveSlot() の null 判定より前に置く必要がある。
+    const quizSlot = CALC_QUIZ_SLOTS.find((entry) => entry.hour === hour);
+    if (quizSlot && !this.isOnCooldown()) {
+      const slotKey = getCalcQuizSlotKey(hour);
+      if (this.deps.botState.getState(STATE_KEY_CALC_QUIZ_LAST_SLOT) !== slotKey) {
+        await this.postCalcQuiz(quizSlot, slotKey);
+        this.lastPostedAt = Date.now();
+        this.nextCooldownMs = randomCooldownMs();
+        return;
+      }
+    }
+
+    const slot = getActiveSlot(hour);
     if (slot === null) return;
     if (this.isOnCooldown()) return;
 
     // 月曜7時: 就任挨拶（B-4）— 就任挨拶を送ったら通常スロット投稿はスキップ
-    const hour = getJSTHour();
     const dayOfWeek = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCDay();
     if (dayOfWeek === 1 && hour === 7) {
       await this.weeklyPoll.postInaugurationGreeting();
