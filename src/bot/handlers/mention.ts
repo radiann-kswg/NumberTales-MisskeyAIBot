@@ -5,7 +5,11 @@ import type { MisskeyClient } from '../../misskey/client.js';
 import type { RateLimiter } from '../ratelimit/index.js';
 import type { SessionStore } from '../../storage/session.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
-import { BotStateStore, STATE_KEY_SCHEDULER_CHAR } from '../../storage/bot-state.js';
+import {
+  BotStateStore,
+  STATE_KEY_SCHEDULER_CHAR,
+  STATE_KEY_CALC_QUIZ_PUBLIC,
+} from '../../storage/bot-state.js';
 import {
   type TaskStore,
   type PendingTaskDraft,
@@ -54,6 +58,8 @@ import {
   handleHitBlowStart, handleHitBlowGuess, handleHitBlowAbandon,
   needsRevealConfirmation, buildPendingStartFromText, handleHitBlowStartWithReveal,
   handleRoulette,
+  handleCalcQuizStart, handleCalcQuizAnswer, handleCalcQuizContinue, handleCalcQuizAbandon,
+  calcQuizCharacterReveal,
   handleTileFortune,
   handleMahjongQuizStart, handleMahjongQuizAnswer, handleMahjongQuizAbandon,
   extractTriviaNumber,
@@ -64,6 +70,19 @@ import { parseRerollCommand, parseConfirmResponse, yachtConfirmPrompt } from '..
 import { parseExchangeCommand } from '../../features/f06/poker.js';
 import { parseDiscardCommand } from '../../features/f06/mahjong.js';
 import { parseQuizAnswer } from '../../features/f06/mahjong-quiz.js';
+import {
+  parseCalcAnswer,
+  parseLevelRequest,
+  isStreakRequest,
+  isNumberModeRequest,
+  CALC_QUIZ_TIME_LIMIT_MS,
+  CALC_QUIZ_CW_LABEL,
+  answerCwBody,
+  parsePublicCalcQuiz,
+  type CalcQuizState,
+  type CalcQuestion,
+  type PublicCalcQuiz,
+} from '../../features/f06/calc-quiz.js';
 import {
   parseGuess,
   symbolLabel,
@@ -96,7 +115,7 @@ const TRUST_BONUS_INTENTS: ReadonlySet<Intent> = new Set<Intent>([
   'chat', 'creative-consultation', 'numerology-consultation',
   'calculate', 'numerology', 'dice', 'trivia',
   'game-slot', 'game-poker', 'game-yacht', 'game-hitblow', 'game-mahjong', 'game-roulette',
-  'game-tile-fortune', 'game-mahjong-quiz',
+  'game-tile-fortune', 'game-mahjong-quiz', 'game-calc-quiz',
   'task-add', 'task-list', 'task-done', 'task-cancel', 'task-progress-update',
 ]);
 
@@ -146,6 +165,12 @@ const AFFINITY_TASK_COMPLETE = 3;
 const AFFINITY_DAILY_CHAT = 1;
 /** 1日にアクティブキャラへ加算できるアフィニティ上限（スパム防止） */
 const AFFINITY_DAILY_CAP = 10;
+/** F-16 計算問題: 1問正解ごとの親密度 */
+const AFFINITY_CALC_CORRECT = 1;
+/** F-16 計算問題: 連続正解チャレンジ終了時のボーナス親密度 */
+const AFFINITY_CALC_STREAK_BONUS = 2;
+/** F-16 計算問題: 連続正解ボーナスが付く最低連続正解数 */
+const CALC_STREAK_BONUS_THRESHOLD = 5;
 
 /** 親密度照会での表示ラベル（AffinityLevel 0-3 に対応） */
 const AFFINITY_LEVEL_LABELS: Record<0 | 1 | 2 | 3, string> = {
@@ -276,6 +301,7 @@ async function generateHarassmentReply(
     'game-hitblow': 'ヒット＆ブロウ',
     'game-mahjong': '麻雀配牌チャレンジ',
     'game-mahjong-quiz': '手役クイズ',
+    'game-calc-quiz': '計算問題',
     'game-roulette': 'キャラ番号ルーレット',
     'life-path': 'ライフパス数（数秘術）',
     kyusei: '九星気学',
@@ -670,6 +696,87 @@ export async function handleMention(
     return;
   }
 
+  // 4-pre0. F-16 定期出題（公開ノート）への回答。
+  // リプライ先が現在の出題ノートなら公開出題への回答と一意に決まるので、個人セッションより先に判定する。
+  if (event.replyId !== undefined) {
+    const publicQuiz = parsePublicCalcQuiz(botState.getState(STATE_KEY_CALC_QUIZ_PUBLIC));
+    if (publicQuiz !== null && publicQuiz.noteId === event.replyId) {
+      let handled: boolean;
+      try {
+        handled = await handlePublicCalcQuizAnswer(publicQuiz);
+      } catch (err) {
+        logger.error('Public calc-quiz handler error:', err);
+        handled = false;
+      }
+      if (handled) return;
+    }
+  }
+
+  /**
+   * 定期出題への回答を処理する。処理して返信済みなら true、回答と解釈できなければ false。
+   * 1ユーザー1回まで（複数人が同じ問題に答えられる）。正解者には**出題した担当キャラ**の親密度を加算する。
+   */
+  async function handlePublicCalcQuizAnswer(quiz: PublicCalcQuiz): Promise<boolean> {
+    const given = parseCalcAnswer(event.text);
+    if (given === null) return false;
+
+    if (quiz.answeredUserIds.includes(event.userId)) {
+      try {
+        await misskeyClient.reply(
+          formatSpeech(quiz.posterNum, 'この問題にはもう答えてくれたね。次の出題を待っててね'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post public calc-quiz duplicate reply:', err);
+      }
+      return true;
+    }
+
+    const correct = given === quiz.answer;
+    botState.setState(
+      STATE_KEY_CALC_QUIZ_PUBLIC,
+      JSON.stringify({ ...quiz, answeredUserIds: [...quiz.answeredUserIds, event.userId] }),
+    );
+
+    if (correct) {
+      characterAffinityStore.addPoints(event.userId, quiz.posterNum, AFFINITY_CALC_CORRECT, {
+        dailyCap: AFFINITY_DAILY_CAP,
+        todayJstDateStr: getJstDateString(Date.now()),
+      });
+    }
+
+    const question: CalcQuestion = {
+      expr: quiz.expr,
+      answer: quiz.answer,
+      level: quiz.level,
+      charNum: quiz.charNum ?? undefined,
+    };
+    const reveal =
+      correct && quiz.charNum !== null
+        ? calcQuizCharacterReveal(quiz.charNum, getReleasedCharacters())
+        : null;
+    const body = answerCwBody(question, given, correct);
+
+    try {
+      await misskeyClient.reply(
+        formatSpeech(quiz.posterNum, '答え合わせするね……') +
+          '\n\n' + (reveal ? `${body}\n\n${reveal}` : body),
+        event.noteId,
+        { cw: CALC_QUIZ_CW_LABEL },
+      );
+      rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      logger.info(`Replied (public-calc-quiz) to ${event.userId}: correct=${correct}`);
+      const reactionPool = MENTION_REACTION_MAP['game-calc-quiz'] ?? MENTION_REACTION_MAP['chat']!;
+      misskeyClient
+        .react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!)
+        .catch(() => {});
+    } catch (err) {
+      logger.error('Failed to post public calc-quiz reply:', err);
+    }
+    return true;
+  }
+
   // 4-pre. アクティブなゲームセッションを確認し、進行中コマンドを優先処理する
   const activeYachtState = gameSessionStore.getSession<YachtState>(event.userId, 'yacht');
   if (activeYachtState) {
@@ -1041,6 +1148,101 @@ export async function handleMention(
     if (handled) return;
   }
 
+  const activeCalcQuizState = gameSessionStore.getSession<CalcQuizState>(event.userId, 'calc-quiz');
+  if (activeCalcQuizState) {
+    let handled: boolean;
+    try {
+      handled = await handleActiveCalcQuizTurn(activeCalcQuizState);
+    } catch (err) {
+      logger.error('CalcQuiz active-session handler error:', err);
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, 'あれ、うまく処理できなかったみたい。もう一回試してみて？'),
+          event.noteId,
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (replyErr) {
+        logger.error('Failed to post calc-quiz error fallback reply:', replyErr);
+      }
+      handled = true;
+    }
+    if (handled) return;
+  }
+
+  /** アクティブな計算問題セッションへの回答を処理する。処理して返信済みなら true、対象外なら false。 */
+  async function handleActiveCalcQuizTurn(state: CalcQuizState): Promise<boolean> {
+    const postCalcQuizResult = async (result: F06Result): Promise<void> => {
+      const framing = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-calc-quiz', result.text);
+      const finalText = framing ? `${framing}\n${result.text}` : result.text;
+      const noteText = formatSpeech(activeCharacterNum, finalText) + (result.cwBody ? '\n\n' + result.cwBody : '');
+      try {
+        await misskeyClient.reply(noteText, event.noteId, { cw: result.cwLabel });
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+        logger.info(`Replied (calc-quiz-action) to ${event.userId}`);
+        const reactionPool = MENTION_REACTION_MAP['game-calc-quiz'] ?? MENTION_REACTION_MAP['chat']!;
+        misskeyClient.react(event.noteId, reactionPool[Math.floor(Math.random() * reactionPool.length)]!).catch(() => {});
+      } catch (err) {
+        logger.error('Failed to post calc-quiz action reply:', err);
+      }
+    };
+
+    /** 親密度を加算する（日次上限は既存の会話ボーナス等と共有） */
+    const awardAffinity = (points: number): void => {
+      characterAffinityStore.addPoints(event.userId, activeCharacterNum, points, {
+        dailyCap: AFFINITY_DAILY_CAP,
+        todayJstDateStr: getJstDateString(Date.now()),
+      });
+    };
+
+    /** チャレンジ終了時に連続正解ボーナスを付ける（セッションが消えたときだけ加算する） */
+    const awardStreakBonusIfEnded = (): void => {
+      if (state.mode !== 'streak') return;
+      if (state.streak < CALC_STREAK_BONUS_THRESHOLD) return;
+      if (gameSessionStore.getSession<CalcQuizState>(event.userId, 'calc-quiz') !== null) return;
+      awardAffinity(AFFINITY_CALC_STREAK_BONUS);
+    };
+
+    if (/やめ|終了|キャンセル|abort/i.test(event.text)) {
+      const abandonResult = handleCalcQuizAbandon(state, gameSessionStore, event.userId);
+      awardStreakBonusIfEnded();
+      try {
+        await misskeyClient.reply(
+          formatSpeech(activeCharacterNum, abandonResult.text) +
+            (abandonResult.cwBody ? '\n\n' + abandonResult.cwBody : ''),
+          event.noteId,
+          { cw: abandonResult.cwLabel },
+        );
+        rateLimiter.recordReply(event.userId, { countsTowardGlobalCap: false });
+      } catch (err) {
+        logger.error('Failed to post calc-quiz abandon reply:', err);
+      }
+      return true;
+    }
+
+    // コンティニュー可否の返事待ち（肯定/否定と解釈できない発話は通常フローへ落とす）
+    if (state.awaitingContinue) {
+      const confirm = parseConfirmResponse(event.text);
+      if (confirm === null) return false;
+      const result = handleCalcQuizContinue(
+        state, confirm === 'yes', gameSessionStore, event.userId, getReleasedCharacters(),
+      );
+      awardStreakBonusIfEnded();
+      await postCalcQuizResult(result);
+      return true;
+    }
+
+    const given = parseCalcAnswer(event.text);
+    if (given === null) return false;
+
+    const inTime = Date.now() - state.askedAt <= CALC_QUIZ_TIME_LIMIT_MS;
+    const result = handleCalcQuizAnswer(state, given, gameSessionStore, event.userId, getReleasedCharacters());
+    if (inTime && given === state.question.answer) {
+      awardAffinity(AFFINITY_CALC_CORRECT);
+    }
+    awardStreakBonusIfEnded();
+    await postCalcQuizResult(result);
+    return true;
+  }
   /** アクティブな手役クイズセッションへの回答を処理する。処理して返信済みなら true、対象外なら false。 */
   async function handleActiveMahjongQuizTurn(activeMahjongQuizState: MahjongQuizState): Promise<boolean> {
     const postQuizResult = async (result: F06Result): Promise<void> => {
@@ -1292,19 +1494,20 @@ export async function handleMention(
     effectiveIntent === 'dice' || effectiveIntent === 'trivia' || effectiveIntent === 'game-slot' ||
     effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' || effectiveIntent === 'game-hitblow' ||
     effectiveIntent === 'game-mahjong' || effectiveIntent === 'game-roulette' ||
-    effectiveIntent === 'game-tile-fortune' || effectiveIntent === 'game-mahjong-quiz'
+    effectiveIntent === 'game-tile-fortune' || effectiveIntent === 'game-mahjong-quiz' ||
+    effectiveIntent === 'game-calc-quiz'
   ) {
     // 並行ゲーム禁止: 新規ゲーム開始時に既存セッションがあれば拒否する
     if (
       effectiveIntent === 'game-poker' || effectiveIntent === 'game-yacht' ||
       effectiveIntent === 'game-hitblow' || effectiveIntent === 'game-mahjong' ||
-      effectiveIntent === 'game-mahjong-quiz'
+      effectiveIntent === 'game-mahjong-quiz' || effectiveIntent === 'game-calc-quiz'
     ) {
       const existingGame = gameSessionStore.getAnyActiveSession(event.userId);
       if (existingGame) {
         const gameNames: Record<string, string> = {
           yacht: 'ヨット', hitblow: 'ヒット＆ブロウ', poker: 'ポーカー', mahjong: '麻雀',
-          'mahjong-quiz': '手役クイズ',
+          'mahjong-quiz': '手役クイズ', 'calc-quiz': '計算問題',
         };
         const ongoingName = gameNames[existingGame] ?? 'ゲーム';
         const busyText = formatSpeech(activeCharacterNum, `今${ongoingName}の途中だよ！「やめ」か「終了」で終わらせてから試してね`);
@@ -1401,6 +1604,14 @@ export async function handleMention(
         } else if (effectiveIntent === 'game-hitblow') {
           f06Result = handleHitBlowStart(event.userId, gameSessionStore, event.text);
           gameSessionStore.recordPlayed(event.userId, 'hitblow');
+        } else if (effectiveIntent === 'game-calc-quiz') {
+          f06Result = handleCalcQuizStart(event.userId, gameSessionStore, {
+            level: parseLevelRequest(event.text) ?? 2,
+            mode: isStreakRequest(event.text) ? 'streak' : 'single',
+            numberMode: isNumberModeRequest(event.text),
+            characters: getReleasedCharacters(),
+          });
+          gameSessionStore.recordPlayed(event.userId, 'calc-quiz');
         } else {
           if (effectiveIntent === 'game-slot') {
             gameSessionStore.recordPlayed(event.userId, 'slot');
@@ -1433,13 +1644,16 @@ export async function handleMention(
           : effectiveIntent === 'game-hitblow' ? 'game-hitblow'
           : effectiveIntent === 'game-mahjong' ? 'game-mahjong'
           : effectiveIntent === 'game-mahjong-quiz' ? 'game-mahjong-quiz'
+          : effectiveIntent === 'game-calc-quiz' ? 'game-calc-quiz'
           : effectiveIntent === 'game-roulette' ? 'game-roulette'
           : numerologyType === 'life-path' ? 'life-path'
           : numerologyType === 'moon-star' ? 'moon-star'
           : 'kyusei';
-        const framingLine = await generateF06Framing(
-          ai, activeCharacter, activeFormTarget, framingType, f06Result.text,
-        );
+        // 出題文に一言を添えさせると LLM が答えを漏らしかねないため、計算問題の出題時だけ抑止する
+        const framingLine =
+          effectiveIntent === 'game-calc-quiz'
+            ? null
+            : await generateF06Framing(ai, activeCharacter, activeFormTarget, framingType, f06Result.text);
         if (framingLine) {
           f06Result = { ...f06Result, text: `${framingLine}\n${f06Result.text}` };
         }
