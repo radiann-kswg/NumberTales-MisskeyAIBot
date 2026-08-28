@@ -117,7 +117,6 @@ src/
       emoji.ts                 # 発言書式 formatSpeech()
       templates/
         greeting.ts            # 挨拶定型返答テンプレート
-        emoji-map.ts           # EMOJI_POOL 定義
     scheduler/
       index.ts                 # PostScheduler（時間帯別自発投稿）
       weekly-poll.ts           # WeeklyPollScheduler（週次 Poll 担当選出）

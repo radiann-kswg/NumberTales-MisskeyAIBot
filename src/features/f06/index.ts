@@ -104,7 +104,7 @@ import { toHalfWidthDigits } from '../../utils/text.js';
 
 export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState, CalcQuizState };
 
-export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star' | 'tarot';
+export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
 /** F-06 の処理結果 */
 export interface F06Result {

@@ -230,7 +230,11 @@ function buildSpecialtySection(profile: CharacterRecord): string[] {
   const hobby = resolveTextField(profile.Hobby_JP ?? profile.Hobby);
   const specialSkill = resolveTextField(profile.SpecialSkill_JP ?? profile.SpecialSkill);
   const favor = resolveTextField(profile.Favor_JP ?? profile.Favor);
-  const numerospecAbout = resolveTextField(profile.NumerospecAbout_JP ?? profile.NumerospecAbout);
+  const numerospecAbout = resolveTextField(
+    profile.NumerospecStats?.NumerospecAbout_JP ??
+      profile.NumerospecAbout_JP ??
+      profile.NumerospecAbout,
+  );
   const strength = normalizeText(profile.Strength_JP ?? profile.Strength);
   const weakness = normalizeText(profile.Weakness_JP ?? profile.Weakness);
 

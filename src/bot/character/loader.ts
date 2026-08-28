@@ -132,9 +132,14 @@ export interface CharacterRecord {
   /** 好きなもの */
   Favor_JP?: string;
   Favor?: string;
-  /** ヌメロジー上の役割・特性 */
+  /** ヌメロジー上の役割・特性（v2026-08 で NumerospecStats 配下へ移動。旧データ互換のためトップレベルも残す） */
   NumerospecAbout_JP?: string;
   NumerospecAbout?: string;
+  /** "カバラの加護"(数秘的加護)の特性。Bot が使うフィールドのみ型定義 */
+  NumerospecStats?: {
+    NumerospecAbout_JP?: string;
+    NumerospecAbout_EN?: string | null;
+  } | null;
   /** 強み・長所（劇中設定） */
   Strength_JP?: string;
   Strength?: string;
