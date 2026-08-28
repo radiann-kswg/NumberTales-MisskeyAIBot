@@ -1,9 +1,8 @@
 /**
  * 絵文字付与ユーティリティ
  *
- * 意図・コンテキストに応じてインスタンスのカスタム絵文字をテキストに付与する。
+ * コアフォルダ絵文字の解決と、ナンバーテールズの発言書式への整形を行う。
  */
-import { EMOJI_POOL, type EmojiContext } from './templates/emoji-map.js';
 import type { EmojiInfo } from '../../misskey/client.js';
 
 // ----------------------------------------------------------------
@@ -67,22 +66,6 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
 
   // 4. 解決不能
   return null;
-}
-
-/**
- * コンテキストに対応する絵文字プールからランダムに1つ選ぶ
- */
-export function pickEmoji(context: EmojiContext): string {
-  const pool = EMOJI_POOL[context];
-  const idx = Math.floor(Math.random() * pool.length);
-  return pool[idx] as string;
-}
-
-/**
- * テキストの末尾に絵文字を付与する（Misskey カスタム絵文字形式）
- */
-export function appendEmoji(text: string, emojiName: string): string {
-  return `${text} :${emojiName}:`;
 }
 
 /**

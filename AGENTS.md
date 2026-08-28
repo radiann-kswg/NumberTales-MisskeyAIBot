@@ -244,7 +244,7 @@ src/
       scheduler.ts            #   時間帯スロット判定ヘルパー
     ratelimit/                # RateLimiter クラス
     reactor/                  # 絵文字マップ・感情分類（LLM ハイブリッド）
-    responder/                # 発言書式・テンプレート（greeting / emoji-map 等）
+    responder/                # 発言書式・テンプレート（greeting 等）
     scheduler/
       index.ts                #   時間帯別自発投稿（週次担当キャラ連携済み）
       weekly-poll.ts          #   週次担当キャラクター選出（Poll 投稿・集計・就任）

@@ -22,15 +22,3 @@ export function matchCircledDigit(text: string): number | null {
 export function toHalfWidthDigits(s: string): string {
   return s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
 }
-
-/**
- * 数値解析の前処理として、丸数字を対応する半角数字に、全角数字を半角数字に変換する。
- * 丸数字は「①番」のように単体で桁番号を表す想定のため、そのまま数字1文字に置き換える。
- */
-export function normalizeDigitsForParsing(text: string): string {
-  const withHalfWidthCircles = text.replace(
-    /[①②③④⑤⑥⑦⑧⑨⑩]/g,
-    (c) => String(CIRCLED_DIGIT_TO_INDEX[c]!),
-  );
-  return toHalfWidthDigits(withHalfWidthCircles);
-}
