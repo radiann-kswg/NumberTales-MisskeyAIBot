@@ -93,7 +93,7 @@ import {
 } from '../../features/f06/hitblow.js';
 import { containsFlaggedWord } from '../../features/f06/hitblow-words.js';
 import {
-  TRIVIA_SYSTEM_PROMPT, buildTriviaUserPrompt, triviaErrorResponse,
+  buildTriviaUserPrompt, triviaErrorResponse,
   TILE_FORTUNE_CW_LABEL, tileFortuneHeadline, buildTileFortuneUserPrompt,
   tileFortuneErrorResponse, tileFortuneCwBody,
 } from '../../features/f06/responder.js';
@@ -623,7 +623,7 @@ export async function handleMention(
         : buildCharacterSwitchText(switchTarget, alreadyActive);
       const switchScenario = requestedFormTarget
         ? requestedFormTarget === 'core-folder'
-          ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+          ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
           : 'ヒューマノイド形態（人型）へ変形して戻りました。しゅるっと人型に戻る過程を短く演出しつつ、あなたのキャラクターとして自然に一言どうぞ（60文字以内）。'
         : alreadyActive
           ? 'ユーザーが再度あなたを指名しました。すでにあなたが担当中であることを、あなたのキャラクターとして短く伝えてください（60文字以内）。'
@@ -1551,7 +1551,12 @@ export async function handleMention(
         try {
           const aiResult = await ai.chat(
             [
-              { role: 'system' as const, content: TRIVIA_SYSTEM_PROMPT },
+              // うんちくも担当キャラの口調で話す（従来は 000(チトセ) 固定の定数プロンプトで、
+              // 52 が応答していても一人称・口調がチトセになっていた）
+              {
+                role: 'system' as const,
+                content: buildCharacterSystemPrompt(activeCharacter, 'chat', activeFormTarget, trustContext),
+              },
               { role: 'user' as const, content: buildTriviaUserPrompt(triviaNum) },
             ],
             { maxTokens: 120, temperature: 0.9 },
@@ -1929,7 +1934,7 @@ export async function handleMention(
     activeCharacterStore.setForm(event.userId, targetForm);
     const formScenario =
       targetForm === 'core-folder'
-        ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、ひらがな多め・短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
+        ? 'コアフォルダ形態（球体型・約55cm）へ変形しました。ぽむっと丸くなる変形の過程を短い擬音で軽く演出しつつ、短文で、あなたのキャラクターとして自然に伝えてください（60文字以内）。'
         : 'ヒューマノイド形態（人型）へ変形して戻りました。しゅるっと人型に戻る過程を短く演出しつつ、あなたのキャラクターとして自然に一言どうぞ（60文字以内）。';
     const formFallback = buildFormSwitchText(activeCharacter, targetForm);
     speechText = formatSpeech(
