@@ -409,6 +409,8 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
   ② 手順つき素因数分解（1001 法＝7・11・13 同時判定などの遷移列を答えに添える。出題モードは当面見送り）
   ③ 数式画像描画基盤（[PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline) を
   `_calcimage-pipeline/` にサブモジュール導入し、式・手順を画像で投稿。Python 3.11 を `execFile` で呼ぶ。クレジットは Bot プロフィール固定）
+  ④ Wolfram 連携（拡張。Bot 実行時は Wolfram|Alpha LLM API を「自前コードで解けないときの 2 段目」に限定＝数字うんちくの事実補強・`calculate` の記号計算／単位換算・13 桁超の素因数分解。
+  開発時の検算は公式 Wolfram Cloud MCP。Free Wolfram Engine は本番 Web サービス不可のため VM に載せない。①〜③ の後、公式 MCP コネクタ復旧後に着手）
   → [`_ideas/future-plan/F-17-arithmetic-puzzles.md`](./_ideas/future-plan/F-17-arithmetic-puzzles.md)
 
 ---

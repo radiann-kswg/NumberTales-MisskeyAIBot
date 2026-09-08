@@ -19,6 +19,7 @@
 | **F-17A** | 逆メイク10 ソルバー | 「10 だけで 7 を作って」→ 10 を最少個数使った式を返す。四則モードと抵抗（加算＋連分数）モードの 2 本立て | F-17C |
 | **F-17B** | 手順つき素因数分解 | 「21229 を素因数分解して」→ 答えに加えて 1001 法の遷移列（手計算の手順）を返す | F-17C |
 | **F-17C** | 数式画像描画基盤 | [PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline) を `_calcimage-pipeline/` にサブモジュール導入し、式・手順を画像で投稿する | — |
+| **F-17D** | Wolfram 連携（拡張） | Bot 実行時は Wolfram\|Alpha LLM API を「自前コードで解けないときの 2 段目」に置く。開発時は公式 MCP で検算。**A〜C の後**に着手 | F-17C（画像添付時） |
 
 共通方針は F-16 と同じ: **計算はすべてコード**、キャラの一言だけ LLM（`generateF06Framing` の既存経路）。
 **式と手順の描画は画像パイプライン（C）を正とする**（2026-09-08 決定。`∥` などの絵文字は将来実装予定で、当面は画像で出す）。
@@ -156,6 +157,54 @@ F-17A の連分数のはしご `\frac{1}{1+\frac{1}{2+\frac{1}{3}}}`、F-17B の
 
 ---
 
+## F-17D: Wolfram 連携（拡張・公式 MCP 復旧後）
+
+> 調査の詳細は [調査ノート §5](../.research/arithmetic-puzzles.md#5-wolfram-連携の調査2026-09-08-追記)。
+
+### 前提: 2 つの経路を混同しない
+
+| 経路 | 誰が使う | 何に使う |
+| --- | --- | --- |
+| **Wolfram Cloud MCP**（公式） | 私（Claude Code）が**開発中**に呼ぶ | A の総当たり表・連分数、B の 1001 法遷移列の検算。テストフィクスチャ生成。**Bot のコードには入らない** |
+| **Wolfram\|Alpha LLM API** | **Bot** が VM 上で呼ぶ | 自前コードで解けない問いの 2 段目。非商用 2,000 回/月の無料枠 |
+
+Free Wolfram Engine（wolframscript）は「本番 Web サービスは production license 必須」なので VM には載せない。
+
+### Bot 実行時に効く場所（優先順）
+
+| # | 対象 | 内容 | なぜ効くか |
+| --- | --- | --- | --- |
+| D-1 | **`trivia`（数字うんちく）** | 「57 の性質」を LLM API に投げ、数論的性質（素因数・約数・進数・図形数…）を事実として CW に添える。**公開済みキャラ全員分をキャッシュ**すれば以後は API 消費ゼロ | 番号キャラの「数字を生きる存在」感を事実で裏打ちできる。F-17 の中でいちばん世界観に近い |
+| D-2 | **`calculate` の 2 段目** | mathjs が失敗した式（積分・方程式・単位換算「3.2 光年を km に」・物理定数）だけ WA へ。結果は本文に要約、詳細を CW | 既存意図の穴埋め。新しいトリガー語が要らない |
+| D-3 | **F-17B の大きな数** | 13 桁以上は自前の試し割りを諦めて WA に `FactorInteger` 相当を聞く。1001 法の手順は自前のまま（WA には無い） | 「電卓を使ってくれ」と断っていた領域を埋める |
+| D-4 | **プロット画像** | LLM API が返す画像 URL を取得し、F-17C の `uploadFile()` で Drive 添付 | C の投資を再利用 |
+
+F-17A（逆メイク10）は WA に既製機能が無いので**実行時は使わない**。
+
+### 制約（設計に効く）
+
+- 2,000 回/月 ≒ 65 回/日。**ユーザー日次上限（5 回）＋クエリ文字列キャッシュ**（`bot-state.ts` KV、キー `wolfram:<sha1>`、TTL 30 日）を必ず入れる
+- WA は常に「無くても動く 2 段目」。タイムアウト 5 秒、失敗時は既存の mathjs／LLM 経路へそのまま戻す
+- `maxchars` は 500〜1,000 に絞る。**WA の生テキストをそのまま投稿しない**（英語混じり・書式崩れ。キャラの口上は既存 `generateF06Framing` 経路）
+- AppID は `.env` の `WOLFRAM_APPID`。`.env` 確認コマンドの除外語に `APPID` を足す
+- WA 利用規約の**帰属表示の要否は Developer Portal で要確認**。必要なら F-17C と同じく Bot プロフィールに固定
+
+### 新規ファイル（見込み）
+
+| ファイル | 役割 |
+| --- | --- |
+| `src/ai/wolfram.ts` | `queryWolfram(input, maxchars): Promise<string \| null>`（fetch ＋ タイムアウト ＋ KV キャッシュ ＋ 日次上限）。60 行程度 |
+| `test/wolfram.test.ts` | ネットワーク無しで「上限到達・タイムアウト・キャッシュヒット」の 3 経路が `null`／キャッシュ値を返すことを固定化 |
+
+### 開発時の MCP 活用（コネクタ復旧後すぐ）
+
+- A: `Table[Length@…]` で総当たり表の件数を独立に再計算し、`arithmetic-puzzles.verify.mjs` の出力と突き合わせる
+- A: `ContinuedFraction[k/10]` / `FromContinuedFraction` で連分数はしごの往復を確認
+- B: `FactorInteger` で `test/factorize.test.ts` のフィクスチャ（3〜6 桁・素因数構成別）を生成
+- 接続: 今セッションのコネクタは `404 No MCP endpoint` で失敗。claude.ai の Connectors で Wolfram を削除→再追加してエンドポイントを更新する
+
+---
+
 ## 既存資産の棚卸（再利用）
 
 | 使うもの | 場所 | 用途 |
@@ -179,6 +228,7 @@ F-17A の連分数のはしご `\frac{1}{1+\frac{1}{2+\frac{1}{3}}}`、F-17B の
 | **A-1** | 逆メイク10 ソルバー: 総当たり（四則／抵抗）・最少個数の式（最大 3 候補を画像）・連分数のはしご画像・intent 配線 | `src/features/f06/make-ten.ts`（新規）, `f06/index.ts`, `intent.ts`, `mention.ts`, `test/make-ten.test.ts` |
 | **B-1** | 素因数分解: 試し割り＋フェルマー法・1001/2001/10013 法の遷移列（素因数に応じて載せる法を選択）・intent 配線 | `src/features/f06/factorize.ts`（新規）ほか A-1 と同じ配線先, `test/factorize.test.ts` |
 | **B-2（保留）** | 素因数分解の出題モード（F-16 骨格流用・番号モード）— 当面は様子見 | `game-session.ts` に `'factor-quiz'` 追加ほか |
+| **D-1〜D-4** | Wolfram 連携: `queryWolfram()`（KV キャッシュ・日次上限・タイムアウト）→ 数字うんちくの事実補強 → `calculate` 2 段目 → 大きな数の素因数分解 → プロット画像添付。**A〜C 完了後、公式 MCP コネクタ復旧後** | `src/ai/wolfram.ts`, `test/wolfram.test.ts`, `mention.ts`（trivia / calculate の分岐）, `.env` / AGENTS.md（`WOLFRAM_APPID`） |
 
 テストで固定化する不変条件:
 
@@ -197,6 +247,8 @@ F-17A の連分数のはしご `\frac{1}{1+\frac{1}{2+\frac{1}{3}}}`、F-17B の
 - 式の絵文字描画（`∥` など未収録字の PenchantManufacture 絵文字）— 将来実装予定。当面は画像パイプラインで出す
 - 37 以上の素数の同時判定法（記事も未執筆）— フェルマー法と試し割りで受ける
 - ImagePipeline の TypeScript 移植 — Python を spawn する
+- Wolfram を 1 段目にすること — 自前で解ける計算（四則・逆メイク10・12 桁以下の素因数分解・1001 法）は API に頼らない。無料枠と可用性の両方の理由
+- VM への Free Wolfram Engine 導入 — 本番 Web サービスはライセンス対象外
 
 ---
 
@@ -216,3 +268,4 @@ F-17A の連分数のはしご `\frac{1}{1+\frac{1}{2+\frac{1}{3}}}`、F-17B の
 
 - intent のトリガー語（「10 だけで」「抵抗で」「素因数分解」「〜で割れる？」）と `calculate` / `trivia` との順序
 - 画像の `--cell`（3 か 4 か）と、複数行のときの見た目（実機で 1 度描いて決める）
+- F-17D: Wolfram\|Alpha の帰属表示の要否（Developer Portal の規約確認）、日次上限の具体値、D-1 の全キャラ事前キャッシュを起動時にやるか初回問い合わせ時にやるか
