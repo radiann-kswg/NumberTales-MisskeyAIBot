@@ -114,6 +114,8 @@ export interface F06Result {
   cwBody?: string;
   /** CW ラベル（cwBody がある場合のみ使用） */
   cwLabel?: string;
+  /** text に次の問題（式）を含む。true のとき LLM フレーミングを生成してはならない（答えを先に言ってしまう） */
+  containsNewQuestion?: boolean;
 }
 
 // ----------------------------------------------------------------
@@ -623,6 +625,7 @@ ${reveal}` : body,
 ${questionText(question, { streak })}`,
       cwBody: reveal ?? undefined,
       cwLabel: reveal ? CALC_QUIZ_CW_LABEL : undefined,
+      containsNewQuestion: true,
     };
   }
 
@@ -686,8 +689,11 @@ export function handleCalcQuizContinue(
     awaitingContinue: false,
     askedAt: Date.now(),
   });
-  return { text: `コンティニュー！
-${questionText(question, { streak: state.streak })}` };
+  return {
+    text: `コンティニュー！
+${questionText(question, { streak: state.streak })}`,
+    containsNewQuestion: true,
+  };
 }
 
 /** 中断・放棄（正解を明かして終了する） */
