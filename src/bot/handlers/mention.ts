@@ -720,7 +720,18 @@ export async function handleMention(
     const given = parseCalcAnswer(event.text);
     if (given === null) return false;
 
-    if (quiz.answeredUserIds.includes(event.userId)) {
+    // 重複チェックと回答者追記を同期的に閉じる（別ユーザーの回答は並行するため、スナップショット quiz で
+    // 判定→setState すると後勝ちで先の回答者が消え、1ユーザー1回制限と親密度加算が二重になる）
+    let alreadyAnswered = false;
+    botState.updateState(STATE_KEY_CALC_QUIZ_PUBLIC, (raw) => {
+      const current = parsePublicCalcQuiz(raw) ?? quiz;
+      if (current.answeredUserIds.includes(event.userId)) {
+        alreadyAnswered = true;
+        return raw ?? JSON.stringify(current);
+      }
+      return JSON.stringify({ ...current, answeredUserIds: [...current.answeredUserIds, event.userId] });
+    });
+    if (alreadyAnswered) {
       try {
         await misskeyClient.reply(
           formatSpeech(quiz.posterNum, 'この問題にはもう答えてくれたね。次の出題を待っててね'),
@@ -734,10 +745,6 @@ export async function handleMention(
     }
 
     const correct = given === quiz.answer;
-    botState.setState(
-      STATE_KEY_CALC_QUIZ_PUBLIC,
-      JSON.stringify({ ...quiz, answeredUserIds: [...quiz.answeredUserIds, event.userId] }),
-    );
 
     if (correct) {
       characterAffinityStore.addPoints(event.userId, quiz.posterNum, AFFINITY_CALC_CORRECT, {
@@ -1172,7 +1179,10 @@ export async function handleMention(
   /** アクティブな計算問題セッションへの回答を処理する。処理して返信済みなら true、対象外なら false。 */
   async function handleActiveCalcQuizTurn(state: CalcQuizState): Promise<boolean> {
     const postCalcQuizResult = async (result: F06Result): Promise<void> => {
-      const framing = await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-calc-quiz', result.text);
+      // 次の問題を含む返信は LLM に渡さない（式を解いて答えを先に言ってしまう）
+      const framing = result.containsNewQuestion
+        ? null
+        : await generateF06Framing(ai, activeCharacter, activeFormTarget, 'game-calc-quiz', result.text);
       const finalText = framing ? `${framing}\n${result.text}` : result.text;
       const noteText = formatSpeech(activeCharacterNum, finalText) + (result.cwBody ? '\n\n' + result.cwBody : '');
       try {

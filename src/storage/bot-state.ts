@@ -73,6 +73,14 @@ export class BotStateStore {
   }
 
   /**
+   * 読み取り→書き込みを同期的に閉じて更新する（read-modify-write のロストアップデート防止）。
+   * updater の中で await しないこと。単一スレッドなので、それだけで割り込みは起きない。
+   */
+  updateState(key: string, updater: (prev: string | null) => string): void {
+    this.setState(key, updater(this.getState(key)));
+  }
+
+  /**
    * 指定キーを削除する。
    */
   deleteState(key: string): void {

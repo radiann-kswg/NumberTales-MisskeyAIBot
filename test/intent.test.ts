@@ -32,6 +32,8 @@ describe('classifyIntent — タスク意図分類の回帰ガード', () => {
     ['連続正解チャレンジやろう', 'game-calc-quiz'],
     ['ナンバーテールズ計算問題', 'game-calc-quiz'],
     ['暗算問題', 'game-calc-quiz'],
+    // 2026-08-22 トリアージ: 行頭の  が生の U+0008 になりパターン行ごとコメント化されていた回帰ガード
+    ['/calcquiz', 'game-calc-quiz'],
     ['12+5を計算して', 'calculate'],
   ];
 

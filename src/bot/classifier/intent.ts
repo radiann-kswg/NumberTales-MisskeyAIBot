@@ -114,7 +114,7 @@ const CALC_QUIZ_PATTERNS: RegExp[] = [
   /暗算(?:問題|クイズ|チャレンジ|勝負)?/,
   /四則演算/,
   /連続正解/,
-  //calcquiz/i,
+  /\/calcquiz\b/i,
 ];
 
 /**

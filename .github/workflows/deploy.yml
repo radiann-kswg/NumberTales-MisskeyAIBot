@@ -10,6 +10,13 @@ on:
   # ※ GitHub の仕様上、この定義がデフォルトブランチ（master）に取り込まれるまで手動実行はできない。
   workflow_dispatch:
 
+# 連続 push（例: Dependabot PR と release PR を同じ分にマージ）で 2 run が同じ VM ディレクトリへ並走し、
+# .git/index.lock / node_modules の競合で先行 run が落ちる（2026-07-26 に実発生）。
+# どの run も `git reset --hard origin/master` で最新へ揃えるため、古い run は捨ててよい。
+concurrency:
+  group: deploy-gcp-vm
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: SSH deploy

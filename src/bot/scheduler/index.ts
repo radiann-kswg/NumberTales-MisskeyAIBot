@@ -276,7 +276,7 @@ export class PostScheduler {
     // F-16 定期出題（8/12/16/20時）。8時・16時・20時は TIME_SLOTS に属さないため、
     // getActiveSlot() の null 判定より前に置く必要がある。
     const quizSlot = CALC_QUIZ_SLOTS.find((entry) => entry.hour === hour);
-    if (quizSlot && !this.isOnCooldown()) {
+    if (quizSlot) { // 重複防止は slotKey 比較で足りる。クールダウンに掛けると月曜7時の就任挨拶直後の8時出題が落ちる
       const slotKey = getCalcQuizSlotKey(hour);
       if (this.deps.botState.getState(STATE_KEY_CALC_QUIZ_LAST_SLOT) !== slotKey) {
         await this.postCalcQuiz(quizSlot, slotKey);
