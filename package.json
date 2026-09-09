@@ -13,10 +13,11 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write src/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && vitest run",
+    "test": "npm run check:ctrl && npm run build && vitest run",
     "test:only": "vitest run",
     "sanitize": "node tools/sanitize-chat-archive.mjs",
-    "sanitize:dry": "node tools/sanitize-chat-archive.mjs --dry-run"
+    "sanitize:dry": "node tools/sanitize-chat-archive.mjs --dry-run",
+    "check:ctrl": "git grep -In --untracked -P \"[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]\" -- src test tools && exit 1 || true"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
