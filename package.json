@@ -17,7 +17,7 @@
     "test:only": "vitest run",
     "sanitize": "node tools/sanitize-chat-archive.mjs",
     "sanitize:dry": "node tools/sanitize-chat-archive.mjs --dry-run",
-    "check:ctrl": "git grep -In --untracked -P \"[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]\" -- src test tools && exit 1 || true"
+    "check:ctrl": "node tools/check-ctrl.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
@@ -37,7 +37,7 @@
     "prettier": "^3.0.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.4.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20.0.0"
