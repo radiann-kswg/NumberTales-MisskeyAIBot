@@ -49,7 +49,7 @@
 
 > 本区間はスキーマ破壊が無いため、パーサ・型定義の追従は不要だった。
 > 同コミットには別件（PR #37 の Copilot レビュー指摘 4 件の修正）も含む。詳細は
-> [_tasks/github-triage/2026-08-22_github-triage.md](../github-triage/2026-08-22_github-triage.md) の追記節を参照。
+> `_tasks/.archived/github-triage/2026-08-22_github-triage.md`（棚卸済み・git 管轄外） の追記節を参照。
 
 ## 検証
 

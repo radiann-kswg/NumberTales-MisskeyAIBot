@@ -13,7 +13,9 @@ import { formatSpeech } from '../dist/bot/responder/emoji.js';
 describe('buildCharacterSystemPrompt: 口調ガード', () => {
   it('カード経路（52）にキャラカードの口調とガードが両方載る', () => {
     const prompt = buildCharacterSystemPrompt({ Num: '52', Name_JP: '52(イツギ)' }, 'chat');
-    expect(prompt).toContain('穏やかで控えめな口調'); // creations-db のカードが基盤層に載っている
+    // カードが基盤層に載っていることは、生成テンプレ固定の見出しアンカーで確認する。
+    // カード本文の文言（口調など）に依存させると、creations-db 側の微修正でテストだけ壊れる。
+    expect(prompt).toContain('# あなたが演じる');
     expect(prompt).toContain('主人（ユーザー）の呼び方が設定にある場合');
     expect(prompt).toContain('感嘆符の連発やテンションの底上げ');
   });
