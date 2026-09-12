@@ -296,6 +296,7 @@ _creations-db/                # サブモジュール: 百花繚乱研究所 創
 _tasks/                       # 自動スケジュールタスクの作業ログ（種類別サブフォルダ）
   creations-db-sync/          #   creations-db 追従・最適化ログ
   github-triage/              #   GitHub 未解決問題トリアージの調査ログ（読み取りのみ）
+  .archived/                  #   決着済みログの棚卸先（git 管轄外）
 _session-archives/            # 過去の対話アーカイブ（_agent-chats / diary）
 tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
   fetch-misskey-emojis.mjs    #   インスタンスのカスタム絵文字一覧をダンプ（--filter / --category で絞り込み）
@@ -637,6 +638,8 @@ upstream 更新への追従は、ネットワーク要否で役割を分けて�
 > （設計・運用手順）は `docs/`、時系列の作業記録は `_tasks/<タスク名>/` と役割を分ける。
 > 新しい種類のログを追加するときは、まず [_tasks/README.md](./_tasks/README.md) にサブフォルダの行を
 > 追加すること（置き場が未定のまま `docs/` へ退避すると同種のログが分散する）。
+> 記載項目がすべて決着したログは `_tasks/.archived/<サブフォルダ名>/`（git 管轄外）へ棚卸する。
+> 手順は [_tasks/README.md の「棚卸（.archived/）」](./_tasks/README.md#棚卸archived)を参照。
 
 > **注意（ゲートの盲点）**: ゲートは **前進と退行を区別しない**。作業ツリーが記録 gitlink の過去コミットへ
 > 巻き戻った「退行」も `UPDATE_AVAILABLE` として拾うため、鵜呑みで追従すると廃止済み設定が復活し得る。

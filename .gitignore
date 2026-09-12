@@ -17,6 +17,9 @@ _ideas/.research/
 *.log
 logs/
 
+# 完了済みタスク
+_tasks/.archived/
+
 # 対話記録サニタイザーの個人追加ルール（テンプレートは .example を参照）
 tools/sanitize-extra-rules.json
 
