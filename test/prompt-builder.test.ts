@@ -17,6 +17,8 @@ describe('buildCharacterSystemPrompt: 口調ガード', () => {
     // カード本文の文言（口調など）に依存させると、creations-db 側の微修正でテストだけ壊れる。
     expect(prompt).toContain('# あなたが演じる');
     expect(prompt).toContain('主人（ユーザー）の呼び方が設定にある場合');
+    // 実機バグ 2026-09-16: 35(サトコ) が「兄者/姉者」を連結したまま発話していた
+    expect(prompt).toContain('決して「/」で連結したまま呼ばないこと');
     expect(prompt).toContain('感嘆符の連発やテンションの底上げ');
   });
 
@@ -24,6 +26,7 @@ describe('buildCharacterSystemPrompt: 口調ガード', () => {
     const prompt = buildCharacterSystemPrompt({ Num: '999999', Name_JP: 'テスト機' }, 'chat');
     expect(prompt).toContain('【口調・テンションの厳守】');
     expect(prompt).toContain('感嘆符の連発やテンションの底上げ');
+    expect(prompt).toContain('決して「/」で連結したまま呼ばないこと');
   });
 
   it('コアフォルダ形態でも口調そのものは上書きしない', () => {
