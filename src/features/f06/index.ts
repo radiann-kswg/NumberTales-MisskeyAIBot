@@ -1,7 +1,7 @@
 // F-06 コマンドディスパッチャー
 // 入力テキストを解析して計算・数秘術の各機能に振り分ける
 
-import { safeEvaluate, toMathjsNotation, toNaturalNotation } from './calculator.js';
+import { safeEvaluate, exactFraction, toMathjsNotation, toNaturalNotation } from './calculator.js';
 import { lifePathNumber, honmeisei, kyuseiPair } from './numerology.js';
 import {
   calcResponse,
@@ -160,7 +160,9 @@ export function handleCalculate(text: string): F06Result {
 
   try {
     const result = safeEvaluate(expr);
-    return { text: calcResponse(`${toNaturalNotation(expr)} = ${toNaturalNotation(result)}`) };
+    const exact = exactFraction(expr);
+    const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}`;
+    return { text: calcResponse(exact ? `${plain} = ${exact}` : plain) };
   } catch {
     return { text: calcErrorResponse() };
   }

@@ -38,6 +38,28 @@ export function safeEvaluate(expr: string): string {
   return math.format(result as math.MathType, { precision: 10 });
 }
 
+/** 厳密値用: 数値を Fraction として評価するインスタンス（√ や単位が混じると評価に失敗するので、その時は諦める） */
+const fractionMath = math.create(math.all, { number: 'Fraction' });
+
+/**
+ * 割り算を含み、小数が終わらない答えにだけ分数（厳密値）を返す。
+ * 分母に 2 と 5 以外の素因数が残るものが対象: `1/3` → "1/3"、`1/4` → null。
+ * safeEvaluate を通った式にだけ使うこと（禁止キーワードの検査はしない）。
+ */
+export function exactFraction(expr: string): string | null {
+  if (!expr.includes('/')) return null;
+  let result: unknown;
+  try {
+    result = fractionMath.evaluate(expr);
+  } catch {
+    return null;
+  }
+  if (math.typeOf(result) !== 'Fraction') return null;
+  let d = Number((result as math.Fraction).d);
+  for (const p of [2, 5]) while (d % p === 0) d /= p;
+  return d === 1 ? null : math.format(result);
+}
+
 // ----------------------------------------------------------------
 // 表記の変換（自然な数式 ⇄ mathjs の書き方）
 // ----------------------------------------------------------------
