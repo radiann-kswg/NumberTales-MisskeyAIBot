@@ -359,8 +359,8 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
 | F-06 D3-5  | キャラ番号ルーレット: 公開済みキャラクターから1体を一様ランダムに抽選し、番号を抽選キャラ自身の桁根カラー（D3-6のダイス色則を流用）で数字絵文字表示。CW内で「めくり」演出・`Character_JP`を一言添える。セッションなし、D3-7「もう一回」対応 | ✅ 実装済み |
 | F-06 D3-4a | 牌引き占い: 34種の牌タイプから1〜3枚を重複なしで抽選し、テーマ（萬子=力・意志/筒子=縁・調和/索子=成長・試練/風牌=方向性/三元牌=純粋さ）に沿ったLLM占いコメントを`buildCharacterSystemPrompt()`で生成。CW内「めくり」演出、セッションなし、D3-7「もう一回」対応 | ✅ 実装済み |
 | F-06 D3-4b | 手役クイズ: 固定14枚手牌データ24件（`mahjong-quiz.ts`）から4択（タンヤオ/清一色/混一色/対々和/平和/役牌等）出題、CW内で正解発表。`GameSessionStore`に`mahjong-quiz`セッション種別を新設、並行ゲーム禁止対象・D3-7「もう一回」対応 | ✅ 実装済み |
-| F-06 数式計算強化 | 式と答えを PM 絵文字（墨）で清書しプレーン式を併記（本文上限 3000 のガード付き）、割り切れない答えに分数を併記、天文単位の語彙（lightyear/parsec/au）、自然文「微分して」で微分。縦構造（分数・入れ子の根号・行列）の式は F-17C で画像にする（上限 `TYPESET_MAX_CHARS`=400 字・LLM の前置きと並行描画） | ✅ 実装済み（画像は VM 構築・実機確認待ち） |
-| F-17C      | 数式画像の清書基盤: `_calcimage-pipeline/`（Python）を `execFile` で呼び PNG を作る `renderMathPng`（3 秒タイムアウト・`.cache/typeset/<sha1>.png` 再利用）、Drive の一意化（`bot_state` の `driveimg:<sha1>`）、`MisskeyClient.uploadFile` と `reply/post` の `fileIds`。Python 不在・失敗時は null を返し画像なしで投稿する（ADR 0001） | ✅ 実装済み（VM 構築・実機確認待ち） |
+| F-06 数式計算強化 | 式と答えを PM 絵文字（墨）で清書しプレーン式を併記（本文上限 3000 のガード付き）、割り切れない答えに分数を併記、天文単位の語彙（lightyear/parsec/au）、自然文「微分して」で微分。縦構造（分数・入れ子の根号・行列）の式は F-17C で画像にする（上限 `TYPESET_MAX_CHARS`=400 字・LLM の前置きと並行描画） | ✅ 実装済み |
+| F-17C      | 数式画像の清書基盤: `_calcimage-pipeline/`（Python）を `execFile` で呼び PNG を作る `renderMathPng`（3 秒タイムアウト・`.cache/typeset/<sha1>.png` 再利用）、Drive の一意化（`bot_state` の `driveimg:<sha1>`）、`MisskeyClient.uploadFile` と `reply/post` の `fileIds`。Python 不在・失敗時は null を返し画像なしで投稿する（ADR 0001） | ✅ 実装済み |
 | F-16       | 計算問題チャレンジ: 四則演算を難易度4段階（かんたん/ふつう/むずかしい/鬼）で出題。連続正解チャレンジ（3問ごとに難易度+1・**1回だけコンティニューで復活可**・記録にコンティニュー有無を明記）、答えが公開済みキャラ番号になる**ナンバーテールズ番号モード**（正解でキャラ開示）。式は `PenchantManufacture`（理系表記デコ文字）で難易度別の色に描画し、プレーン式も併記。**問題生成と採点は必ずコード側**で行い、**次の問題を含む返信では LLM フレーミングを抑止**（出題時・連続正解時・コンティニュー時。答えの漏洩防止） | ✅ 実装済み |
 | F-16 定期出題 | 毎日 8:00/12:00/16:00/20:00（JST）に公開ノートで出題（かんたん→ふつう(番号)→むずかしい→鬼(番号)）。既存 `PostScheduler.tick()` に分岐を追加（8/16/20時は `TIME_SLOTS` 外のため `getActiveSlot()` 判定より前に置く）。12時は昼スロットと重なるため `lastPostedAt` を更新して昼の自発投稿を抑止。回答は出題ノートへのリプライで受理（1ユーザー1回・複数人可）、正解者は**出題した担当キャラ**の親密度 +1 | ✅ 実装済み |
 | —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
@@ -429,16 +429,16 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
   ② 手順つき素因数分解（1001 法＝7・11・13 同時判定などの遷移列を答えに添える。出題モードは当面見送り）
   ③ 数式画像描画基盤（[PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline) を
   `_calcimage-pipeline/` にサブモジュール導入し、式・手順を画像で投稿。Python 3.11 を `execFile` で呼ぶ。クレジットは Bot プロフィール固定）
-  — **実装済み・VM 構築と実機確認待ち**（2026-09-18。A・B より先に入れ、F-06 数式計算の強化から使う）
-  → [`_ideas/milestone/2026-09-18_milestone_f17c-typeset-pipeline.md`](./_ideas/milestone/2026-09-18_milestone_f17c-typeset-pipeline.md)
+  — **完了**（2026-09-18 実装・実機確認。A・B より先に入れ、F-06 数式計算の強化から使う）
+  → [`_ideas/milestone/completed/2026-09-18_milestone_f17c-typeset-pipeline.md`](./_ideas/milestone/completed/2026-09-18_milestone_f17c-typeset-pipeline.md)
   ／ 設計判断: [`docs/adr/0001-python-typeset-via-execfile.md`](./docs/adr/0001-python-typeset-via-execfile.md)
   ④ Wolfram 連携（拡張。Bot 実行時は Wolfram|Alpha LLM API を「自前コードで解けないときの 2 段目」に限定＝数字うんちくの事実補強・`calculate` の因数分解／方程式／積分・13 桁超の素因数分解。
   単位換算・物理定数は mathjs の標準機能と判明したため対象外（2026-09-18）。
   開発時の検算は公式 Wolfram Cloud MCP。Free Wolfram Engine は本番 Web サービス不可のため VM に載せない。①〜③ の後、公式 MCP コネクタ復旧後に着手）
   → [`_ideas/future-plan/F-17-arithmetic-puzzles.md`](./_ideas/future-plan/F-17-arithmetic-puzzles.md)
-- **F-06 数式計算の強化**: `calculate` の清書（PM 絵文字／画像）・厳密値の併記・単位換算と微分 — **実装済み・実機確認待ち**（T1〜T4 実装済み 2026-09-18。画像は VM の Python 構築後に有効）
+- **F-06 数式計算の強化**: `calculate` の清書（PM 絵文字／画像）・厳密値の併記・単位換算と微分 — **完了**（T1〜T4 実装・実機確認 2026-09-18）
   （前段のバグ修正 2 件は完了。画像清書のタスクだけが F-17C ③ に依存。用語は [`CONTEXT.md`](./CONTEXT.md)）
-  → [`_ideas/milestone/2026-09-18_milestone_f06-calculate-enhancement.md`](./_ideas/milestone/2026-09-18_milestone_f06-calculate-enhancement.md)
+  → [`_ideas/milestone/completed/2026-09-18_milestone_f06-calculate-enhancement.md`](./_ideas/milestone/completed/2026-09-18_milestone_f06-calculate-enhancement.md)
 
 ---
 
