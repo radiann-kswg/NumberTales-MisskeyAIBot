@@ -25,6 +25,9 @@ export const STATE_KEY_CALC_QUIZ_LAST_SLOT = 'calc_quiz_last_slot';
 /** F-16 定期出題の現在の公開問題（JSON 文字列）を格納するキー */
 export const STATE_KEY_CALC_QUIZ_PUBLIC = 'calc_quiz_public_question';
 
+/** F-11/F-13 記念日チェックを最後に実施した JST 日付（'YYYY-MM-DD'）を格納するキー */
+export const STATE_KEY_ANNIVERSARY_LAST_DATE = 'anniversary_last_date';
+
 // ----------------------------------------------------------------
 // BotStateStore クラス
 // ----------------------------------------------------------------

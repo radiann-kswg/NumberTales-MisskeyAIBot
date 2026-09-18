@@ -10,6 +10,7 @@ import {
   STATE_KEY_SCHEDULER_CHAR,
   STATE_KEY_CALC_QUIZ_LAST_SLOT,
   STATE_KEY_CALC_QUIZ_PUBLIC,
+  STATE_KEY_ANNIVERSARY_LAST_DATE,
 } from '../../storage/bot-state.js';
 import { getReleasedCharacters } from '../character/loader.js';
 import {
@@ -25,6 +26,8 @@ import type { TrustStore } from '../../storage/trust.js';
 import type { ActiveCharacterStore } from '../character/store.js';
 import { WeeklyPollScheduler } from './weekly-poll.js';
 import { TaskScheduler } from './task-scheduler.js';
+import { postTodaysAnniversaries } from './anniversary.js';
+import type { UserBirthdayStore } from '../../storage/birthday.js';
 import { formatSpeech } from '../responder/emoji.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
@@ -129,13 +132,18 @@ function getJSTHour(): number {
   return (new Date().getUTCHours() + 9) % 24;
 }
 
-/** 現在の JST 日付とスロット時刻を 'YYYY-MM-DD:HH' 形式で返す（定期出題の重複防止キー） */
-function getCalcQuizSlotKey(hour: number): string {
+/** 現在の JST 日付を 'YYYY-MM-DD' 形式で返す */
+function getJstDateString(): string {
   const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const y = jst.getUTCFullYear();
   const m = String(jst.getUTCMonth() + 1).padStart(2, '0');
   const d = String(jst.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}:${String(hour).padStart(2, '0')}`;
+  return `${y}-${m}-${d}`;
+}
+
+/** 現在の JST 日付とスロット時刻を 'YYYY-MM-DD:HH' 形式で返す（定期出題の重複防止キー） */
+function getCalcQuizSlotKey(hour: number): string {
+  return `${getJstDateString()}:${String(hour).padStart(2, '0')}`;
 }
 
 /** 1〜2時間のランダムなクールダウン（ms）を返す */
@@ -171,6 +179,7 @@ export interface SchedulerDeps {
   taskStore: TaskStore;
   trustStore: TrustStore;
   activeCharacterStore: ActiveCharacterStore;
+  birthdayStore: UserBirthdayStore;
 }
 
 /**
@@ -297,6 +306,35 @@ export class PostScheduler {
       this.lastPostedAt = Date.now();
       this.nextCooldownMs = randomCooldownMs();
       return;
+    }
+
+    // 記念日チェック（F-11 誕生日 / F-13 季節イベント）: 朝スロットで1日1回だけ。
+    // 月曜7時の就任挨拶より**後**に置くこと（就任挨拶を潰さないため）。
+    if (slot.label === '朝') {
+      const todayKey = getJstDateString();
+      if (this.deps.botState.getState(STATE_KEY_ANNIVERSARY_LAST_DATE) !== todayKey) {
+        // 配信途中で例外が出ても同日に再送しないよう、投稿より先に日付を記録する
+        this.deps.botState.setState(STATE_KEY_ANNIVERSARY_LAST_DATE, todayKey);
+        const charNum =
+          this.deps.botState.getState(STATE_KEY_SCHEDULER_CHAR) ?? BOT_CONSTANTS.CHITOSE_NUM;
+        const posted = await postTodaysAnniversaries(
+          {
+            ai: this.deps.ai,
+            misskeyClient: this.deps.misskeyClient,
+            birthdayStore: this.deps.birthdayStore,
+            activeCharacterStore: this.deps.activeCharacterStore,
+            schedulerCharNum: charNum,
+            schedulerSystemPrompt: buildSchedulerSystemPrompt(this.deps.botState),
+          },
+          Date.now(),
+        );
+        if (posted) {
+          this.lastPostedAt = Date.now();
+          this.nextCooldownMs = randomCooldownMs();
+          return;
+        }
+        // 記念日が無い日（366日中269日）は通常の朝の自発投稿へフォールスルーする
+      }
     }
 
     try {

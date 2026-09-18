@@ -10,6 +10,7 @@ import { BotStateStore } from './storage/bot-state.js';
 import { TaskStore } from './storage/task.js';
 import { TrustStore } from './storage/trust.js';
 import { CharacterAffinityStore } from './storage/character-affinity.js';
+import { UserBirthdayStore } from './storage/birthday.js';
 import { handleMention, type MentionEvent } from './bot/handlers/mention.js';
 import { createTimelineHandler } from './bot/handlers/timeline.js';
 import { createGlobalTLHandler } from './bot/handlers/global-tl.js';
@@ -101,6 +102,10 @@ async function main(): Promise<void> {
   const characterAffinityStore = new CharacterAffinityStore(config.storage.dbPath);
   logger.info('Character affinity store ready');
 
+  // ユーザー誕生日ストア初期化（F-11-A・月日のみ保存／いつでも削除可）
+  const birthdayStore = new UserBirthdayStore(config.storage.dbPath);
+  logger.info('User birthday store ready');
+
   // ユーザーごとのアクティブキャラクター状態（Phase A 基盤）
   const activeCharacterStore = new ActiveCharacterStore(
     config.storage.dbPath,
@@ -131,7 +136,7 @@ async function main(): Promise<void> {
       noteCreatedAt: note.createdAt,
     };
 
-    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore });
+    await handleMention(event, { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore, birthdayStore });
   });
 
   logger.info('Bot is listening for mentions...');
@@ -153,7 +158,7 @@ async function main(): Promise<void> {
   misskeyClient.onFollowed(handleFollowed);
 
   // 時間帯別自発投稿スケジューラー起動
-  const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore });
+  const scheduler = new PostScheduler({ ai, misskeyClient, botState, taskStore, trustStore, activeCharacterStore, birthdayStore });
   scheduler.start();
 
   // ダウンタイム算出用に、HeartbeatWriter が上書きする前の前回 ts を退避しておく
@@ -190,6 +195,7 @@ async function main(): Promise<void> {
     taskStore.close();
     trustStore.close();
     characterAffinityStore.close();
+    birthdayStore.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);

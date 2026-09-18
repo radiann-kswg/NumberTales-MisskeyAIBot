@@ -8,7 +8,7 @@
  *   - chat:                   上記以外（LLM に委ねる）
  */
 
-export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-calc-quiz' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'affinity-check' | 'harassment';
+export type Intent = 'greeting' | 'form-switch' | 'creative-consultation' | 'chat' | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia' | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong' | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-calc-quiz' | 'game-repeat' | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' | 'affinity-check' | 'birthday-register' | 'birthday-forget' | 'harassment';
 export type FormTarget = 'core-folder' | 'humanoid';
 export type NumerologyType = 'life-path' | 'kyusei' | 'moon-star';
 
@@ -238,6 +238,28 @@ const CALCULATE_PATTERNS: RegExp[] = [
   /sqrt|sin|cos|tan|log|factorial|√|∑/i,
 ];
 
+/**
+ * F-11-A 誕生日の登録解除。BIRTHDAY_REGISTER_PATTERNS より**先に**判定すること
+ * （「誕生日の登録を削除して」は両方にマッチするため）。
+ */
+const BIRTHDAY_FORGET_PATTERNS: RegExp[] = [
+  /誕生日.*(?:忘れて|削除|消して|解除|取り消)/,
+  /誕生日の?(?:登録|情報).*(?:やめ|止め)/,
+];
+
+/**
+ * F-11-A 誕生日の登録。
+ * 「誕生日で占ってほしいです」のような相談文を巻き込まないよう、
+ * **日付らしさ（誕生日の直後の数字・「◯月」）か明示的な登録動詞**を必須にしている。
+ */
+const BIRTHDAY_REGISTER_PATTERNS: RegExp[] = [
+  /誕生日(?:は|が|:|：)?\s*[\d０-９]/,
+  /誕生日.*(?:覚え(?:て|といて|ておいて)|登録|教える)/,
+  /(?:誕生日|バースデー).*[\d０-９]{1,2}\s*月/,
+  /[\d０-９]{1,2}\s*月\s*[\d０-９]{1,2}\s*日\s*(?:生まれ|産まれ)/,
+  /\/birthday\b/i,
+];
+
 /** F-14 親密度照会: 「78とどれくらい仲良し？」「みんなとの仲良し度を教えて」等 */
 const AFFINITY_CHECK_PATTERNS: RegExp[] = [
   /(?:仲良し|なかよし|仲いい|親密)度?.*(?:どれくらい|どのくらい|どう|教えて|一覧|ランキング)/,
@@ -314,6 +336,16 @@ export function classifyIntent(text: string): ClassificationResult {
 
   for (const pattern of CREATIVE_PATTERNS) {
     if (pattern.test(normalized)) return { intent: 'creative-consultation' };
+  }
+
+  // 誕生日（F-11-A）は TASK_ADD_PATTERNS の「覚えておいて」より先に判定する。
+  // 解除は登録より先（「誕生日の登録を削除して」は両方にマッチする）。
+  for (const pattern of BIRTHDAY_FORGET_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'birthday-forget' };
+  }
+
+  for (const pattern of BIRTHDAY_REGISTER_PATTERNS) {
+    if (pattern.test(normalized)) return { intent: 'birthday-register' };
   }
 
   for (const pattern of NUMEROLOGY_CONSULTATION_PATTERNS) {

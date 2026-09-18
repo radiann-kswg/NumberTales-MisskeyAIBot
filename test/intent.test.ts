@@ -39,6 +39,15 @@ describe('classifyIntent — タスク意図分類の回帰ガード', () => {
     // 2026-08-22 トリアージ: 行頭の \b が生の U+0008 になりパターン行ごとコメント化されていた回帰ガード
     ['/calcquiz', 'game-calc-quiz'],
     ['12+5を計算して', 'calculate'],
+    // F-11-A 誕生日の登録・解除（「覚えておいて」が task-add に食われないこと／相談文を巻き込まないこと）
+    ['私の誕生日は7月7日です', 'birthday-register'],
+    ['誕生日登録したい、6/15生まれ', 'birthday-register'],
+    ['誕生日を覚えておいて', 'birthday-register'],
+    ['12月25日生まれです', 'birthday-register'],
+    ['誕生日を忘れて', 'birthday-forget'],
+    ['誕生日の登録を削除して', 'birthday-forget'],
+    ['誕生日で占ってほしいです', 'chat'],
+    ['誕生日プレゼント何がいい？', 'chat'],
   ];
 
   it.each(cases)('%s → %s', (text, expected) => {

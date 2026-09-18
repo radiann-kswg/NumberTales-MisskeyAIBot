@@ -106,6 +106,16 @@ export interface CharacterTailsUnit {
   Note?: string;
 }
 
+/**
+ * 記念日（`AnivDay`）: 開発記念日と劇中の記念日。F-11-B キャラクター誕生日お祝いで参照する。
+ * released 92 件中 91 件が `DayAbout_JP: '開発記念'` を 1 件持ち、一部が劇中記念日を追加で持つ。
+ */
+export interface CharacterAnivDay {
+  Day?: { Month?: number; DayOfMonth?: number };
+  DayAbout_JP?: string;
+  DayAbout_EN?: string;
+}
+
 export interface CharacterRecord {
   Num: string | number;
   Name_JP?: string;
@@ -152,6 +162,8 @@ export interface CharacterRecord {
   /** 背景・来歴 */
   Backgrounds_JP?: string;
   Backgrounds?: string;
+  /** 記念日（開発記念日・劇中の記念日）。F-11-B で参照する */
+  AnivDay?: CharacterAnivDay[] | null;
   /** 身長（cm・ヒューマノイド形態の等身）。F-15 身体性コンテキストで使用 */
   Height_cm?: CharacterMeasureField;
   /** 体重（kg） */
