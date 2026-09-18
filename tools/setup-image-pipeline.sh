@@ -26,9 +26,11 @@ VENV="$SUB/.venv"
 
 git submodule update --init --recursive "$SUB"
 
-if [ ! -x "$VENV/bin/python" ]; then
+# 依存が入っているかで判定する。venv だけ作られて pip が落ちた中途半端な状態から自己修復するため
+# （import 名は typeset.py が使うもの。requirements は basis/requirements.txt を -r で共用）
+if ! "$VENV/bin/python" -c 'import cairosvg, click, fontTools, PIL' 2>/dev/null; then
   command -v python3 >/dev/null || { echo "ERROR: python3 not found" >&2; exit 1; }
-  python3 -m venv "$VENV"
+  [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
   "$VENV/bin/pip" install -q -r "$SUB/requirements.txt"
   echo "CREATED venv at $VENV"
 else
