@@ -135,31 +135,46 @@ const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrt]{3,})/i;
 // サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
 const SLASH_CMD_PATTERN = /^\/(\w+)(?:\s+(.+))?$/;
 
+/** 上付き文字 → 通常の字（`2²` → `2^2`、`10⁻³` → `10^-3` の変換に使う） */
+const SUPERSCRIPT_TO_PLAIN: Record<string, string> = {
+  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+  '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
+  '⁺': '+', '⁻': '-',
+};
+
+/**
+ * 自然な数式の記号（×・÷・√・上付き・全角の＋－）を mathjs の書き方に直す。
+ * スラッシュコマンドと自然文の**両方**に掛けること。片方だけだと `/calc 2×3` が読めず、
+ * 上付きを知らないと `2²+1` から `+1` だけが抽出されて「1」と誤答する。
+ */
+function toMathjsNotation(text: string): string {
+  return text
+    .replace(/[＋]/g, '+')
+    .replace(/[－]/g, '-')
+    .replace(/[×]/g, '*')
+    .replace(/[÷]/g, '/')
+    // √N → sqrt(N)、√(expr) → sqrt(expr) の順で処理して括弧を補う
+    .replace(/√\s*([0-9.]+)/g, 'sqrt($1)')
+    .replace(/√\s*\(/g, 'sqrt(')
+    .replace(/√/g, 'sqrt')   // それ以外の残った √ はそのまま変換
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+/g, (run) => '^' + [...run].map((ch) => SUPERSCRIPT_TO_PLAIN[ch]).join(''));
+}
+
 // ----------------------------------------------------------------
 // ハンドラ関数
 // ----------------------------------------------------------------
 
 /** 数式計算を処理する */
 export function handleCalculate(text: string): F06Result {
-  const halfWidthText = toHalfWidthDigits(text);
+  const normalized = toMathjsNotation(toHalfWidthDigits(text));
   // スラッシュコマンド形式を優先
-  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
+  const slashMatch = SLASH_CMD_PATTERN.exec(normalized.trim());
   let expr: string | undefined;
 
   if (slashMatch?.[1] === 'calc' && slashMatch[2]) {
     expr = slashMatch[2].trim();
   } else {
     // 自然文から数式を抽出
-    // 全角記号を半角に変換してから抽出
-    const normalized = halfWidthText
-      .replace(/[＋]/g, '+')
-      .replace(/[－]/g, '-')
-      .replace(/[×]/g, '*')
-      .replace(/[÷]/g, '/')
-      // √N → sqrt(N)、√(expr) → sqrt(expr) の順で処理して括弧を補う
-      .replace(/√\s*([0-9.]+)/g, 'sqrt($1)')
-      .replace(/√\s*\(/g, 'sqrt(')
-      .replace(/√/g, 'sqrt');   // それ以外の残った √ はそのまま変換
     const match = EXPR_PATTERN.exec(normalized);
     expr = match?.[1]?.trim();
   }
