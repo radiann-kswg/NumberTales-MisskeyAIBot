@@ -58,6 +58,8 @@ jobs:
               || git submodule update --init --recursive
             # _creations-db を NumberTales 一次系（Primary/SemiPrimary）だけに sparse 間引き（冪等・新規VMで自己修復）
             bash tools/setup-creations-db-sparse.sh
+            # 数式画像パイプライン（F-17C）の venv。libcairo2 未導入の VM では失敗しても続行する（画像なしで動く）
+            bash tools/setup-image-pipeline.sh || echo "WARN: image pipeline setup skipped (see docs/deployment.md 1-6b)"
 
             # 依存パッケージをインストール（ビルドに devDependencies が必要）
             npm install

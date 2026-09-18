@@ -1,7 +1,7 @@
 # マイルストーン: F-17C 数式画像の清書基盤（PenchantManufacture_ImagePipeline）
 
 > 作成日: 2026-09-18
-> ステータス: **未着手 ⏳**
+> ステータス: **実装済み 🔧（VM 構築・実機確認待ち）**（T1・T2・T3・T5 実装済み 2026-09-18: `34dc55e`・`22bd8f4`。T4 の VM 構築は共用 VM への apt 追加を伴うため確認のうえ実施）
 > 昇進元アイデア: [`_ideas/future-plan/F-17-arithmetic-puzzles.md`](../future-plan/F-17-arithmetic-puzzles.md) の F-17C（**部分昇進**。A・B・D は未昇進）
 > 利用側: [F-06 数式計算の強化](./2026-09-18_milestone_f06-calculate-enhancement.md)（T4 の画像清書が本 milestone に依存）。F-17A/B も後から相乗りする
 > 設計判断: [ADR 0001](../../docs/adr/0001-python-typeset-via-execfile.md)（Python を execFile で呼び、TS に移植しない）
@@ -35,11 +35,11 @@ F-17 の A・B より先に単独で入れ、F-06 の数式計算と F-17A/B か
 
 | # | タスク | 内容 | 確認方法 |
 | --- | --- | --- | --- |
-| T1 | サブモジュールの導入 | `git submodule add` と `--recursive`。`tools/setup-image-pipeline.sh`（サブモジュールの取得と venv の構築。`setup-creations-db-sparse.sh` の隣に置く）。deploy.yml のサブモジュール更新が入れ子の `basis/` まで届くか確認する | ローカルで `typeset.py` が PNG を出力する |
-| T2 | `src/features/typeset.ts` | `renderMathPng(tex): Promise<Buffer \| null>`（execFile・3 秒タイムアウト・ローカルキャッシュ） | Python が無い環境で `null` を返すことをテストで固定する |
-| T3 | Misskey への画像投稿 | `uploadFile()` と `fileIds` の追加、Drive の一意化（KV） | 同じ式を 2 回投げてもアップロードが 1 回で済む |
-| T4 | VM の構築 | libcairo2・venv・`TYPESET_PYTHON`・プロフィールのクレジット。`docs/deployment.md` と AGENTS.md の VM 手順に追記する | 実機で画像付きの返信が届く |
-| T5 | 文書 | README の「ライセンス・クレジット」節にサブモジュールを追記する。AGENTS.md のリポジトリ構成に `_calcimage-pipeline/` を足す | — |
+| T1 | ✅ サブモジュールの導入 | `git submodule add` と `--recursive`。`tools/setup-image-pipeline.sh`（サブモジュールの取得と venv の構築。`setup-creations-db-sparse.sh` の隣に置く）。deploy.yml のサブモジュール更新が入れ子の `basis/` まで届くか確認する | ローカルで `typeset.py` が PNG を出力する |
+| T2 | ✅ `src/features/typeset.ts` | `renderMathPng(tex): Promise<Buffer \| null>`（execFile・3 秒タイムアウト・ローカルキャッシュ） | Python が無い環境で `null` を返すことをテストで固定する |
+| T3 | ✅ Misskey への画像投稿 | `uploadFile()` と `fileIds` の追加、Drive の一意化（KV） | 同じ式を 2 回投げてもアップロードが 1 回で済む |
+| T4 | ⏳ VM の構築 | libcairo2・venv・`TYPESET_PYTHON`・プロフィールのクレジット。`docs/deployment.md` と AGENTS.md の VM 手順に追記する | 実機で画像付きの返信が届く |
+| T5 | ✅ 文書 | README の「ライセンス・クレジット」節にサブモジュールを追記する。AGENTS.md のリポジトリ構成に `_calcimage-pipeline/` を足す | — |
 
 ## 未確認事項
 

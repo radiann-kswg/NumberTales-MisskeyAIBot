@@ -21,8 +21,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | [2026-08-05_milestone_shared-vm-unified-watchdog.md](./2026-08-05_milestone_shared-vm-unified-watchdog.md) | 運用 | 共用 Spot VM 向け統合ウォッチドッグ再設計（reset の巻き添え抑止・プリエンプション対応） | 未着手 ⏳ |
 | [2026-08-20_milestone_f16-calc-quiz-challenge.md](./2026-08-20_milestone_f16-calc-quiz-challenge.md) | F-16 | 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・定期出題） | 実装済み 🔧（実機確認待ち） |
 | [2026-09-18_milestone_f11-f13-anniversary.md](./2026-09-18_milestone_f11-f13-anniversary.md) | F-11 / F-13 | 誕生日お祝い（ユーザー／キャラクター）・季節記念日イベント投稿 | 実装済み 🔧（実機確認待ち・F-11-C は対象外） |
-| [2026-09-18_milestone_f17c-typeset-pipeline.md](./2026-09-18_milestone_f17c-typeset-pipeline.md) | F-17C | 数式画像の清書基盤（PenchantManufacture_ImagePipeline サブモジュール・画像投稿・Drive 一意化） | 未着手 ⏳ |
-| [2026-09-18_milestone_f06-calculate-enhancement.md](./2026-09-18_milestone_f06-calculate-enhancement.md) | F-06 数式計算 | 数式計算の強化（PM 絵文字／画像の清書・厳密値の併記・単位換算と微分） | 着手中 🔧（T1〜T3 実装済み・T4 画像清書は F-17C 待ち） |
+| [2026-09-18_milestone_f17c-typeset-pipeline.md](./2026-09-18_milestone_f17c-typeset-pipeline.md) | F-17C | 数式画像の清書基盤（PenchantManufacture_ImagePipeline サブモジュール・画像投稿・Drive 一意化） | 実装済み 🔧（VM 構築・実機確認待ち） |
+| [2026-09-18_milestone_f06-calculate-enhancement.md](./2026-09-18_milestone_f06-calculate-enhancement.md) | F-06 数式計算 | 数式計算の強化（PM 絵文字／画像の清書・厳密値の併記・単位換算と微分） | 実装済み 🔧（実機確認待ち） |
 
 ## フェーズ概要
 
@@ -69,8 +69,8 @@ YYYY-MM-DD_milestone_<フェーズ番号またはトピック>.md
 | F-14 基盤                  | キャラ別親密度（character_affinity）ストア＋加算フック＋照会      | 実装済み 🔧（能力レジストリ本体は後続） | [2026-07-21_milestone_f14-character-affinity.md](./2026-07-21_milestone_f14-character-affinity.md) |
 | F-15                       | コアフォルダ形態の機能強化（身体性コンテキスト・変形演出・スキンシップ・お供演出） | Phase 1+2 実装済み 🔧 | [2026-07-20_milestone_f15-corefolder-form-enhancement.md](./2026-07-20_milestone_f15-corefolder-form-enhancement.md) |
 | F-16                       | 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・定期出題） | 実装済み 🔧（実機確認待ち） | [2026-08-20_milestone_f16-calc-quiz-challenge.md](./2026-08-20_milestone_f16-calc-quiz-challenge.md) |
-| F-17C                      | 数式画像の清書基盤（PenchantManufacture_ImagePipeline サブモジュール）             | 未着手 ⏳ | [2026-09-18_milestone_f17c-typeset-pipeline.md](./2026-09-18_milestone_f17c-typeset-pipeline.md) |
-| F-06 数式計算の強化        | PM 絵文字／画像の清書・厳密値の併記・単位換算と微分（T1〜T3 実装済み・T4 画像清書は F-17C 待ち）    | 着手中 🔧 | [2026-09-18_milestone_f06-calculate-enhancement.md](./2026-09-18_milestone_f06-calculate-enhancement.md) |
+| F-17C                      | 数式画像の清書基盤（PenchantManufacture_ImagePipeline サブモジュール）             | 実装済み 🔧（VM 構築・実機確認待ち） | [2026-09-18_milestone_f17c-typeset-pipeline.md](./2026-09-18_milestone_f17c-typeset-pipeline.md) |
+| F-06 数式計算の強化        | PM 絵文字／画像の清書・厳密値の併記・単位換算と微分（T1〜T4 実装済み）    | 実装済み 🔧（実機確認待ち） | [2026-09-18_milestone_f06-calculate-enhancement.md](./2026-09-18_milestone_f06-calculate-enhancement.md) |
 | F-11 / F-13               | 誕生日お祝い（ユーザー／キャラクター）・季節記念日イベント投稿      | 実装済み 🔧（実機確認待ち） | [2026-09-18_milestone_f11-f13-anniversary.md](./2026-09-18_milestone_f11-f13-anniversary.md) |
 | 運用: 復旧通知             | ダウンタイム明けに 000(チトセ) が復旧通知を自発投稿（ハートビート流用・閾値30分）  | 完了 ✅ | [completed/2026-07-20_milestone_downtime-recovery-notice.md](./completed/2026-07-20_milestone_downtime-recovery-notice.md) |
 | バグ対応                   | ロールプレイ品質の低下 / タスク登録・一覧の不具合 / キャラ特有感の欠如（実機報告） | 完了 ✅ | [completed/2026-07-21_milestone_bug-roleplay-quality-task-ops.md](./completed/2026-07-21_milestone_bug-roleplay-quality-task-ops.md) |
