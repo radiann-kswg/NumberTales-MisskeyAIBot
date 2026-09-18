@@ -284,6 +284,7 @@ docs/                         # 詳細ドキュメント
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
   gcp-cost-cleanup.md         # 旧 VM・ディスクの棚卸し手順（破壊的操作・実行は所有者）
   vm-os-upgrade.md / vm-upgrade-2026-07_worklog.md  # 旧 VM(Ubuntu) の移行記録。現行 VM には非適用
+  adr/                        # 設計判断の記録（ADR。後から覆すと高くつく判断だけを 1 段落で残す）
 _ideas/
   bot-spec/                   # 仕様書・設計ドキュメント
   milestone/                  # 実装予定マイルストーン（着手待ち・進行中）
@@ -309,6 +310,7 @@ tools/                        # 補助スクリプト（同期検知・サニタ
 
 AGENTS.md                     # 【SSOT】全エージェント共通の正典（本ファイル・Codex がネイティブ読み込み）
 CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い設定書
+CONTEXT.md                    # 用語集（数式計算の抽出・評価・清書など。定義のみで仕様は書かない）
 .github/
   copilot-instructions.md     #   GitHub Copilot 向けの薄い設定書
   workflows/deploy.yml        #   GCP VM への自動デプロイ
@@ -417,14 +419,21 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
   → [`_ideas/milestone/2026-09-18_milestone_f11-f13-anniversary.md`](./_ideas/milestone/2026-09-18_milestone_f11-f13-anniversary.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
-- **F-17 算術リファレンス**: 「ナンバーテールズに計算してもらう」機能群 — **積極検討中**（主要方針は 2026-09-08 決定、milestone 化待ち）
+- **F-17 算術リファレンス**: 「ナンバーテールズに計算してもらう」機能群 — **部分昇進**（主要方針は 2026-09-08 決定。2026-09-18 に ③ のみ milestone 化）
   ① 逆メイク10 ソルバー（10 だけで他の数を作る最少個数の式。四則モード／抵抗＝加算＋連分数モード）
   ② 手順つき素因数分解（1001 法＝7・11・13 同時判定などの遷移列を答えに添える。出題モードは当面見送り）
   ③ 数式画像描画基盤（[PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline) を
   `_calcimage-pipeline/` にサブモジュール導入し、式・手順を画像で投稿。Python 3.11 を `execFile` で呼ぶ。クレジットは Bot プロフィール固定）
-  ④ Wolfram 連携（拡張。Bot 実行時は Wolfram|Alpha LLM API を「自前コードで解けないときの 2 段目」に限定＝数字うんちくの事実補強・`calculate` の記号計算／単位換算・13 桁超の素因数分解。
+  — **未着手・単独で先行**（A・B より先に入れ、F-06 数式計算の強化からも使う）
+  → [`_ideas/milestone/2026-09-18_milestone_f17c-typeset-pipeline.md`](./_ideas/milestone/2026-09-18_milestone_f17c-typeset-pipeline.md)
+  ／ 設計判断: [`docs/adr/0001-python-typeset-via-execfile.md`](./docs/adr/0001-python-typeset-via-execfile.md)
+  ④ Wolfram 連携（拡張。Bot 実行時は Wolfram|Alpha LLM API を「自前コードで解けないときの 2 段目」に限定＝数字うんちくの事実補強・`calculate` の因数分解／方程式／積分・13 桁超の素因数分解。
+  単位換算・物理定数は mathjs の標準機能と判明したため対象外（2026-09-18）。
   開発時の検算は公式 Wolfram Cloud MCP。Free Wolfram Engine は本番 Web サービス不可のため VM に載せない。①〜③ の後、公式 MCP コネクタ復旧後に着手）
   → [`_ideas/future-plan/F-17-arithmetic-puzzles.md`](./_ideas/future-plan/F-17-arithmetic-puzzles.md)
+- **F-06 数式計算の強化**: `calculate` の清書（PM 絵文字／画像）・厳密値の併記・単位換算と微分 — **未着手**
+  （前段のバグ修正 2 件は完了。画像清書のタスクだけが F-17C ③ に依存。用語は [`CONTEXT.md`](./CONTEXT.md)）
+  → [`_ideas/milestone/2026-09-18_milestone_f06-calculate-enhancement.md`](./_ideas/milestone/2026-09-18_milestone_f06-calculate-enhancement.md)
 
 ---
 
