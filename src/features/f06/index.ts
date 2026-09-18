@@ -1,10 +1,13 @@
 // F-06 コマンドディスパッチャー
 // 入力テキストを解析して計算・数秘術の各機能に振り分ける
 
-import { safeEvaluate, safeDerivative, exactFraction, toMathjsNotation, toNaturalNotation } from './calculator.js';
+import {
+  safeEvaluate, safeDerivative, exactFraction, toMathjsNotation, toNaturalNotation, toTypesetTex, TYPESET_MAX_CHARS,
+} from './calculator.js';
 import { lifePathNumber, honmeisei, kyuseiPair } from './numerology.js';
 import {
   calcResponse,
+  calcEmojiFits,
   calcErrorResponse,
   lifePathCwBody,
   lifePathHeadline,
@@ -116,6 +119,10 @@ export interface F06Result {
   cwLabel?: string;
   /** text に次の問題（式）を含む。true のとき LLM フレーミングを生成してはならない（答えを先に言ってしまう） */
   containsNewQuestion?: boolean;
+  /** 数式画像（F-17C）にする TeX。投稿側が描画して添付する。描けなくても text は成立する */
+  typesetTex?: string;
+  /** 数式画像の alt テキスト（プレーン式） */
+  typesetAlt?: string;
 }
 
 // ----------------------------------------------------------------
@@ -161,17 +168,31 @@ export function handleCalculate(text: string): F06Result {
   try {
     if (/微分/.test(text)) {
       const { variable, result } = safeDerivative(expr);
-      return { text: calcResponse(`d/d${variable} (${toNaturalNotation(expr)}) = ${toNaturalNotation(result)}`) };
+      const plain = `d/d${variable} (${toNaturalNotation(expr)}) = ${toNaturalNotation(result)}`;
+      return calcResult(plain, toTypesetTex(expr, result, { derivativeVar: variable }));
     }
     const result = safeEvaluate(expr);
-    const exact = exactFraction(expr);
-    const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}`;
     // 入力がすでにその分数（`1/3`）なら同じものを繰り返さない
-    const showExact = exact !== null && exact !== expr.replace(/\s/g, '');
-    return { text: calcResponse(showExact ? `${plain} = ${exact}` : plain) };
+    const exact = exactFraction(expr);
+    const shownExact = exact !== null && exact !== expr.replace(/\s/g, '') ? exact : null;
+    const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}${shownExact ? ` = ${shownExact}` : ''}`;
+    return calcResult(plain, toTypesetTex(expr, result, { exact: shownExact }));
   } catch {
     return { text: calcErrorResponse() };
   }
+}
+
+/**
+ * 清書の手段を決めて F06Result を組む。
+ * ② 画像にするのは「縦構造がある、または ① PM 絵文字が本文に収まらない」かつ「上限値以下」のとき。
+ * 画像は投稿側で描くので、描けなくても text（プレーン式）だけで成立する。
+ */
+function calcResult(plain: string, typeset: { tex: string; vertical: boolean } | null): F06Result {
+  const image =
+    typeset !== null && plain.length <= TYPESET_MAX_CHARS && (typeset.vertical || !calcEmojiFits(plain));
+  return image
+    ? { text: calcResponse(plain, true), typesetTex: typeset.tex, typesetAlt: plain }
+    : { text: calcResponse(plain) };
 }
 
 /** ライフパスナンバーを処理する */

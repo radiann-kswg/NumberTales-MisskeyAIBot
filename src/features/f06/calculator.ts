@@ -60,7 +60,8 @@ export function safeEvaluate(expr: string): string {
 
   // 数値・行列・単位以外（関数オブジェクト等）は拒否する
   const typeName = math.typeOf(result);
-  const allowedTypes = new Set(['number', 'BigNumber', 'Fraction', 'Complex', 'Matrix', 'Unit', 'ResultSet']);
+  // 行列の typeOf は 'Matrix' ではなく 'DenseMatrix' / 'SparseMatrix'（2026-09-18 に判明。それまで行列は全部弾かれていた）
+  const allowedTypes = new Set(['number', 'BigNumber', 'Fraction', 'Complex', 'DenseMatrix', 'SparseMatrix', 'Unit', 'ResultSet']);
   if (!allowedTypes.has(typeName)) {
     throw new Error('計算結果を返せる形式じゃなかった');
   }
@@ -88,6 +89,49 @@ export function exactFraction(expr: string): string | null {
   let d = Number((result as math.Fraction).d);
   for (const p of [2, 5]) while (d % p === 0) d /= p;
   return d === 1 ? null : math.format(result);
+}
+
+// ----------------------------------------------------------------
+// 画像清書（F-17C）向けの TeX
+// ----------------------------------------------------------------
+
+/** 画像にする式の長さの上限（プレーン式の文字数）。10×10 の行列が収まる程度。実物を見ながら調整する */
+export const TYPESET_MAX_CHARS = 400;
+
+/** mathjs の 1 式を、画像パイプラインが読める TeX に直す */
+function toTex(expr: string): string {
+  return math
+    .parse(expr)
+    .toTex({ parenthesis: 'auto' })
+    .replace(/\\cdot/g, '\\times')
+    .replace(/\\begin\{bmatrix\}([\s\S]*?)\\end\{bmatrix\}/g, '\\left[\\matrix{$1}\\right]')
+    .replace(/\\mathrm\{([^}]*)\}/g, '$1')
+    .replace(/~/g, ' ')
+    // mathjs は指数の底を `{ x}^{2}` と括るが、パイプラインは `{…}^` の形を読めない。単純な底の括りを外す
+    // ponytail: `{sin(x)}^{2}` のような複合の底は外さない（描画に失敗してプレーン式に落ちる）。要るなら括弧の釣り合いを数える
+    .replace(/\{\s*([A-Za-z0-9.]+)\s*\}(?=[\^_])/g, '$1')
+    // パイプラインに無いコマンド: 関数名は素の字で、単位換算の矢印は字形のある → で
+    .replace(/\\(sin|cos|tan|log|ln|exp|abs)\b/g, ' $1')
+    .replace(/\\rightarrow/g, '→');
+}
+
+/**
+ * `式 = 答え（= 厳密値）` の TeX と、縦構造（分数・入れ子の根号・行列）の有無を返す。
+ * どれかが TeX にできなければ null（画像にしない）。
+ * @param derivativeVar 微分のときの変数。`d/dx(式) = 答え` の形で組み、常に縦構造とみなす
+ */
+export function toTypesetTex(
+  expr: string,
+  result: string,
+  options: { exact?: string | null; derivativeVar?: string } = {},
+): { tex: string; vertical: boolean } | null {
+  try {
+    const lhs = options.derivativeVar ? `\\frac{d}{d${options.derivativeVar}}\\left(${toTex(expr)}\\right)` : toTex(expr);
+    const tex = `${lhs} = ${toTex(result)}${options.exact ? ` = ${toTex(options.exact)}` : ''}`;
+    return { tex, vertical: /\\frac|\\sqrt\{[^}]*\\sqrt|\\matrix/.test(tex) };
+  } catch {
+    return null;
+  }
 }
 
 // ----------------------------------------------------------------

@@ -17,15 +17,20 @@ import { decorateExpr } from './calc-quiz.js';
  */
 export const CALC_TEXT_LIMIT = 2800;
 
+/** PM 絵文字＋プレーン式が本文に収まるか（清書の手段 ① が使えるか） */
+export function calcEmojiFits(plain: string): boolean {
+  return decorateExpr(plain, 'sumi').length + 1 + plain.length <= CALC_TEXT_LIMIT;
+}
+
 /**
  * 計算結果の応答文を返す（CW なし）。
  * plain はプレーン式（`2×3 = 6` のように自然な表記で、そのまま `/calc` に貼り直せる形）。
- * 清書の手段は ① PM 絵文字（墨）＋プレーン式 → ③ プレーン式だけ → ④ 先頭だけ残して切り詰め。
- * ② 画像は F-17C の完了後にここへ差し込む。
+ * 清書の手段は ① PM 絵文字（墨）＋プレーン式 → ② 画像（添付は投稿側。本文はプレーン式だけ）
+ * → ③ プレーン式だけ → ④ 先頭だけ残して切り詰め。
+ * @param image ② で画像を添付するとき true（本文から絵文字を外す）
  */
-export function calcResponse(plain: string): string {
-  const typeset = `${decorateExpr(plain, 'sumi')}\n${plain}`;
-  if (typeset.length <= CALC_TEXT_LIMIT) return `${typeset}\n計算完了だよ`;
+export function calcResponse(plain: string, image = false): string {
+  if (!image && calcEmojiFits(plain)) return `${decorateExpr(plain, 'sumi')}\n${plain}\n計算完了だよ`;
   if (plain.length <= CALC_TEXT_LIMIT) return `${plain}\n計算完了だよ`;
   return `${plain.slice(0, CALC_TEXT_LIMIT)}…\n長すぎるから先頭だけ載せるね`;
 }

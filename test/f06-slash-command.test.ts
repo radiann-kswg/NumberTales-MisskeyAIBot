@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei } from '../dist/features/f06/index.js';
-import { toNaturalNotation } from '../dist/features/f06/calculator.js';
+import { toNaturalNotation, TYPESET_MAX_CHARS } from '../dist/features/f06/calculator.js';
 import { decorateExpr } from '../dist/features/f06/calc-quiz.js';
 import { calcResponse, CALC_TEXT_LIMIT } from '../dist/features/f06/responder.js';
 
@@ -111,7 +111,7 @@ describe('F-06 数式計算 — 厳密値の併記', () => {
     ['/calc 10/4', '10/4 = 2.5'],
     ['/calc sqrt(2)/3', '√2/3 = 0.4714045208'], // 無理数は分数にできない
   ])('%s → %s', (input, expected) => {
-    expect(handleCalculate(input).text.split('\n')[1]).toBe(expected);
+    expect(handleCalculate(input).text).toContain(expected);
   });
 });
 
@@ -124,7 +124,7 @@ describe('F-06 数式計算 — 単位語彙と微分', () => {
     ['/calc 1 pc to ly', '3.261563777 ly'],
     ['/calc 1 au to km', '1.495978707×10⁸ km'],
   ])('%s → %s', (input, expected) => {
-    expect(handleCalculate(input).text.split('\n')[1]).toContain(expected);
+    expect(handleCalculate(input).text).toContain(expected);
   });
 
   it.each([
@@ -133,10 +133,47 @@ describe('F-06 数式計算 — 単位語彙と微分', () => {
     ['sin(t) を微分して', 'd/dt (sin(t)) = cos(t)'], // x が無く英字が 1 種類なら t
     ['x*y を微分して', 'd/dx (x×y) = y'], // x があれば x
   ])('%s → %s', (input, expected) => {
-    expect(handleCalculate(input).text.split('\n')[1]).toBe(expected);
+    expect(handleCalculate(input).text).toContain(expected);
   });
 
   it('微分する変数が決まらないときはエラー応答', () => {
     expect(handleCalculate('a*b を微分して').text).toContain('うまく読み取れなかった');
+  });
+});
+
+/**
+ * F-06 T4（2026-09-18）: 縦構造（分数・入れ子の根号・行列）は画像にし、本文はプレーン式だけにする。
+ * 画像の TeX はパイプラインの記法（`\\matrix{}`・`\\times`）に直す。WSL / VM で描画できることは実物で確認済み。
+ */
+describe('F-06 数式計算 — 画像清書の判定と TeX', () => {
+  it.each([
+    ['/calc 100/4', '\\frac{100}{4} = 25'],
+    ['/calc 2/6', '\\frac{2}{6} = 0.3333333333 = \\frac{1}{3}'],
+    ['/calc sqrt(2+sqrt(3))', '\\sqrt{2+\\sqrt{3}} = 1.931851653'],
+    ['/calc [[1,2],[3,4]]*2', '\\left[\\matrix{1&2\\\\3&4}\\right]\\times2 = \\left[\\matrix{2&4\\\\6&8}\\right]'],
+    ['1/x を微分して', '\\frac{d}{dx}\\left(\\frac{1}{ x}\\right) = -\\frac{1}{x^{2}}'],
+  ])('%s は画像にする（%s）', (input, tex) => {
+    const r = handleCalculate(input);
+    expect(r.typesetTex).toBe(tex);
+    expect(r.typesetAlt).toBe(r.text.split('\n')[0]); // alt はプレーン式
+    expect(r.text).not.toContain(':n'); // 本文に PM 絵文字は入れない
+  });
+
+  it.each(['/calc 2 + 3', '/calc sqrt(2)', '/calc 2^10', '/calc 5 km to mile'])('%s は PM 絵文字のまま', (input) => {
+    const r = handleCalculate(input);
+    expect(r.typesetTex).toBeUndefined();
+    expect(r.text).toContain(':eqp:');
+  });
+
+  it('行列を評価できる（typeOf が DenseMatrix なので以前は弾かれていた）', () => {
+    expect(handleCalculate('/calc [[1,2],[3,4]]*2').text).toContain('[[2, 4], [6, 8]]');
+  });
+
+  it('画像の上限を超える結果は画像にしない', () => {
+    expect(TYPESET_MAX_CHARS).toBeGreaterThan(0);
+    const r = handleCalculate('/calc ones(10,10)/7');
+    expect(r.text).toContain('0.1428571429');
+    expect(r.text.length).toBeGreaterThan(TYPESET_MAX_CHARS);
+    expect(r.typesetTex).toBeUndefined();
   });
 });
