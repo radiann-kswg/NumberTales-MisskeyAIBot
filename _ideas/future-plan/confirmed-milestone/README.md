@@ -26,6 +26,10 @@
   [`milestone/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md`](../../milestone/completed/2026-07-09_milestone_f06-d3-4a-4b-tile-fortune-quiz.md)）。
   D3-8（ポーカー・麻雀の手札/手牌交換、2026-07-05）・D3-5（キャラ番号ルーレット、2026-07-08）は実装済みだが、
   独立した milestone ドキュメントは作成せず本ファイル上でステータス更新のみ行ったため未昇進扱い。
+- [`F-11-F-13-birthday-events.md`](../F-11-F-13-birthday-events.md): **部分昇進**（2026-09-18）。F-11-A（ユーザー誕生日）・
+  F-11-B（キャラクター誕生日）・F-13（季節・記念日イベント）は
+  [`milestone/2026-09-18_milestone_f11-f13-anniversary.md`](../../milestone/2026-09-18_milestone_f11-f13-anniversary.md) へ昇進済み。
+  **F-11-C（他タイトルのキャラクター誕生日）のみ creations-db のタイトル横断データ拡充待ちで未昇進**のため残置。
 - [`creations-db-reference-expansion.md`](../creations-db-reference-expansion.md): 実装完了 ✅ の記録はあるが、
   対応する独立した milestone ドキュメントは作成されていないため未昇進扱い。
 
