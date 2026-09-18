@@ -136,7 +136,16 @@ const DATE_PATTERN = /(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?|(\d{8})/;
 const YEAR_PATTERN = /(\d{4})年?/;
 
 // 計算に使えそうな文字列（`x`・`y` は微分の変数用）
-const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]{3,})/i;
+const EXPR_CHARS = /[0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]+/gi;
+
+/** 自然文から式を抜く。微分は `2x`・`x` のような短い式も対象（safeDerivative が単一変数を扱えるため） */
+function extractExpr(normalized: string, min: number): string | undefined {
+  for (const m of normalized.matchAll(EXPR_CHARS)) {
+    const t = m[0].trim();
+    if (t.length >= min) return t;
+  }
+  return undefined;
+}
 
 // スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。
 // サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
@@ -157,8 +166,7 @@ export function handleCalculate(text: string): F06Result {
     expr = slashMatch[2].trim();
   } else {
     // 自然文から数式を抽出
-    const match = EXPR_PATTERN.exec(normalized);
-    expr = match?.[1]?.trim();
+    expr = extractExpr(normalized, /微分/.test(text) ? 1 : 3);
   }
 
   if (!expr) {
