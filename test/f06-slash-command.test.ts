@@ -152,6 +152,10 @@ describe('F-06 数式計算 — 画像清書の判定と TeX', () => {
     ['/calc sqrt(2+sqrt(3))', '\\sqrt{2+\\sqrt{3}} = 1.931851653'],
     ['/calc [[1,2],[3,4]]*2', '\\left[\\matrix{1&2\\\\3&4}\\right]\\times2 = \\left[\\matrix{2&4\\\\6&8}\\right]'],
     ['1/x を微分して', '\\frac{d}{dx}\\left(\\frac{1}{ x}\\right) = -\\frac{1}{x^{2}}'],
+    // 行列式は縦棒、行列は鉤括弧。inv/transpose の外側の丸括弧は外す（2026-09-18 見栄えの決定）
+    ['/calc det([[1,2],[3,4]])', '\\left|\\matrix{1&2\\\\3&4}\\right| = -2'],
+    ['/calc inv([[1,2],[3,4]])', '\\left[\\matrix{1&2\\\\3&4}\\right]^{-1} = \\left[\\matrix{-2&1\\\\1.5&-0.5}\\right]'],
+    ['/calc transpose([[1,2],[3,4]])', '\\left[\\matrix{1&2\\\\3&4}\\right]^{T} = \\left[\\matrix{1&3\\\\2&4}\\right]'],
   ])('%s は画像にする（%s）', (input, tex) => {
     const r = handleCalculate(input);
     expect(r.typesetTex).toBe(tex);

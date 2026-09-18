@@ -104,7 +104,11 @@ function toTex(expr: string): string {
     .parse(expr)
     .toTex({ parenthesis: 'auto' })
     .replace(/\\cdot/g, '\\times')
+    // 行列式は縦棒、行列は鉤括弧で組む（2026-09-18 見栄えの決定）。inv/transpose が付ける外側の丸括弧は冗長なので外す
+    .replace(/\\det\\left\(\\begin\{bmatrix\}([\s\S]*?)\\end\{bmatrix\}\\right\)/g, '\\left|\\matrix{$1}\\right|')
+    .replace(/\\left\(\\begin\{bmatrix\}([\s\S]*?)\\end\{bmatrix\}\\right\)/g, '\\begin{bmatrix}$1\\end{bmatrix}')
     .replace(/\\begin\{bmatrix\}([\s\S]*?)\\end\{bmatrix\}/g, '\\left[\\matrix{$1}\\right]')
+    .replace(/\^\\top/g, '^{T}')
     .replace(/\\mathrm\{([^}]*)\}/g, '$1')
     .replace(/~/g, ' ')
     // mathjs は指数の底を `{ x}^{2}` と括るが、パイプラインは `{…}^` の形を読めない。単純な底の括りを外す
