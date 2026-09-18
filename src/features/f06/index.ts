@@ -166,7 +166,9 @@ export function handleCalculate(text: string): F06Result {
     const result = safeEvaluate(expr);
     const exact = exactFraction(expr);
     const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}`;
-    return { text: calcResponse(exact ? `${plain} = ${exact}` : plain) };
+    // 入力がすでにその分数（`1/3`）なら同じものを繰り返さない
+    const showExact = exact !== null && exact !== expr.replace(/\s/g, '');
+    return { text: calcResponse(showExact ? `${plain} = ${exact}` : plain) };
   } catch {
     return { text: calcErrorResponse() };
   }
