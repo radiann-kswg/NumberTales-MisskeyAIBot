@@ -233,7 +233,7 @@ const TRIVIA_PATTERNS: RegExp[] = [
 ];
 
 const CALCULATE_PATTERNS: RegExp[] = [
-  /計算して|計算お願い|を計算|を求めて/i,
+  /計算して|計算お願い|を計算|を求めて|微分/i,
   /\/calc\s/i,
   /sqrt|sin|cos|tan|log|factorial|√|∑/i,
 ];

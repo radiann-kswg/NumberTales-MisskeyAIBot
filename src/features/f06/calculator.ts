@@ -5,6 +5,42 @@ import * as math from 'mathjs';
 /** evaluate() を呼んでよいか検査する禁止キーワード */
 const FORBIDDEN_PATTERN = /import|require|process|__dirname|__filename|global|eval|Function/i;
 
+// mathjs 標準に無い単位の語彙（天文系）。`1 lightyear to km` のように使う
+math.createUnit({
+  lightyear: { definition: '9460730472580800 m', aliases: ['ly'] },
+  parsec: { definition: '30856775814913673 m', aliases: ['pc'] },
+  au: '149597870700 m',
+});
+
+/** 入力の長さと禁止キーワードの検査（evaluate と derivative で共通） */
+function assertSafeExpr(expr: string): void {
+  if (expr.length > 200) {
+    throw new Error('式が長すぎるよ');
+  }
+  if (FORBIDDEN_PATTERN.test(expr)) {
+    throw new Error('その式は評価できないよ');
+  }
+}
+
+/**
+ * 式を微分して mathjs の書き方で返す。
+ * 微分する変数は、式に `x` があれば `x`、無くて英字（関数名を除く）が 1 種類だけならその字。
+ * @throws 変数を決められない・式を読み取れない場合
+ */
+export function safeDerivative(expr: string): { variable: string; result: string } {
+  assertSafeExpr(expr);
+  const letters = new Set(expr.replace(/\b(sin|cos|tan|log|sqrt|exp|abs|pi|e)\b/g, '').replace(/[^a-zA-Z]/g, ''));
+  const variable = letters.has('x') ? 'x' : letters.size === 1 ? [...letters][0]! : null;
+  if (!variable) {
+    throw new Error('微分する変数が分からなかった');
+  }
+  try {
+    return { variable, result: math.derivative(expr, variable).toString() };
+  } catch {
+    throw new Error('式を読み取れなかった');
+  }
+}
+
 /**
  * 数式文字列を安全に評価して結果文字列を返す。
  *
@@ -13,13 +49,7 @@ const FORBIDDEN_PATTERN = /import|require|process|__dirname|__filename|global|ev
  * @throws 式が長すぎる・禁止キーワード含む・評価エラーの場合
  */
 export function safeEvaluate(expr: string): string {
-  if (expr.length > 200) {
-    throw new Error('式が長すぎるよ');
-  }
-
-  if (FORBIDDEN_PATTERN.test(expr)) {
-    throw new Error('その式は評価できないよ');
-  }
+  assertSafeExpr(expr);
 
   let result: unknown;
   try {

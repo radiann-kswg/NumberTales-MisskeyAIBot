@@ -1,7 +1,7 @@
 // F-06 コマンドディスパッチャー
 // 入力テキストを解析して計算・数秘術の各機能に振り分ける
 
-import { safeEvaluate, exactFraction, toMathjsNotation, toNaturalNotation } from './calculator.js';
+import { safeEvaluate, safeDerivative, exactFraction, toMathjsNotation, toNaturalNotation } from './calculator.js';
 import { lifePathNumber, honmeisei, kyuseiPair } from './numerology.js';
 import {
   calcResponse,
@@ -128,8 +128,8 @@ const DATE_PATTERN = /(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?|(\d{8})/;
 // 年のみ抽出（生年指定）
 const YEAR_PATTERN = /(\d{4})年?/;
 
-// 計算に使えそうな文字列
-const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrt]{3,})/i;
+// 計算に使えそうな文字列（`x`・`y` は微分の変数用）
+const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]{3,})/i;
 
 // スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。
 // サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
@@ -159,6 +159,10 @@ export function handleCalculate(text: string): F06Result {
   }
 
   try {
+    if (/微分/.test(text)) {
+      const { variable, result } = safeDerivative(expr);
+      return { text: calcResponse(`d/d${variable} (${toNaturalNotation(expr)}) = ${toNaturalNotation(result)}`) };
+    }
     const result = safeEvaluate(expr);
     const exact = exactFraction(expr);
     const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}`;

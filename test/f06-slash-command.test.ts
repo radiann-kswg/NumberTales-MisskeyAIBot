@@ -113,3 +113,29 @@ describe('F-06 数式計算 — 厳密値の併記', () => {
     expect(handleCalculate(input).text.split('\n')[1]).toBe(expected);
   });
 });
+
+/**
+ * F-06 評価範囲の拡張（T3・2026-09-18）: 天文系の単位語彙と、自然文「微分して」。
+ */
+describe('F-06 数式計算 — 単位語彙と微分', () => {
+  it.each([
+    ['/calc 1 lightyear to km', '9.460730473×10¹² km'],
+    ['/calc 1 pc to ly', '3.261563777 ly'],
+    ['/calc 1 au to km', '1.495978707×10⁸ km'],
+  ])('%s → %s', (input, expected) => {
+    expect(handleCalculate(input).text.split('\n')[1]).toContain(expected);
+  });
+
+  it.each([
+    ['x^2+3x を微分して', 'd/dx (x²+3x) = 2 × x + 3'],
+    ['x²+3x を微分して', 'd/dx (x²+3x) = 2 × x + 3'], // 上付きでも同じ
+    ['sin(t) を微分して', 'd/dt (sin(t)) = cos(t)'], // x が無く英字が 1 種類なら t
+    ['x*y を微分して', 'd/dx (x×y) = y'], // x があれば x
+  ])('%s → %s', (input, expected) => {
+    expect(handleCalculate(input).text.split('\n')[1]).toBe(expected);
+  });
+
+  it('微分する変数が決まらないときはエラー応答', () => {
+    expect(handleCalculate('a*b を微分して').text).toContain('うまく読み取れなかった');
+  });
+});
