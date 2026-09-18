@@ -38,7 +38,7 @@ export class MisskeyClient {
 
   constructor(
     private readonly origin: string,
-    token: string,
+    private readonly token: string,
   ) {
     this.apiClient = new MisskeyApi.APIClient({ origin, credential: token });
     this.stream = new Stream(origin, { token });
@@ -111,18 +111,39 @@ export class MisskeyClient {
    * @param text 投稿本文
    * @param replyId 返信先ノート ID
    * @param options.cw CW（ContentWarning）テキスト。設定すると本文が折りたたまれる
+   * @param options.fileIds 添付する Drive ファイル ID（uploadFile の戻り値）
    */
   async reply(
     text: string,
     replyId: string,
-    options?: { cw?: string },
+    options?: { cw?: string; fileIds?: string[] },
   ): Promise<void> {
     await this.apiClient.request('notes/create', {
       text,
       replyId,
       cw: options?.cw ?? undefined,
+      fileIds: options?.fileIds?.length ? options.fileIds : undefined,
       visibility: 'home',
     });
+  }
+
+  /**
+   * Drive にファイルをアップロードしてファイル ID を返す。
+   * `drive/files/create` は multipart なので misskey-js の request()（JSON）では送れず、
+   * Node 22 標準の fetch + FormData + Blob で送る（新規依存なし）。
+   * @param data ファイルの中身
+   * @param name Drive 上のファイル名
+   * @param comment alt テキスト（数式画像ならプレーン式を入れる）
+   */
+  async uploadFile(data: Buffer, name: string, comment?: string): Promise<string> {
+    const form = new FormData();
+    form.append('i', this.token);
+    form.append('name', name);
+    if (comment) form.append('comment', comment);
+    form.append('file', new Blob([new Uint8Array(data)]), name);
+    const res = await fetch(`${this.origin}/api/drive/files/create`, { method: 'POST', body: form });
+    if (!res.ok) throw new Error(`drive/files/create failed: ${res.status} ${await res.text()}`);
+    return ((await res.json()) as { id: string }).id;
   }
 
   /**
@@ -134,11 +155,13 @@ export class MisskeyClient {
    * @param text 投稿本文
    * @param options.cw CW（ContentWarning）テキスト
    * @param options.visibility 公開範囲（既定 'public'）
+   * @param options.fileIds 添付する Drive ファイル ID（uploadFile の戻り値）
    */
-  async post(text: string, options?: { cw?: string; visibility?: 'public' | 'home' }): Promise<string> {
+  async post(text: string, options?: { cw?: string; visibility?: 'public' | 'home'; fileIds?: string[] }): Promise<string> {
     const res = await this.apiClient.request('notes/create', {
       text,
       cw: options?.cw ?? undefined,
+      fileIds: options?.fileIds?.length ? options.fileIds : undefined,
       visibility: options?.visibility ?? 'public',
     });
     return (res as unknown as { createdNote: { id: string } }).createdNote.id;
