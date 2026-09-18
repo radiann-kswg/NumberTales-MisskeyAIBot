@@ -110,9 +110,12 @@ export function isValidMonthDay(month: number, day: number): boolean {
 }
 
 const BIRTHDAY_INPUT_PATTERNS: RegExp[] = [
-  /(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
-  /(\d{1,2})\s*[/／.-]\s*(\d{1,2})/,
+  /(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+  /(\d{1,2})\s*[/／.-]\s*(\d{1,2})/g,
 ];
+
+/** 区切りつきの数字が 3 つ以上並ぶ＝年が混ざっている疑い。月日の取り違えを作らないため読み取らない */
+const AMBIGUOUS_DATE = /\d+\s*[/／.-]\s*\d+\s*[/／.-]\s*\d+/;
 
 /**
  * 自然文から誕生日の月日を抽出する。年は読み取らない（プライバシー方針: 年は保存しない）。
@@ -120,12 +123,14 @@ const BIRTHDAY_INPUT_PATTERNS: RegExp[] = [
  */
 export function parseBirthdayInput(text: string): MonthDay | null {
   const normalized = toHalfWidthDigits(text);
+  if (AMBIGUOUS_DATE.test(normalized)) return null;
   for (const pattern of BIRTHDAY_INPUT_PATTERNS) {
-    const m = pattern.exec(normalized);
-    if (!m) continue;
-    const month = parseInt(m[1]!, 10);
-    const day = parseInt(m[2]!, 10);
-    if (isValidMonthDay(month, day)) return { month, day };
+    // matchAll は正規表現を複製して走査するので lastIndex の持ち越しは起きない
+    for (const m of normalized.matchAll(pattern)) {
+      const month = parseInt(m[1]!, 10);
+      const day = parseInt(m[2]!, 10);
+      if (isValidMonthDay(month, day)) return { month, day };
+    }
   }
   return null;
 }
