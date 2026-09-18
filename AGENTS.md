@@ -248,6 +248,7 @@ src/
     scheduler/
       index.ts                #   時間帯別自発投稿（週次担当キャラ連携済み）
       weekly-poll.ts          #   週次担当キャラクター選出（Poll 投稿・集計・就任）
+      anniversary.ts          #   F-11/F-13 記念日の配信（毎朝1回・ユーザー誕生日はメンション、キャラ記念日/季節イベントは公開投稿）
       task-scheduler.ts       #   F-12 タスク通知配信（5分間隔・remind_at/期日超過/12時間毎の定期催促を配信、MAX_PROCESS_PER_RUN=5・通知キャラはタスク所有ユーザーの会話相手キャラを解決）
   characters/                 # ローカルキャラクター定義の配置先（プレースホルダ）
   features/f06/               # 数字・ヌメロジーコマンド（F-06）
@@ -260,6 +261,7 @@ src/
     calc-quiz.ts              #   F-16 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・PenchantManufacture 絵文字化）
     dice-color.ts             #   キャラ番号の桁根 → ダイス絵文字色（D3-6）
     responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
+  features/anniversary.ts     # F-11/F-13 記念日の判定（純関数のみ・CALENDAR_EVENTS 定義・誕生日パース・誕生数）
   features/task/index.ts      # F-12: LLM日時抽出・進捗%計算（タスク別progress反映）・一覧整形・対象特定（丸数字/全角対応）
   features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ
   config/                     # 環境変数(env.ts)・定数(constants.ts)
@@ -269,6 +271,7 @@ src/
     bot-state.ts              #   Bot 状態の永続ストレージ（KV 形式・SQLite）
     game-session.ts           #   ゲームセッション管理（TTL 60分・game_sessions テーブル）＋継続コマンド用 recent_games/game_repeat_log（D3-7）
     task.ts                   #   F-12 タスク永続化（同時10件まで・優先度/難易度/期日/通知種別）＋難易度確認ワークフローの確認待ちドラフト（`pending_task_drafts`・TTL10分）
+    birthday.ts               #   F-11-A ユーザー誕生日永続化（`user_birthdays`・月日のみ／年は保存しない・いつでも削除可）
     trust.ts                  #   F-12B 信頼度永続化（タスク完了・会話ボーナスでポイント加算、レベル判定）
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
@@ -387,6 +390,10 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 | —          | 計測系 DB フィールドの形式ゆれ吸収（`resolveMeasureField`）: `Height_cm`/`Weight_kg`/`ConceptAge` は素の数値だけでなく `{value, about_JP}`・その配列・`{hideText}`（非公開）を取りうる。非公開は出力せず、補足付きは `145cm（通常時）・190cm（筋装備時）` の形へ解決する。F-15 身体性コンテキストで配列形式のキャラが「等身大」へ潰れていた欠落を解消 | ✅ 実装済み |
 | F-12 修正  | タスク追加の願望形の取りこぼしを修正（実機バグ 2026-09-16）: 「「〇〇」のタスクを追加したい」が `TASK_ADD_PATTERNS` の動詞語尾（して/お願い等）に非マッチで雑談へ落ち、LLM が登録のフリだけ返して DB 未書き込みだった。語尾に「したい」を追加 | ✅ 実装済み |
 | —          | ロールプレイ呼称のスラッシュ連結を修正（実機バグ 2026-09-16）: 35(サトコ) が主人呼称を「兄者/姉者」と連結したまま発話。DB カードの「/」区切りは相手に応じた候補列挙のため、`TONE_GUARD_LINES` に「どれか一つだけ選んで一貫使用・連結禁止・不明なら先頭候補」の指示を追加（カード経路・fallback 経路の両方に適用） | ✅ 実装済み |
+| F-11-A     | ユーザーの誕生日お祝い: 「私の誕生日は7月7日です」等で月日を登録（`birthday-register`）し、当日の朝に会話相手キャラが本人宛てメンションでお祝いする。**年は保存せず**年齢にも触れない。「誕生日を忘れて」でいつでも削除可（`birthday-forget`）。平年の 2/28 は 2/29 生まれも併せて祝う | ✅ 実装済み |
+| F-11-B     | キャラクターの記念日お祝い: creations-db の `AnivDay` を照合し、週次担当キャラが公開投稿でお祝いする。`DayAbout_JP` が「開発記念」なら誕生日、それ以外は劇中記念日として文面を変える。担当キャラ自身の記念日なら自己申告する演出。released 92件のうち記念日を持つ日は366日中97日 | ✅ 実装済み |
+| F-13       | 季節・記念日イベント投稿: お正月/節分/バレンタイン/πの日/春分/エイプリルフール/Bot開発記念日(5/25)/七夕/11-11/クリスマス/大晦日を静的定数 `CALENDAR_EVENTS` で定義し、該当日に公開投稿する。**DBテーブルは作らない**（静的データのためシード・マイグレーションが不要） | ✅ 実装済み |
+| F-11/F-13 基盤 | 朝スロット（6〜8時）に記念日チェック分岐を追加（`STATE_KEY_ANNIVERSARY_LAST_DATE` で1日1回）。⚠️ **月曜7時の就任挨拶より後**に置くこと。該当が無い日（366日中269日）は通常の朝の自発投稿へフォールスルーし、公開投稿を出した日だけ `lastPostedAt` を更新して連投を避ける | ✅ 実装済み |
 
 ### 検討中・着手待ちのBot機能
 
@@ -405,6 +412,9 @@ CLAUDE.md                     # Claude（Cowork / Claude Code）向けの薄い�
 - **運用: 統合ウォッチドッグ再設計**: 共用 Spot VM 化に伴い、`reset()` が同居 Bot を巻き添えにする問題と
   プリエンプションの事前ハンドリングに対応する — **未着手**（設計のみ）
   → [`_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md`](./_ideas/milestone/2026-08-05_milestone_shared-vm-unified-watchdog.md)
+- **F-11-C 他タイトルのキャラクター誕生日**: creations-db のタイトル横断データ拡充待ち — **未着手**
+  （F-11-A / F-11-B / F-13 は実装済み）
+  → [`_ideas/milestone/2026-09-18_milestone_f11-f13-anniversary.md`](./_ideas/milestone/2026-09-18_milestone_f11-f13-anniversary.md)
 - **F-12B Phase C（将来拡張）**: Numerospec カバラ加護・趣味特技連携による機能アンロック、Lv.4 固有演出は実装時期未定
   → [`_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md`](./_ideas/milestone/completed/2026-06-23_milestone_f12-reminder.md) の Phase C 節参照
 - **F-17 算術リファレンス**: 「ナンバーテールズに計算してもらう」機能群 — **積極検討中**（主要方針は 2026-09-08 決定、milestone 化待ち）
