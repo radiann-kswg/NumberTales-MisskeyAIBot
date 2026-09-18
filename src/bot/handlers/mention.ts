@@ -21,6 +21,8 @@ import {
 import { type TrustStore, type TrustContext } from '../../storage/trust.js';
 import { type CharacterAffinityStore } from '../../storage/character-affinity.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
+import { type UserBirthdayStore } from '../../storage/birthday.js';
+import { parseBirthdayInput, birthdayNumber } from '../../features/anniversary.js';
 import {
   extractTaskRequest,
   calculateProgress,
@@ -158,6 +160,7 @@ export interface MentionHandlerDeps {
   taskStore: TaskStore;
   trustStore: TrustStore;
   characterAffinityStore: CharacterAffinityStore;
+  birthdayStore: UserBirthdayStore;
 }
 
 /** アフィニティ加算量（F-14 Phase 1・暫定値。実運用で調整） */
@@ -414,7 +417,7 @@ export async function handleMention(
   event: MentionEvent,
   deps: MentionHandlerDeps,
 ): Promise<void> {
-  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore } = deps;
+  const { ai, misskeyClient, myUserId, rateLimiter, sessionStore, gameSessionStore, activeCharacterStore, incidentLogger, botState, taskStore, trustStore, characterAffinityStore, birthdayStore } = deps;
   const resolvedCharacterNumForUser = activeCharacterStore.resolve(event.userId);
   const activeFormTarget = activeCharacterStore.resolveForm(event.userId);
   const activeCharacter =
@@ -1928,6 +1931,50 @@ export async function handleMention(
       logger.info(`Replied (affinity-check) to ${event.userId}`);
     } catch (err) {
       logger.error('Failed to post affinity-check reply:', err);
+    }
+    return;
+  }
+
+  // 4f. 誕生日の登録・解除（F-11-A）。年は保存せず、いつでも削除できるようにしている。
+  if (effectiveIntent === 'birthday-forget') {
+    const removed = birthdayStore.delete(event.userId);
+    const forgetReply = removed
+      ? '誕生日の登録は消しておいたよ。また教えたくなったらいつでも言ってね。'
+      : 'もともと誕生日は登録されていないみたいだよ。';
+    try {
+      await misskeyClient.reply(formatSpeech(activeCharacterNum, forgetReply), event.noteId);
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (birthday-forget) to ${event.userId}`);
+    } catch (err) {
+      logger.error('Failed to post birthday-forget reply:', err);
+    }
+    return;
+  }
+
+  if (effectiveIntent === 'birthday-register') {
+    const parsed = parseBirthdayInput(event.text);
+    let birthdayReply: string;
+    if (parsed === null) {
+      // 読み取れないまま決め打ちで登録すると誤った日に祝ってしまうため、必ず聞き返す
+      birthdayReply = '月日がうまく読み取れなかったな。「7月7日」みたいな形で教えてくれる？（年は覚えないよ）';
+    } else {
+      birthdayStore.set({
+        userId: event.userId,
+        month: parsed.month,
+        day: parsed.day,
+        username: event.username ?? null,
+        userHost: event.userHost ?? null,
+      });
+      birthdayReply =
+        `${parsed.month}月${parsed.day}日だね、覚えたよ。その日には必ず声をかけるね。\n` +
+        `ちなみに月日から出る誕生数は ${birthdayNumber(parsed.month, parsed.day)} だ。`;
+    }
+    try {
+      await misskeyClient.reply(formatSpeech(activeCharacterNum, birthdayReply), event.noteId);
+      rateLimiter.recordReply(event.userId);
+      logger.info(`Replied (birthday-register) to ${event.userId}`);
+    } catch (err) {
+      logger.error('Failed to post birthday-register reply:', err);
     }
     return;
   }

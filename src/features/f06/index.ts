@@ -131,8 +131,9 @@ const YEAR_PATTERN = /(\d{4})年?/;
 // 計算に使えそうな文字列
 const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrt]{3,})/i;
 
-// スラッシュコマンド: /command [subcommand] [args...]
-const SLASH_CMD_PATTERN = /^\/(\w+)(?:\s+(\w+))?(?:\s+(.+))?$/;
+// スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。
+// サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
+const SLASH_CMD_PATTERN = /^\/(\w+)(?:\s+(.+))?$/;
 
 // ----------------------------------------------------------------
 // ハンドラ関数
@@ -145,8 +146,8 @@ export function handleCalculate(text: string): F06Result {
   const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let expr: string | undefined;
 
-  if (slashMatch?.[1] === 'calc' && slashMatch[3]) {
-    expr = slashMatch[3].trim();
+  if (slashMatch?.[1] === 'calc' && slashMatch[2]) {
+    expr = slashMatch[2].trim();
   } else {
     // 自然文から数式を抽出
     // 全角記号を半角に変換してから抽出
@@ -185,9 +186,9 @@ export function handleLifePath(text: string): F06Result {
   if (
     slashMatch &&
     (slashMatch[1] === 'numerology' || slashMatch[1] === 'lp') &&
-    slashMatch[3]
+    slashMatch[2]
   ) {
-    const raw = slashMatch[3].replace(/\D/g, '');
+    const raw = slashMatch[2].replace(/\D/g, '');
     if (raw.length === 8) {
       year  = Number(raw.slice(0, 4));
       month = Number(raw.slice(4, 6));
@@ -230,8 +231,8 @@ export function handleKyusei(text: string): F06Result {
   const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let year: number | undefined;
 
-  if (slashMatch?.[1] === 'kyusei' && (slashMatch[2] ?? slashMatch[3])) {
-    year = Number(slashMatch[2] ?? slashMatch[3]);
+  if (slashMatch?.[1] === 'kyusei' && slashMatch[2]) {
+    year = parseInt(slashMatch[2], 10);
   } else {
     // 自然文から年を抽出
     const yearMatch = YEAR_PATTERN.exec(halfWidthText);
@@ -327,8 +328,8 @@ export function handleTsukimeisei(text: string): F06Result {
   const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
   let year: number | undefined, month: number | undefined, day: number | undefined;
 
-  if (slashMatch?.[1] === 'tsukimei' && slashMatch[3]) {
-    const raw = slashMatch[3].replace(/\D/g, '');
+  if (slashMatch?.[1] === 'tsukimei' && slashMatch[2]) {
+    const raw = slashMatch[2].replace(/\D/g, '');
     if (raw.length === 8) {
       year  = Number(raw.slice(0, 4));
       month = Number(raw.slice(4, 6));
