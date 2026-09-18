@@ -310,6 +310,9 @@ export class PostScheduler {
 
     // 記念日チェック（F-11 誕生日 / F-13 季節イベント）: 朝スロットで1日1回だけ。
     // 月曜7時の就任挨拶より**後**に置くこと（就任挨拶を潰さないため）。
+    // 既知の制限: 月曜は 7 時台が就任挨拶で return するため、6 時台の tick までに実施できず
+    // 就任挨拶のクールダウン（1〜2h）が朝スロットの終了 8 時を越えると、その日の記念日投稿は落ちる。
+    // 年に数回の取りこぼしを許容し、専用スロットは設けていない（必要になったら独立スロットへ切り出す）。
     if (slot.label === '朝') {
       const todayKey = getJstDateString();
       if (this.deps.botState.getState(STATE_KEY_ANNIVERSARY_LAST_DATE) !== todayKey) {
