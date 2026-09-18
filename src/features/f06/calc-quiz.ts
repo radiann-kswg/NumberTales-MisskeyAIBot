@@ -86,7 +86,26 @@ const PM_CODES: Record<string, string> = {
   '?': 'qm',
   '(': 'ro',
   ')': 'rc',
+  // 以下は F-06 数式計算の清書で出る字（2026-09-18 に 5 色すべての実在を確認済み）
+  '.': 'dt',
+  '/': 'sl',
+  '^': 'ht',
+  '√': 'sqrt',
+  '*': 'as',
+  ',': 'cm',
+  '%': 'pc',
+  '[': 'bo',
+  ']': 'bx',
+  '⁰': 'sup0', '¹': 'sup1', '²': 'sup2', '³': 'sup3', '⁴': 'sup4',
+  '⁵': 'sup5', '⁶': 'sup6', '⁷': 'sup7', '⁸': 'sup8', '⁹': 'sup9',
+  '⁺': 'supplus', '⁻': 'supminus',
 };
+// 英字 a–z → la…lz、A–Z → ua…uz（単位名・変数名・虚数単位 i に使う）
+for (let i = 0; i < 26; i++) {
+  const c = String.fromCharCode(97 + i);
+  PM_CODES[c] = `l${c}`;
+  PM_CODES[c.toUpperCase()] = `u${c}`;
+}
 
 /**
  * 文字列を PenchantManufacture のカスタム絵文字に置き換える。

@@ -105,6 +105,7 @@ import { MENTION_REACTION_MAP } from '../reactor/emoji-reaction-map.js';
 import { logger } from '../../utils/logger.js';
 import { BOT_CONSTANTS } from '../../config/constants.js';
 import { config } from '../../config/env.js';
+import { renderMathPng, ensureDriveFile } from '../../features/typeset.js';
 import { IncidentLogger } from '../../utils/incident-logger.js';
 
 /** F-12 タスクの優先度表示ラベル（確認ワークフロー・確認メッセージ生成の両方で使用） */
@@ -1554,6 +1555,8 @@ export async function handleMention(
     }
 
     let f06Result: F06Result;
+    // 数式画像（F-17C）。LLM の前置き生成と並行して描画し、遅れを隠す。描けなければ null のまま添付しない
+    let typesetPng: Promise<Buffer | null> = Promise.resolve(null);
 
     // F06 各ハンドラ（handleDice 等）や recordPlayed の SQLite 書き込みで想定外の例外が
     // 発生しても、この投稿1件の処理失敗に留め Bot プロセス全体を落とさないためのガード。
@@ -1651,6 +1654,9 @@ export async function handleMention(
                         ? handleTsukimeisei(event.text)
                         : handleKyusei(event.text);
         }
+        if (f06Result.typesetTex) {
+          typesetPng = renderMathPng(f06Result.typesetTex, config.features.typesetPython);
+        }
 
         // キャラクター個性の一言を計算結果の前に付与する（失敗時はスキップ）
         const framingType =
@@ -1687,7 +1693,11 @@ export async function handleMention(
     const noteCw = f06Result.cwLabel;
 
     try {
-      await misskeyClient.reply(noteText, event.noteId, { cw: noteCw });
+      const png = await typesetPng;
+      const fileId = png && f06Result.typesetTex
+        ? await ensureDriveFile(f06Result.typesetTex, png, f06Result.typesetAlt ?? '', botState, (d, n, c) => misskeyClient.uploadFile(d, n, c))
+        : null;
+      await misskeyClient.reply(noteText, event.noteId, { cw: noteCw, fileIds: fileId ? [fileId] : undefined });
       rateLimiter.recordReply(event.userId);
       logger.info(`Replied (F06) to ${event.userId}: "${noteText.slice(0, 40)}..."`);
 

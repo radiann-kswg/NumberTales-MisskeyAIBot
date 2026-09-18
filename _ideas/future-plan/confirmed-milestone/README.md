@@ -30,6 +30,9 @@
   F-11-B（キャラクター誕生日）・F-13（季節・記念日イベント）は
   [`milestone/2026-09-18_milestone_f11-f13-anniversary.md`](../../milestone/2026-09-18_milestone_f11-f13-anniversary.md) へ昇進済み。
   **F-11-C（他タイトルのキャラクター誕生日）のみ creations-db のタイトル横断データ拡充待ちで未昇進**のため残置。
+- [`F-17-arithmetic-puzzles.md`](../F-17-arithmetic-puzzles.md): **部分昇進**（2026-09-18）。F-17C（数式画像描画基盤）は
+  [`milestone/2026-09-18_milestone_f17c-typeset-pipeline.md`](../../milestone/2026-09-18_milestone_f17c-typeset-pipeline.md) へ昇進済み。
+  **F-17A（逆メイク10）・F-17B（手順つき素因数分解）・F-17D（Wolfram 連携）は構想のまま未昇進**のため残置。
 - [`creations-db-reference-expansion.md`](../creations-db-reference-expansion.md): 実装完了 ✅ の記録はあるが、
   対応する独立した milestone ドキュメントは作成されていないため未昇進扱い。
 

@@ -1,7 +1,7 @@
 # F-17: 算術リファレンス — 逆メイク10 ソルバー ／ 手順つき素因数分解 ／ 数式画像描画基盤
 
 > 作成日: 2026-09-08（同日、クライアント君の指摘で「クイズ」主軸から「計算してもらう」主軸へ改稿。未決事項 7 点も同日に決定）
-> ステータス: **構想（主要方針は確定。milestone 化待ち）**
+> ステータス: **部分昇進**（2026-09-18。**F-17C のみ** [`milestone/2026-09-18_milestone_f17c-typeset-pipeline.md`](../milestone/2026-09-18_milestone_f17c-typeset-pipeline.md) へ昇進。A・B・D は構想のまま）
 > 調査ノート: [`_ideas/.research/arithmetic-puzzles.md`](../.research/arithmetic-puzzles.md)（非公開。一次資料の要約と検算）
 > 着想元: [@shapoco@misskey.io「10kΩしか持ってねぇ」](https://misskey.io/notes/ae1aijmdiy8e091v) ／
 > [Kiri8128「1001法 - 素因数分解を暗算で効率よく行う方法」](https://qiita.com/Kiri8128/items/4083edee413d441bd0e6)
@@ -129,6 +129,10 @@ N は素因数の積から組み立てる（答えから作るので棄却が起
 
 ## F-17C: 数式画像描画基盤（PenchantManufacture_ImagePipeline サブモジュール）
 
+> **2026-09-18 に milestone へ昇進**: 正式仕様は [`milestone/2026-09-18_milestone_f17c-typeset-pipeline.md`](../milestone/2026-09-18_milestone_f17c-typeset-pipeline.md)。
+> A・B より先に単独で入れ、F-06 の数式計算（[`milestone/2026-09-18_milestone_f06-calculate-enhancement.md`](../milestone/2026-09-18_milestone_f06-calculate-enhancement.md)）からも使う。
+> 以下は昇進前の検討メモとして残す。
+
 ### 目的
 
 1 行はカスタム絵文字（既存）、**2 行以上（分数・連分数・多段式）は画像**という責務分界を Bot に持ち込む。
@@ -175,7 +179,7 @@ Free Wolfram Engine（wolframscript）は「本番 Web サービスは productio
 | # | 対象 | 内容 | なぜ効くか |
 | --- | --- | --- | --- |
 | D-1 | **`trivia`（数字うんちく）** | 「57 の性質」を LLM API に投げ、数論的性質（素因数・約数・進数・図形数…）を事実として CW に添える。**公開済みキャラ全員分をキャッシュ**すれば以後は API 消費ゼロ | 番号キャラの「数字を生きる存在」感を事実で裏打ちできる。F-17 の中でいちばん世界観に近い |
-| D-2 | **`calculate` の 2 段目** | mathjs が失敗した式（積分・方程式・単位換算「3.2 光年を km に」・物理定数）だけ WA へ。結果は本文に要約、詳細を CW | 既存意図の穴埋め。新しいトリガー語が要らない |
+| D-2 | **`calculate` の 2 段目** | mathjs が扱えない**因数分解・方程式・積分**だけ WA へ。結果は本文に要約、詳細を CW。※2026-09-18 の実測で、単位換算（`5 km to mile`。光年は `createUnit` で足せる）と物理定数（`speedOfLight` 等）は mathjs の標準機能と判明したので対象から外した。積分は答えが出ても `∫` のグリフが未収録で清書できない | 既存意図の穴埋め。新しいトリガー語が要らない |
 | D-3 | **F-17B の大きな数** | 13 桁以上は自前の試し割りを諦めて WA に `FactorInteger` 相当を聞く。1001 法の手順は自前のまま（WA には無い） | 「電卓を使ってくれ」と断っていた領域を埋める |
 | D-4 | **プロット画像** | LLM API が返す画像 URL を取得し、F-17C の `uploadFile()` で Drive 添付 | C の投資を再利用 |
 

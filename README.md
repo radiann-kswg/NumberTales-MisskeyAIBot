@@ -103,7 +103,7 @@
 
 **数字・占い系**
 
-- **計算** — 自然文中の数式（`3+5` など）または `/calc 式` コマンドを評価し結果を返答
+- **計算** — 自然文中の数式（`3+5` など）または `/calc 式` コマンドを評価し、式と答えを PM 絵文字（墨）で清書してプレーン式（そのまま `/calc` に貼り直せる自然な表記）を併記。割り切れない答えには分数を添え、単位換算（`5 km to mile`・`lightyear`/`ly`・`parsec`/`pc`・`au`）と自然文の「微分して」にも対応。分数・入れ子の根号・行列を含む式は PenchantManufacture の字形で組んだ画像を添付
 - **ライフパスナンバー** — 生年月日から数秘術のライフパスナンバーを算出し CW 付きで解説
 - **九星気学** — 生年月日から本命星・月命星を算出し CW 付きで解説
 - **ダイスロール** — `/dice NdM` 形式または「N面ダイスを振って」等の自然文でダイスを振る
@@ -152,12 +152,13 @@
 >
 > 絵文字が未登録の場合、ゲームは起動しますが絵文字部分がフォールバックテキスト表示になります。
 >
-> **計算問題チャレンジのみ別シリーズ**を使用します。式の描画には理系表記特化のデコ文字
+> **計算問題チャレンジと数式計算は別シリーズ**を使用します。式の描画には理系表記特化のデコ文字
 > **`PenchantManufacture`（工業デカール）**シリーズを使います。
 >
 > | 用途 | 必要な絵文字 |
 > | ---- | ------------ |
 > | 計算問題の式 | 数字 `n0`〜`n9` ／ `pl`(+) `hy`(-) `times`(×) `div`(÷) `eq`(=) `qm`(?) `ro`(() `rc`()) に、色バリアントの接尾辞（墨=`p` / 警戒=`ph` / 酸鉄=`pr` / 白銅燐光=`pn` / 緑青真鍮=`pt`）を付けた名前（例: `:n7p:` `:timesph:`） |
+> | 数式計算の式 | 上記の墨（`p`）に加えて `dt`(.) `sl`(/) `ht`(^) `sqrt`(√) `as`(*) `cm`(,) `pc`(%) `bo`([) `bx`(]) ／ 英字 `la`〜`lz`・`ua`〜`uz` ／ 上付き `sup0`〜`sup9` `supplus` `supminus`（色は墨固定） |
 >
 > 未登録の字は素の文字のままフォールバックし、式はプレーンテキストでも併記されるため
 > 絵文字が無くても問題は読めます。インスタンスの登録状況は `node tools/fetch-misskey-emojis.mjs --filter PenchantManufacture` で確認できます。
@@ -341,6 +342,7 @@ _ideas/bot-spec/              # 仕様書・設計ドキュメント
 _roleplay-datas/              # キャラクタープロンプト・AI 連携情報
 _tasks/                       # 自動スケジュールタスクの作業ログ（creations-db-sync / github-triage）
 _creations-db/                # サブモジュール: 百花繚乱研究所 創作DB（参照専用）
+_calcimage-pipeline/          # サブモジュール: 数式画像の清書パイプライン（Python・CC BY 4.0・参照専用）
 tools/                        # 補助スクリプト（Misskey 投稿取得・同期検知等）
   vm-watchdog.mjs             # VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
   systemd/                    # ウォッチドッグ用 systemd service/timer 雛形
@@ -444,6 +446,8 @@ npm start
 - [ ] F-11-C: 他タイトルのキャラクター誕生日（creations-db のデータ拡充待ち）
 - [ ] F-10: エンジェルナンバー占い（仕様策定済み）
 - [ ] F-06 Stage B/C: 名前ヌメロジー（デスティニー/ソウルナンバー）・月命星
+- [x] F-17C: 数式画像の清書基盤（実装済み 2026-09-18。VM の Python 構築とプロフィールのクレジット表記が残り）
+- [x] F-06 数式計算の強化: PM 絵文字／画像の清書・厳密値・単位語彙と微分（実装済み 2026-09-18・実機確認待ち）
 - [ ] その他のアイディアは `_ideas/future-plan/` を参照
 
 ---
@@ -453,6 +457,7 @@ npm start
 - **本 Bot コード**: [CC BY-NC 4.0](LICENCE) — 百花繚乱研究所 / RadianN_kswg
 - **キャラクター「ナンバーテールズ」**: 百花繚乱研究所（著作権者: RadianN_kswg）
 - **創作 DB サブモジュール** (`_creations-db/`): [100BeautiesLab_CreationsDB](https://github.com/radiann-kswg/100BeautiesLab_CreationsDB) — CC BY-NC 4.0
+- **数式画像パイプライン サブモジュール** (`_calcimage-pipeline/`): [PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline) — CC BY 4.0（数式画像: PenchantManufacture (RadianN_kswg)。Bot プロフィールにクレジットを固定表示）
 
 > 本リポジトリのコードを利用・改変する場合は CC BY-NC 4.0 に従い、
 > **非商用・クレジット表記**のうえ公開してください。

@@ -2,3 +2,6 @@
 	path = _creations-db
 	url = https://github.com/radiann-kswg/100BeautiesLab_CreationsDB
 	branch = develop
+[submodule "_calcimage-pipeline"]
+	path = _calcimage-pipeline
+	url = https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline

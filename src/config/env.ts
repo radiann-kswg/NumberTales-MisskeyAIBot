@@ -51,6 +51,8 @@ export const config = {
   },
   features: {
     enableGlobalTL: optionalEnv('ENABLE_GLOBAL_TL', 'false') === 'true',
+    /** 数式画像の清書に使う Python（F-17C）。空なら画像は作らない */
+    typesetPython: optionalEnv('TYPESET_PYTHON', ''),
   },
   recoveryNotice: {
     /** ダウンタイム通知の下限閾値（これ未満は無言復帰。reload やウォッチドッグ再起動の数分を除外）。既定30分 */

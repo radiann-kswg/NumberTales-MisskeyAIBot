@@ -1,10 +1,13 @@
 // F-06 コマンドディスパッチャー
 // 入力テキストを解析して計算・数秘術の各機能に振り分ける
 
-import { safeEvaluate } from './calculator.js';
+import {
+  safeEvaluate, safeDerivative, exactFraction, toMathjsNotation, toNaturalNotation, toTypesetTex, TYPESET_MAX_CHARS,
+} from './calculator.js';
 import { lifePathNumber, honmeisei, kyuseiPair } from './numerology.js';
 import {
   calcResponse,
+  calcEmojiFits,
   calcErrorResponse,
   lifePathCwBody,
   lifePathHeadline,
@@ -116,6 +119,10 @@ export interface F06Result {
   cwLabel?: string;
   /** text に次の問題（式）を含む。true のとき LLM フレーミングを生成してはならない（答えを先に言ってしまう） */
   containsNewQuestion?: boolean;
+  /** 数式画像（F-17C）にする TeX。投稿側が描画して添付する。描けなくても text は成立する */
+  typesetTex?: string;
+  /** 数式画像の alt テキスト（プレーン式） */
+  typesetAlt?: string;
 }
 
 // ----------------------------------------------------------------
@@ -128,8 +135,8 @@ const DATE_PATTERN = /(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?|(\d{8})/;
 // 年のみ抽出（生年指定）
 const YEAR_PATTERN = /(\d{4})年?/;
 
-// 計算に使えそうな文字列
-const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrt]{3,})/i;
+// 計算に使えそうな文字列（`x`・`y` は微分の変数用）
+const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]{3,})/i;
 
 // スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。
 // サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
@@ -141,25 +148,15 @@ const SLASH_CMD_PATTERN = /^\/(\w+)(?:\s+(.+))?$/;
 
 /** 数式計算を処理する */
 export function handleCalculate(text: string): F06Result {
-  const halfWidthText = toHalfWidthDigits(text);
+  const normalized = toMathjsNotation(toHalfWidthDigits(text));
   // スラッシュコマンド形式を優先
-  const slashMatch = SLASH_CMD_PATTERN.exec(halfWidthText.trim());
+  const slashMatch = SLASH_CMD_PATTERN.exec(normalized.trim());
   let expr: string | undefined;
 
   if (slashMatch?.[1] === 'calc' && slashMatch[2]) {
     expr = slashMatch[2].trim();
   } else {
     // 自然文から数式を抽出
-    // 全角記号を半角に変換してから抽出
-    const normalized = halfWidthText
-      .replace(/[＋]/g, '+')
-      .replace(/[－]/g, '-')
-      .replace(/[×]/g, '*')
-      .replace(/[÷]/g, '/')
-      // √N → sqrt(N)、√(expr) → sqrt(expr) の順で処理して括弧を補う
-      .replace(/√\s*([0-9.]+)/g, 'sqrt($1)')
-      .replace(/√\s*\(/g, 'sqrt(')
-      .replace(/√/g, 'sqrt');   // それ以外の残った √ はそのまま変換
     const match = EXPR_PATTERN.exec(normalized);
     expr = match?.[1]?.trim();
   }
@@ -169,11 +166,33 @@ export function handleCalculate(text: string): F06Result {
   }
 
   try {
+    if (/微分/.test(text)) {
+      const { variable, result } = safeDerivative(expr);
+      const plain = `d/d${variable} (${toNaturalNotation(expr)}) = ${toNaturalNotation(result)}`;
+      return calcResult(plain, toTypesetTex(expr, result, { derivativeVar: variable }));
+    }
     const result = safeEvaluate(expr);
-    return { text: calcResponse(expr, result) };
+    // 入力がすでにその分数（`1/3`）なら同じものを繰り返さない
+    const exact = exactFraction(expr);
+    const shownExact = exact !== null && exact !== expr.replace(/\s/g, '') ? exact : null;
+    const plain = `${toNaturalNotation(expr)} = ${toNaturalNotation(result)}${shownExact ? ` = ${shownExact}` : ''}`;
+    return calcResult(plain, toTypesetTex(expr, result, { exact: shownExact }));
   } catch {
     return { text: calcErrorResponse() };
   }
+}
+
+/**
+ * 清書の手段を決めて F06Result を組む。
+ * ② 画像にするのは「縦構造がある、または ① PM 絵文字が本文に収まらない」かつ「上限値以下」のとき。
+ * 画像は投稿側で描くので、描けなくても text（プレーン式）だけで成立する。
+ */
+function calcResult(plain: string, typeset: { tex: string; vertical: boolean } | null): F06Result {
+  const image =
+    typeset !== null && plain.length <= TYPESET_MAX_CHARS && (typeset.vertical || !calcEmojiFits(plain));
+  return image
+    ? { text: calcResponse(plain, true), typesetTex: typeset.tex, typesetAlt: plain }
+    : { text: calcResponse(plain) };
 }
 
 /** ライフパスナンバーを処理する */

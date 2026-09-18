@@ -157,6 +157,30 @@ nano .env   # または vim .env
 `ADMIN_USER_IDS` に含まれるユーザーだけが、全体デフォルト担当の変更コマンドを実行できる。
 個別担当キャラクターと全体デフォルト担当は `DB_PATH` の SQLite に永続化され、再起動後も維持される。
 
+### 1-6b. 数式画像の清書（F-17C・任意）
+
+数式計算（F-06）の縦構造の式（分数・入れ子の根号・行列）を画像で返すための Python パイプライン
+（[PenchantManufacture_ImagePipeline](https://github.com/radiann-kswg/PenchantManufacture_ImagePipeline)、サブモジュール `_calcimage-pipeline/`）を
+VM に常設する。**未設定でも Bot は動く**（画像なし・PM 絵文字＋プレーン式で返す）。
+
+> **共用 VM の注意**: `apt install` は同居 Bot に影響し得るパッケージ更新なので、単独判断で実施せず確認を取ること。
+> `libcairo2` と `python3-venv` の追加だけで、既存パッケージのアップグレードは伴わない。
+
+```bash
+sudo apt install -y libcairo2 python3-venv   # Debian 12 標準の python3（3.11）で足りる
+bash tools/setup-image-pipeline.sh            # サブモジュール取得 + venv 構築 + 描画スモークテスト（冪等）
+```
+
+`.env` に次を追加し、`pm2 restart numbertales-bot` で反映する。
+
+| 変数              | 設定値                                  |
+| ----------------- | --------------------------------------- |
+| `TYPESET_PYTHON` | `_calcimage-pipeline/.venv/bin/python` |
+
+画像は CC BY 4.0 なので、**Bot のプロフィールに「数式画像: PenchantManufacture (RadianN_kswg, CC BY 4.0)」を固定で載せる**
+（投稿本文には毎回入れない）。動作確認は `/calc 100/4` へのメンションで画像付きの返信が届くこと。
+同じ式の画像は `.cache/typeset/<sha1>.png` と Drive（`bot_state` の `driveimg:<sha1>`）で再利用される。
+
 ### 1-7. ログディレクトリの作成
 
 PM2 がログを書き出すディレクトリを事前に作成する。
