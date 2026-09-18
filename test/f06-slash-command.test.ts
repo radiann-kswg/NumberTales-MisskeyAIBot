@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { handleCalculate, handleLifePath, handleKyusei, handleTsukimeisei } from '../dist/features/f06/index.js';
+import { toNaturalNotation } from '../dist/features/f06/calculator.js';
+import { decorateExpr } from '../dist/features/f06/calc-quiz.js';
+import { calcResponse, CALC_TEXT_LIMIT } from '../dist/features/f06/responder.js';
 
 /**
  * 実機バグ（2026-09-18）の回帰ガード: SLASH_CMD_PATTERN のサブコマンド用グループが
@@ -44,5 +47,52 @@ describe('F-06 数式計算 — 自然な数式の記号（×÷√・上付き�
     ['2×3 を計算して', '= 6'], // 自然文の経路は従来どおり
   ])('%s → %s', (input, expected) => {
     expect(handleCalculate(input).text).toContain(expected);
+  });
+});
+
+/**
+ * F-06 数式計算の清書（T1・2026-09-18）: プレーン式は自然な表記で `/calc` に貼り直せる形、
+ * PM 絵文字（墨）はそれを 1 字ずつ置き換えたもの。本文の上限を超えるときは絵文字→プレーン式→切り詰めの順で落とす。
+ */
+describe('F-06 数式計算 — 清書（プレーン式 + PM 絵文字）', () => {
+  it.each([
+    ['2*3', '2×3'],
+    ['sqrt(2)', '√2'],
+    ['sqrt(x+1)', '√(x+1)'],
+    ['2^10', '2¹⁰'],
+    ['10^-3', '10⁻³'],
+    ['2^0.5', '2^0.5'], // 小数の指数は上付きにしない
+    ['1.180591621e+21', '1.180591621×10²¹'],
+    ['1e-7', '1×10⁻⁷'],
+    ['1/3', '1/3'], // `/` は ÷ にしない
+  ])('toNaturalNotation(%s) → %s', (input, expected) => {
+    expect(toNaturalNotation(input)).toBe(expected);
+  });
+
+  it('プレーン式は貼り直すと同じ答えになる', () => {
+    const first = handleCalculate('/calc 2^10 * sqrt(4)').text;
+    const plain = first.split('\n')[1]!; // 2 行目がプレーン式
+    expect(plain).toBe('2¹⁰ × √4 = 2048');
+    expect(handleCalculate(`/calc ${plain.split(' = ')[0]}`).text.split('\n')[1]).toBe(plain);
+  });
+
+  it('PM 絵文字は墨固定で、プレーン式を併記する', () => {
+    const text = handleCalculate('/calc 2 + 3').text;
+    expect(text).toBe(':n2p: :plp: :n3p: :eqp: :n5p:\n2 + 3 = 5\n計算完了だよ');
+  });
+
+  it('単位・行列・上付きも絵文字に置き換わる', () => {
+    expect(decorateExpr('3.1 mile', 'sumi')).toBe(':n3p::dtp::n1p: :lmp::lip::llp::lep:');
+    expect(decorateExpr('[1, 2]', 'sumi')).toBe(':bop::n1p::cmp: :n2p::bxp:');
+    expect(decorateExpr('10⁻³', 'sumi')).toBe(':n1p::n0p::supminusp::sup3p:');
+  });
+
+  it('本文の上限を超えるときは絵文字を落とし、それでも超えるときは先頭だけ残す', () => {
+    const mid = 'x'.repeat(CALC_TEXT_LIMIT - 100);
+    expect(calcResponse(mid)).toBe(`${mid}\n計算完了だよ`);
+    const long = 'x'.repeat(CALC_TEXT_LIMIT + 100);
+    const truncated = calcResponse(long);
+    expect(truncated).toContain('長すぎるから先頭だけ載せるね');
+    expect(truncated.length).toBeLessThan(CALC_TEXT_LIMIT + 50);
   });
 });

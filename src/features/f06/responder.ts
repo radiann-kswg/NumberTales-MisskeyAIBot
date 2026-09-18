@@ -5,16 +5,29 @@ import { TAROT_MAP } from './numerology.js';
 import type { DiceColor } from './dice-color.js';
 import type { Tile, CharTileId } from './mahjong.js';
 import { tileEmoji } from './mahjong.js';
+import { decorateExpr } from './calc-quiz.js';
 
 // ----------------------------------------------------------------
 // 数式計算
 // ----------------------------------------------------------------
 
 /**
- * 計算結果の応答文を返す（CW なし）。
+ * 数式計算の本文に許す長さ。インスタンスの maxNoteTextLength は 3000（2026-09-18 実測）で、
+ * 投稿口は長さを確かめずに送るので超えると無返答になる。発話プレフィックスと LLM の前置き分を引いてある。
  */
-export function calcResponse(expr: string, result: string): string {
-  return `${expr} = ${result}。計算完了だよ`;
+export const CALC_TEXT_LIMIT = 2800;
+
+/**
+ * 計算結果の応答文を返す（CW なし）。
+ * plain はプレーン式（`2×3 = 6` のように自然な表記で、そのまま `/calc` に貼り直せる形）。
+ * 清書の手段は ① PM 絵文字（墨）＋プレーン式 → ③ プレーン式だけ → ④ 先頭だけ残して切り詰め。
+ * ② 画像は F-17C の完了後にここへ差し込む。
+ */
+export function calcResponse(plain: string): string {
+  const typeset = `${decorateExpr(plain, 'sumi')}\n${plain}`;
+  if (typeset.length <= CALC_TEXT_LIMIT) return `${typeset}\n計算完了だよ`;
+  if (plain.length <= CALC_TEXT_LIMIT) return `${plain}\n計算完了だよ`;
+  return `${plain.slice(0, CALC_TEXT_LIMIT)}…\n長すぎるから先頭だけ載せるね`;
 }
 
 /**
