@@ -132,6 +132,8 @@ describe('F-06 数式計算 — 単位語彙と微分', () => {
     ['x²+3x を微分して', 'd/dx (x²+3x) = 2 × x + 3'], // 上付きでも同じ
     ['sin(t) を微分して', 'd/dt (sin(t)) = cos(t)'], // x が無く英字が 1 種類なら t
     ['x*y を微分して', 'd/dx (x×y) = y'], // x があれば x
+    ['2xを微分して', 'd/dx (2x) = 2'], // 3 文字未満の短い式も微分なら拾う
+    ['xを微分して', 'd/dx (x) = 1'],
   ])('%s → %s', (input, expected) => {
     expect(handleCalculate(input).text).toContain(expected);
   });

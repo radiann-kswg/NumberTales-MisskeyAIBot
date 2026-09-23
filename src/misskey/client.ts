@@ -118,13 +118,24 @@ export class MisskeyClient {
     replyId: string,
     options?: { cw?: string; fileIds?: string[] },
   ): Promise<void> {
-    await this.apiClient.request('notes/create', {
-      text,
-      replyId,
-      cw: options?.cw ?? undefined,
-      fileIds: options?.fileIds?.length ? options.fileIds : undefined,
-      visibility: 'home',
-    });
+    const fileIds = options?.fileIds?.length ? options.fileIds : undefined;
+    const send = (ids: string[] | undefined): Promise<unknown> =>
+      this.apiClient.request('notes/create', {
+        text,
+        replyId,
+        cw: options?.cw ?? undefined,
+        fileIds: ids,
+        visibility: 'home',
+      });
+    try {
+      await send(fileIds);
+    } catch (err) {
+      if (!fileIds) throw err;
+      // 添付（Drive 側で消された KV キャッシュ等）で落ちても返信自体は消さない
+      // ponytail: KV の driveimg:<sha1> は残るので同じ式は毎回 1 回空振りする。気になったら失敗時に消す
+      logger.warn('reply with fileIds failed; retrying without attachment:', err);
+      await send(undefined);
+    }
   }
 
   /**
@@ -141,7 +152,12 @@ export class MisskeyClient {
     form.append('name', name);
     if (comment) form.append('comment', comment);
     form.append('file', new Blob([new Uint8Array(data)]), name);
-    const res = await fetch(`${this.origin}/api/drive/files/create`, { method: 'POST', body: form });
+    // 画像は常に上乗せ（typeset.ts の方針）。Drive が応答しないときは諦めてプレーン返信に倒す
+    const res = await fetch(`${this.origin}/api/drive/files/create`, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) throw new Error(`drive/files/create failed: ${res.status} ${await res.text()}`);
     return ((await res.json()) as { id: string }).id;
   }
