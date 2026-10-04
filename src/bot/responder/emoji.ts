@@ -25,8 +25,8 @@ export function setEmojiCache(emojis: EmojiInfo[]): void {
  *
  * 解決優先度:
  *   1. `aphrnts{Num}_corefolder` という標準エイリアスが name / aliases に存在する
- *   2. `aphrnts{Num}` プレフィックスを持ち category または tags に `corefolder` を含む絵文字
- *   3. `aphrnts{Num}` プレフィックスを持つ絵文字の先頭一件
+ *   2. `aphrnts{Num}`（直後は `_` または末尾）を持ち category または tags に `corefolder` を含む絵文字
+ *   3. 同じ番号境界を持つ絵文字の先頭一件
  *   4. 解決不能なら null
  *
  * @param num キャラクター番号文字列（例: '2', '30'）
@@ -49,10 +49,11 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
   }
 
   const prefix = `aphrnts${numStr}`;
+  const matchesNumber = (name: string): boolean => name === prefix || name.startsWith(`${prefix}_`);
 
   // 2. 同プレフィックス + category または tags に 'corefolder' を含む
   for (const e of emojis) {
-    if (!e.name.startsWith(prefix) && !e.aliases.some((a) => a.startsWith(prefix))) continue;
+    if (!matchesNumber(e.name) && !e.aliases.some(matchesNumber)) continue;
     const inCategory = e.category?.toLowerCase().includes('corefolder') ?? false;
     const inTags = e.tags.some((t) => t.toLowerCase().includes('corefolder'));
     if (inCategory || inTags) return e.name;
@@ -60,7 +61,7 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
 
   // 3. 同プレフィックスの先頭一件
   const fallback = emojis.find(
-    (e) => e.name.startsWith(prefix) || e.aliases.some((a) => a.startsWith(prefix)),
+    (e) => matchesNumber(e.name) || e.aliases.some(matchesNumber),
   );
   if (fallback) return fallback.name;
 

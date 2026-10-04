@@ -70,7 +70,7 @@ Misskey インスタンス (radiann6631.net)
 11. 1 日 1 回の会話ボーナス（信頼度 +3・親密度 +1）
 12. ハラスメント（L1 担当キャラが受け流す / L2 000 が制約として介入 / L3 10(ミツル) が制止）。**全レベルで** `IncidentLogger.log()`
 13. F-06 グループ（計算・占い・ダイス・うんちく・全ミニゲーム）は `features/f06/` へ早期 return。結果への一言だけ LLM（出題時は抑止）。
-    計算で縦構造の式なら `renderMathPng` → `ensureDriveFile` → `reply(fileIds)`（失敗時は本文だけで再送）
+    計算で縦構造の式なら `renderMathPng` → `ensureDriveFile` → `reply(fileIds)`（`NO_SUCH_FILE` の場合だけ本文のみで一度再送）
 14. ヌメロジー相談 → タスク（追加・一覧・完了・キャンセル・進捗%）→ 親密度照会 → 誕生日の登録・解除
 15. 残り: greeting（時間帯つき LLM）/ form-switch / creative-consultation（履歴なし）/ chat（履歴あり・履歴へ記録）
 16. 100 字超は CW `<担当番号>の返信`。返信後に intent 別の絵文字でリアクション（fire-and-forget）
@@ -134,7 +134,7 @@ task-progress-update → task-add → task-list → task-done → task-cancel �
 | メソッド | 用途・可視性 |
 | --- | --- |
 | `onMention` / `onFollowed` / `onHomeTL` / `onGlobalTL` | チャンネル購読。メンションはユーザー単位で直列化 |
-| `reply(text, replyId, {cw, fileIds})` | 返信・`home`。添付で失敗したら本文だけで再送 |
+| `reply(text, replyId, {cw, fileIds})` | 返信・`home`。添付の `NO_SUCH_FILE` の場合だけ本文のみで一度再送。通信障害・5xx・レート制限は投げ直す（二重投稿防止） |
 | `post(text, {cw, visibility, fileIds})` | 自発投稿・既定 `public`（復旧通知だけ `home`） |
 | `postToUser(text, userId, {cw})` | タスク通知・誕生日メンション・`home`（宛先は本文の `@username@host`） |
 | `postPoll` / `getPollChoices` / `renote` | 週次 Poll（`public`） |

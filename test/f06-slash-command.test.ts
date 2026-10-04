@@ -134,6 +134,11 @@ describe('F-06 数式計算 — 単位語彙と微分', () => {
     ['x*y を微分して', 'd/dx (x×y) = y'], // x があれば x
     ['2xを微分して', 'd/dx (2x) = 2'], // 3 文字未満の短い式も微分なら拾う
     ['xを微分して', 'd/dx (x) = 1'],
+    ['xについて2xを微分して', 'd/dx (2x) = 2'],
+    ['x について 2x を微分して', 'd/dx (2x) = 2'],
+    ['2xをxについて微分して', 'd/dx (2x) = 2'],
+    ['yについて3yを微分して', 'd/dy (3y) = 3'],
+    ['xについてx²+3xを微分して', 'd/dx (x²+3x) = 2 × x + 3'],
   ])('%s → %s', (input, expected) => {
     expect(handleCalculate(input).text).toContain(expected);
   });

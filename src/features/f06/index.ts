@@ -141,11 +141,12 @@ const EXPR_CHARS = /[0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]+/gi;
 
 /** 自然文から式を抜く。微分は `2x`・`x` のような短い式も対象（safeDerivative が単一変数を扱えるため） */
 function extractExpr(normalized: string, min: number): string | undefined {
+  let longest: string | undefined;
   for (const m of normalized.matchAll(EXPR_CHARS)) {
     const t = m[0].trim();
-    if (t.length >= min) return t;
+    if (t.length >= min && t.length > (longest?.length ?? 0)) longest = t;
   }
-  return undefined;
+  return longest;
 }
 
 // スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。

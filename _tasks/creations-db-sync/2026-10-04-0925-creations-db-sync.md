@@ -53,3 +53,8 @@ e6dcc7ff / 0419c781 dependabot（undici 8.11.2・dev-minor-patch）
 ## 検証
 
 - `npm test`: 12 ファイル / 193 件 PASS（新 gitlink の DB を読む `measure-field` / `prompt-builder` 含む）
+
+## コミット
+
+- `8398599` — `chore(creations-db): _creations-db を 82411ecf → 5afa4145 へ追従（2026-10-04）`（gitlink 更新と本ログの作成）
+- `c71c258` — `fix(f06): キャラ番号ルーレットの抽選対象をコアフォルダ絵文字を持つ個体に限定する`（上記の最適化と回帰テスト）
