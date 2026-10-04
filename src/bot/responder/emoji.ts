@@ -48,11 +48,12 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
     if (e.name === standardName || e.aliases.includes(standardName)) return e.name;
   }
 
-  const prefix = `aphrnts${numStr}`;
+  // 番号境界（例: '5' が '57_corefolder' にマッチしないよう '_' で区切る）
+  const prefixBound = `aphrnts${numStr}_`;
 
   // 2. 同プレフィックス + category または tags に 'corefolder' を含む
   for (const e of emojis) {
-    if (!e.name.startsWith(prefix) && !e.aliases.some((a) => a.startsWith(prefix))) continue;
+    if (!e.name.startsWith(prefixBound) && !e.aliases.some((a) => a.startsWith(prefixBound))) continue;
     const inCategory = e.category?.toLowerCase().includes('corefolder') ?? false;
     const inTags = e.tags.some((t) => t.toLowerCase().includes('corefolder'));
     if (inCategory || inTags) return e.name;
@@ -60,7 +61,7 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
 
   // 3. 同プレフィックスの先頭一件
   const fallback = emojis.find(
-    (e) => e.name.startsWith(prefix) || e.aliases.some((a) => a.startsWith(prefix)),
+    (e) => e.name.startsWith(prefixBound) || e.aliases.some((a) => a.startsWith(prefixBound)),
   );
   if (fallback) return fallback.name;
 

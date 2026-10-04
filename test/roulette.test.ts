@@ -20,4 +20,10 @@ describe('キャラ番号ルーレット — 抽選対象はコアフォルダ�
     setEmojiCache([emoji('aphrnts57_corefolder')]);
     expect(handleRoulette([chara('99', 'なし')]).text).toContain('引けるキャラクターがいない');
   });
+
+  it('aphrnts57 の絵文字しかないとき 5 番は対象外（プレフィックス衝突防止）', () => {
+    setEmojiCache([emoji('aphrnts57_corefolder')]);
+    expect(isRouletteEligible(chara('5', 'ゴ'))).toBe(false);
+    expect(isRouletteEligible(chara('57', 'ゴナ'))).toBe(true);
+  });
 });

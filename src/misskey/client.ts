@@ -131,8 +131,11 @@ export class MisskeyClient {
       await send(fileIds);
     } catch (err) {
       if (!fileIds) throw err;
-      // 添付（Drive 側で消された KV キャッシュ等）で落ちても返信自体は消さない
+      // ネットワーク障害（TypeError）は投稿が成功していても応答が消えた可能性があり、
+      // 再送すると重複ノートになるため再送しない。
+      // Drive 側のエラー（ファイル不在等）は明示的な拒否なので添付なしで再送する。
       // ponytail: KV の driveimg:<sha1> は残るので同じ式は毎回 1 回空振りする。気になったら失敗時に消す
+      if (err instanceof TypeError) throw err;
       logger.warn('reply with fileIds failed; retrying without attachment:', err);
       await send(undefined);
     }

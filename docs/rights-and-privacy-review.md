@@ -8,7 +8,7 @@
 
 | # | 箇所 | 問題 | 対応 |
 | --- | --- | --- | --- |
-| 1 | AGENTS.md「ユーザー個人情報の永続保存は行わない」／ `storage/*.ts`・`utils/incident-logger.ts` | 実装は opt-in の永続保存を複数持つ（`user_birthdays`: 月日＋username/host、`tasks`: 題名＋username/host、`user_trust`、`character_affinity`）。さらに **`incident.log` は第三者（リモートユーザー含む）の発言本文とハンドルを無期限で追記**し、削除手段もローテーションもない | 方針文を bot-spec 00 の「無断・永続保存は行わない／opt-in の最小限保存」に揃えた（2026-10-04）。インシデントログの保持期間・一括削除は**現状維持**と決定（2026-10-04・クライアント君判断。必要になったら再検討） |
+| 1 | AGENTS.md「ユーザー個人情報の永続保存は行わない」／ `storage/*.ts`・`utils/incident-logger.ts` | 実装上の保存は 2 種類に分かれる。**opt-in 保存**（`user_birthdays`: 月日＋username/host、`tasks`: 題名＋username/host）はユーザーが明示的に依頼した場合のみ。**自動保存**（`user_trust`・`character_affinity`）は会話ボーナス・クイズ正解・タスク完了で暗黙加算され opt-in ではない（削除手段未実装）。さらに **`incident.log` は第三者（リモートユーザー含む）の発言本文とハンドルを無期限で追記**し、削除手段もローテーションもない | 方針文を「opt-in 保存は誕生日・タスク。信頼度・親密度は自動加算（削除手段は今後の課題）」に改訂（2026-10-04）。インシデントログの保持期間・一括削除は**現状維持**と決定（2026-10-04・クライアント君判断。必要になったら再検討） |
 | 2 | `handlers/timeline.ts`・`handlers/global-tl.ts`・`reactor/classify.ts` | フォロイー全員の短文ノート（画像なし・50 字以下）と、`ENABLE_GLOBAL_TL=true` 時はハッシュタグ付きの他インスタンス投稿を、**本人の了解なく OpenAI / Gemini へ送って感情分類**している。API 経由のデータは既定で学習に使われないが、告知がない | Bot プロフィールか README に「フォロイーの投稿を AI で分類してリアクションする」旨を明記する（README に本コミットで追記）。globalTL を有効にする場合は特に明記する。送信前の `cleanText` でメンション・URL を落としている点は維持 |
 | 3 | README「ライセンス・クレジット」 | ゲーム演出で使う **Secvier_ImageAssets（CC BY 4.0）が記載されていない**（プロフィールには記載あり）。著作者が同一なので本人には義務がないが、**フォークする第三者には表示義務が生じる** | README に追記（本コミットで修正）。Secvier の絵札は Noto Emoji 由来のため、その帰属はアセット側 README が持つ |
 
