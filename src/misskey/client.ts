@@ -134,6 +134,7 @@ export class MisskeyClient {
           !('code' in err) || err.code !== 'NO_SUCH_FILE') throw err;
       // 投稿前に拒否された Drive ファイル不在だけ再送する。通信障害は投稿済みの可能性がある
       // ponytail: KV の driveimg:<sha1> は残るので同じ式は毎回 1 回空振りする。気になったら失敗時に消す
+      if (err instanceof TypeError) throw err;
       logger.warn('reply with fileIds failed; retrying without attachment:', err);
       await send(undefined);
     }

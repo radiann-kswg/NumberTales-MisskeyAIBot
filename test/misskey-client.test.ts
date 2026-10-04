@@ -48,6 +48,12 @@ describe('MisskeyClient.reply — Drive ファイル不在時だけ本文を送�
     expect(request).toHaveBeenCalledTimes(1);
   });
 
+  it('fileIds 付きがネットワーク障害（TypeError）で失敗したら再送しない（重複ノート防止）', async () => {
+    const request = vi.fn().mockRejectedValueOnce(new TypeError('fetch failed'));
+    await expect(make(request).reply('本文', 'note1', { fileIds: ['f1'] })).rejects.toBeInstanceOf(TypeError);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
   it('添付なしの失敗はそのまま投げる（再送しない）', async () => {
     const request = vi.fn().mockRejectedValue(new Error('down'));
     await expect(make(request).reply('本文', 'note1')).rejects.toThrow('down');
