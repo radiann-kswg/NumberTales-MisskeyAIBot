@@ -24,13 +24,14 @@ function assertSafeExpr(expr: string): void {
 
 /**
  * 式を微分して mathjs の書き方で返す。
- * 微分する変数は、式に `x` があれば `x`、無くて英字（関数名を除く）が 1 種類だけならその字。
+ * 微分する変数は overrideVar が優先。未指定なら式に `x` があれば `x`、無くて英字（関数名を除く）が 1 種類だけならその字。
  * @throws 変数を決められない・式を読み取れない場合
  */
-export function safeDerivative(expr: string): { variable: string; result: string } {
+export function safeDerivative(expr: string, overrideVar?: string): { variable: string; result: string } {
   assertSafeExpr(expr);
   const letters = new Set(expr.replace(/\b(sin|cos|tan|log|sqrt|exp|abs|pi|e)\b/g, '').replace(/[^a-zA-Z]/g, ''));
-  const variable = letters.has('x') ? 'x' : letters.size === 1 ? [...letters][0]! : null;
+  const inferred = letters.has('x') ? 'x' : letters.size === 1 ? [...letters][0]! : null;
+  const variable = overrideVar ?? inferred;
   if (!variable) {
     throw new Error('微分する変数が分からなかった');
   }

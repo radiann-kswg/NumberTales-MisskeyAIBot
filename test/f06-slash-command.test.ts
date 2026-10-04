@@ -139,6 +139,7 @@ describe('F-06 数式計算 — 単位語彙と微分', () => {
     ['2xをxについて微分して', 'd/dx (2x) = 2'],
     ['yについて3yを微分して', 'd/dy (3y) = 3'],
     ['xについてx²+3xを微分して', 'd/dx (x²+3x) = 2 × x + 3'],
+    ['yについて2xを微分して', 'd/dy (2x) = 0'], // 指定変数が式と異なる場合は指定を優先
   ])('%s → %s', (input, expected) => {
     expect(handleCalculate(input).text).toContain(expected);
   });

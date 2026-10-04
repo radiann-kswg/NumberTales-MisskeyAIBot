@@ -37,8 +37,8 @@ export function resolveCoreFolderEmoji(num: string, emojis: EmojiInfo[] = _emoji
   const numStr = String(n);
 
   if (emojis.length === 0) {
-    // キャッシュ未取得時は標準名でフォールバック
-    return `aphrnts${numStr}_corefolder`;
+    // キャッシュ未取得時は null（isRouletteEligible が false に倒れる。formatSpeech は ?? で合成名にフォールバック）
+    return null;
   }
 
   const standardName = `aphrnts${numStr}_corefolder`;

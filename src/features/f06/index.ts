@@ -175,9 +175,13 @@ export function handleCalculate(text: string): F06Result {
     return { text: calcErrorResponse() };
   }
 
+  // 「yについて」構文で微分変数が明示されている場合は優先して使う
+  const derivVarMatch = /([a-zA-Z])について/.exec(text);
+  const specifiedDerivVar = derivVarMatch?.[1];
+
   try {
     if (/微分/.test(text)) {
-      const { variable, result } = safeDerivative(expr);
+      const { variable, result } = safeDerivative(expr, specifiedDerivVar);
       const plain = `d/d${variable} (${toNaturalNotation(expr)}) = ${toNaturalNotation(result)}`;
       return calcResult(plain, toTypesetTex(expr, result, { derivativeVar: variable }));
     }
