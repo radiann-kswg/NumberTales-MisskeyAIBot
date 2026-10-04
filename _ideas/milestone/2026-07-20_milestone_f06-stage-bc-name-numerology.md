@@ -1,7 +1,7 @@
 # F-06 Stage B/C: 名前ヌメロジー・月命星・宿曜・姓名判断 — 実装仕様
 
 > 作成日: 2026-07-20
-> ステータス: **着手中** 🔧（2026-07-21・Stage B 算出エンジン実装済み／配線・B-3/B-4/C は未着手）
+> ステータス: **着手中** 🔧（2026-07-21・Stage B 算出エンジンは作業ブランチ `feature/f06-stage-bc` にのみ実装。**`develop` には未マージ**（2026-10-04 確認）。B-3 月命星は `develop` に実装・配線済み（`/tsukimei`・`handleTsukimeisei`）。B-4/C は未着手）
 > 元アイデア: [`future-plan/confirmed-milestone/F-06_stage-b-c.md`](../future-plan/confirmed-milestone/F-06_stage-b-c.md)（検討過程・データ表はこちらを参照）
 > 計算方式の参照元: [数秘術の計算方法・調べ方（マンガ数秘らぼ / 枡本つづり）](https://tsuduri-illust.com/numerotekeisan)
 

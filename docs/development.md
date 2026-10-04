@@ -6,7 +6,7 @@
 
 ## 前提条件
 
-- Node.js v24 以上（`node -v` で確認）
+- Node.js v22 以上（`node -v` で確認。本番 VM は v22、`engines` は `>=20`）
 - Git（サブモジュール対応）
 - Misskey インスタンスのアカウントと API トークン
 - OpenAI または Gemini の API キー
@@ -65,9 +65,22 @@ npm start
 # 型チェックのみ（ビルドなし）
 npm run typecheck
 
-# Lint
+# Lint / フォーマット
 npm run lint
 npm run lint:fix
+npm run format
+
+# テスト（check:ctrl → build → vitest run。dist を対象にするのでビルドが先）
+npm test
+npm run test:only      # ビルド済み dist に対して vitest だけ
+npm run check:ctrl     # 生の制御文字の混入検出だけ
+
+# ファイル変更を監視して再起動（ts-node）
+npm run dev
+
+# 対話アーカイブのサニタイズ（_session-archives/_agent-chats/）
+npm run sanitize:dry   # 変更箇所の表示のみ
+npm run sanitize
 ```
 
 ---
@@ -89,76 +102,34 @@ grep -v "TOKEN|KEY" .env
 
 ### ソースツリーの構造
 
-```
-src/
-  index.ts                     # エントリポイント（起動・接続・シャットダウン）
-  ai/
-    index.ts                   # AIProvider 抽象レイヤー
-    openai.ts                  # OpenAI 実装
-    gemini.ts                  # Gemini 実装
-  bot/
-    classifier/
-      intent.ts                # メンション意図分類（返り値: ClassificationResult）
-    handlers/
-      mention.ts               # メンション受信ハンドラ（切り替え / F-06 / 雑談）
-      timeline.ts              # homeTimeline リアクションハンドラ
-      follow.ts                # フォローバックハンドラ（followed イベント受信 → 自動フォロー）
-    character/
-      loader.ts                # 公開済みキャラクターDBの読み込み
-      prompt-builder.ts        # キャラクタープロンプト動的生成
-      store.ts                 # アクティブキャラクター状態ストア（SQLite永続化）
-      switch.ts                # 切り替え解決・ヘルプ文・フォーム文面生成
-    ratelimit/
-      index.ts                 # RateLimiter クラス
-    reactor/
-      classify.ts              # TL ノートフィルタリング・感情分類
-      emoji-reaction-map.ts    # 感情カテゴリ → 絵文字名マッピング
-    responder/
-      emoji.ts                 # 発言書式 formatSpeech()
-      templates/
-        greeting.ts            # 挨拶定型返答テンプレート
-    scheduler/
-      index.ts                 # PostScheduler（時間帯別自発投稿）
-      weekly-poll.ts           # WeeklyPollScheduler（週次 Poll 担当選出）
-  features/
-    f06/
-      calculator.ts            # mathjs ラッパー（safeEvaluate）
-      numerology.ts            # ライフパスナンバー・九星気学・タロット計算
-      responder.ts             # F-06 応答テンプレート + LLM プロンプト定数
-      index.ts                 # ディスパッチャー（4 ハンドラ + extractTriviaNumber）
-  config/
-    constants.ts               # BOT_CONSTANTS 定数
-    env.ts                     # 環境変数の読み込みと検証
-  misskey/
-    client.ts                  # MisskeyClient WebSocket ラッパー
-  storage/
-    session.ts                 # SessionStore（better-sqlite3）
-    bot-state.ts               # BotStateStore（bot_state テーブル）
-  utils/
-    logger.ts                  # ロガー（enableFileOutput でファイル出力有効化）
-    incident-logger.ts         # IncidentLogger（ハラスメント検知ファイルログ）
-```
+ディレクトリ構成の正典は [AGENTS.md の「リポジトリ構成」](../AGENTS.md#リポジトリ構成)（ここには複製しない）。
+読み始める順番の目安:
+
+1. `src/index.ts` — 起動順（DB 初期化 → AI → Misskey → 各ストア → ハンドラ → スケジューラ → ハートビート）
+2. `src/bot/handlers/mention.ts` — メンション 1 件の処理フロー（[architecture.md](./architecture.md) に段階ごとの説明）
+3. `src/bot/classifier/intent.ts` — 意図分類の正規表現と判定順
+4. `src/features/f06/index.ts` — 数字・占い・ミニゲームのディスパッチ
+5. `src/bot/character/prompt-builder.ts` — システムプロンプトの二層構成
 
 ### 重要な型定義
 
 ```typescript
-// src/bot/classifier/intent.ts
+// src/bot/classifier/intent.ts（抜粋。正典はソース）
 export type Intent =
-  | 'greeting'
-  | 'form-switch'
-  | 'creative-consultation'
-  | 'chat'
-  | 'calculate'
-  | 'numerology'
-  | 'dice'
-  | 'trivia' // F-06
-  | 'harassment'; // F-07
+  | 'greeting' | 'form-switch' | 'creative-consultation' | 'chat'
+  | 'calculate' | 'numerology' | 'numerology-consultation' | 'dice' | 'trivia'        // F-06
+  | 'game-slot' | 'game-poker' | 'game-yacht' | 'game-hitblow' | 'game-mahjong'
+  | 'game-mahjong-quiz' | 'game-tile-fortune' | 'game-roulette' | 'game-calc-quiz' | 'game-repeat'
+  | 'task-add' | 'task-list' | 'task-done' | 'task-cancel' | 'task-progress-update' // F-12
+  | 'affinity-check'                                                                 // F-14
+  | 'birthday-register' | 'birthday-forget'                                          // F-11
+  | 'harassment';                                                                    // F-07
 
 export interface ClassificationResult {
   intent: Intent;
-  formTarget?: 'core-folder' | 'humanoid'; // form-switch のときのみ
-  numerologyType?: 'life-path' | 'kyusei'; // numerology のときのみ
-  harassmentLevel?: 1 | 2 | 3; // harassment のときのみ
+  formTarget?: 'core-folder' | 'humanoid';            // form-switch のときのみ
+  numerologyType?: 'life-path' | 'kyusei' | 'moon-star'; // numerology のときのみ
+  harassmentLevel?: 1 | 2 | 3;                        // harassment のときのみ
 }
 
 // classifyIntent の返り値は ClassificationResult（文字列ではない）
@@ -282,7 +253,7 @@ EOF
 
 ## ログファイルの確認
 
-Bit起動後は `.cache/` 配下に 2 種類のログファイルが生成される。
+Bot 起動後は `.cache/` 配下に 2 種類のログファイルが生成される。
 
 ```bash
 # インシデントログ（ハラスメント検知）

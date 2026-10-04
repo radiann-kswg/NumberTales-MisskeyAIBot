@@ -1,0 +1,7 @@
+[
+  {
+    "pattern": "@your_misskey_handle\\b",
+    "flags": "g",
+    "replacement": "@{MISSKEY_HANDLE}"
+  }
+]

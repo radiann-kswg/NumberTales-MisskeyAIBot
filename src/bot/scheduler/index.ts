@@ -216,7 +216,7 @@ export class PostScheduler {
 
   start(): void {
     this.intervalHandle = setInterval(
-      () => void this.tick(),
+      () => void this.tick().catch((err) => logger.error('Scheduler tick error:', err)),
       BOT_CONSTANTS.SCHEDULER_CHECK_INTERVAL_MS,
     );
     this.weeklyPoll.start();

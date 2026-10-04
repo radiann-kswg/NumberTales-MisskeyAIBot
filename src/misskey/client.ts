@@ -118,13 +118,26 @@ export class MisskeyClient {
     replyId: string,
     options?: { cw?: string; fileIds?: string[] },
   ): Promise<void> {
-    await this.apiClient.request('notes/create', {
-      text,
-      replyId,
-      cw: options?.cw ?? undefined,
-      fileIds: options?.fileIds?.length ? options.fileIds : undefined,
-      visibility: 'home',
-    });
+    const fileIds = options?.fileIds?.length ? options.fileIds : undefined;
+    const send = (ids: string[] | undefined): Promise<unknown> =>
+      this.apiClient.request('notes/create', {
+        text,
+        replyId,
+        cw: options?.cw ?? undefined,
+        fileIds: ids,
+        visibility: 'home',
+      });
+    try {
+      await send(fileIds);
+    } catch (err) {
+      if (!fileIds || typeof err !== 'object' || err === null ||
+          !('code' in err) || err.code !== 'NO_SUCH_FILE') throw err;
+      // 投稿前に拒否された Drive ファイル不在だけ再送する。通信障害は投稿済みの可能性がある
+      // ponytail: KV の driveimg:<sha1> は残るので同じ式は毎回 1 回空振りする。気になったら失敗時に消す
+      if (err instanceof TypeError) throw err;
+      logger.warn('reply with fileIds failed; retrying without attachment:', err);
+      await send(undefined);
+    }
   }
 
   /**
@@ -141,7 +154,12 @@ export class MisskeyClient {
     form.append('name', name);
     if (comment) form.append('comment', comment);
     form.append('file', new Blob([new Uint8Array(data)]), name);
-    const res = await fetch(`${this.origin}/api/drive/files/create`, { method: 'POST', body: form });
+    // 画像は常に上乗せ（typeset.ts の方針）。Drive が応答しないときは諦めてプレーン返信に倒す
+    const res = await fetch(`${this.origin}/api/drive/files/create`, {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(10_000),
+    });
     if (!res.ok) throw new Error(`drive/files/create failed: ${res.status} ${await res.text()}`);
     return ((await res.json()) as { id: string }).id;
   }

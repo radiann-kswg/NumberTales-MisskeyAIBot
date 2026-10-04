@@ -32,7 +32,6 @@
 | [2026-07-04_milestone_auto-recovery.md](./2026-07-04_milestone_auto-recovery.md)                                                 | 運用               | Bot 自動復旧機能（3層ウォッチドッグ: PM2 / VM内 / GCE外部）。レイヤー1〜3 すべて本番稼働中 |
 | [2026-07-20_milestone_downtime-recovery-notice.md](./2026-07-20_milestone_downtime-recovery-notice.md)                           | 運用               | 復旧通知（ダウンタイム明けに 000(チトセ) が停止時間を添えて自発投稿）           |
 | [2026-07-21_milestone_bug-roleplay-quality-task-ops.md](./2026-07-21_milestone_bug-roleplay-quality-task-ops.md)                 | バグ / F-12・F-12B  | ロールプレイ品質の低下・タスク登録/一覧の不具合・タスク登録時のキャラ特有感の欠如（実機報告） |
-
 | [2026-09-18_milestone_f17c-typeset-pipeline.md](./2026-09-18_milestone_f17c-typeset-pipeline.md) | F-17C | 数式画像の清書基盤（PenchantManufacture_ImagePipeline サブモジュール・execFile 描画・Drive 一意化・画像投稿） |
 | [2026-09-18_milestone_f06-calculate-enhancement.md](./2026-09-18_milestone_f06-calculate-enhancement.md) | F-06 数式計算 | 数式計算の強化（PM 絵文字／画像の清書・厳密値の併記・天文単位の語彙・微分） |
 

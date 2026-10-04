@@ -1,5 +1,7 @@
 /**
- * ヨット（ヤッツィー系）ゲームロジック（D3-2b）
+ * ヨット（5 個のダイスで役を作るダイスゲーム）ロジック（D3-2b）
+ *
+ * 役名の表示に他社の商標（Yahtzee 等）は使わない。入力側の別名受付は intent.ts に任せる。
  *
  * Secvier ダイス絵文字（sv_dice_{COLOR}_d6_{FACE}）を使った役判定・表示を行う。
  * - キープしたダイス: suigyoku（翠玉・緑）
@@ -23,7 +25,7 @@ export interface YachtState {
 export const CIRCLE_NUMS = ['①', '②', '③', '④', '⑤'] as const;
 
 export type YachtHand =
-  | 'yahtzee'
+  | 'five-of-a-kind'
   | 'four-of-a-kind'
   | 'full-house'
   | 'large-straight'
@@ -32,7 +34,7 @@ export type YachtHand =
   | 'chance';
 
 export const YACHT_HAND_LABELS: Record<YachtHand, string> = {
-  yahtzee:         'ヤッツィー！！',
+  'five-of-a-kind':'ヨット！！',
   'four-of-a-kind':'フォーカインド！',
   'full-house':    'フルハウス！',
   'large-straight':'ラージストレート！',
@@ -81,7 +83,7 @@ export function evaluateYacht(dice: number[]): YachtHand {
   for (const d of sorted) counts[d] = (counts[d] ?? 0) + 1;
   const freq = Object.values(counts).sort((a, b) => b - a);
 
-  if (freq[0] === 5) return 'yahtzee';
+  if (freq[0] === 5) return 'five-of-a-kind';
   if (freq[0] === 4) return 'four-of-a-kind';
   if (freq[0] === 3 && freq[1] === 2) return 'full-house';
 

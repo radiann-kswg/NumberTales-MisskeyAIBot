@@ -67,8 +67,8 @@ sudo apt-get install -y nodejs
 node -v  # v22.x.x が表示されれば OK
 ```
 
-> **Note**: Bot は Node.js v24 で開発しているが、v22 LTS でも動作する。
-> v24 を使いたい場合は `setup_24.x` に変更すること。
+> **Note**: 本番は Node.js v22（システム導入）。`package.json` の `engines` は `>=20`。開発機が v24 でも
+> 同じコードが動くが、本番手順はこの v22 を正とする。
 
 > **⚠️ nvm は使わない。** 統合 VM の Node.js は NodeSource による**システム導入**（`/usr/bin/node`）で、
 > `~/.nvm` は存在しない。[`deploy.yml`](../.github/workflows/deploy.yml) は `nvm.sh` があるときだけ
@@ -150,9 +150,14 @@ nano .env   # または vim .env
 | `DEFAULT_CHARACTER_NUM`        | `000`                         |
 | `ADMIN_USER_IDS`               | `misskey_user_id_1,misskey_user_id_2` |
 | `RATE_LIMIT_REPLY_COOLDOWN_MS` | `0`（無制限 ← 推奨）          |
-| `RATE_LIMIT_GLOBAL_PER_HOUR`   | `10`                          |
+| `RATE_LIMIT_GLOBAL_PER_HOUR`   | `30`（コードの既定値）        |
+| `DB_PATH`                      | `.cache/session.db`（既定）   |
 | `INCIDENT_LOG_PATH`            | `.cache/incident.log`（推奨） |
 | `ERROR_LOG_PATH`               | `.cache/error.log`（推奨）    |
+| `HEARTBEAT_PATH` / `HEARTBEAT_INTERVAL_MS` | `.cache/heartbeat.json` / `30000`（既定・5-1 参照） |
+| `DOWNTIME_NOTICE_*`            | 復旧通知の閾値・クールダウン・上限（既定 30 分 / 6 時間 / 7 日。省略可） |
+| `ENABLE_GLOBAL_TL`             | `false`（既定。グローバル TL のハッシュタグ検出を使うときだけ `true`） |
+| `TYPESET_PYTHON`               | 1-6b 参照（空なら数式画像なし） |
 
 `ADMIN_USER_IDS` に含まれるユーザーだけが、全体デフォルト担当の変更コマンドを実行できる。
 個別担当キャラクターと全体デフォルト担当は `DB_PATH` の SQLite に永続化され、再起動後も維持される。
@@ -229,7 +234,7 @@ ls -la ~/.pm2/dump.pm2               # 存在すること（pm2 save の成果�
 | Secret 名             | 値                                                                 |
 | --------------------- | ------------------------------------------------------------------ |
 | `GCP_SSH_HOST`        | VM の外部 IP アドレス                                              |
-| `GCP_SSH_USER`        | SSH ユーザー名（例: `ubuntu`, `deploy`）                           |
+| `GCP_SSH_USER`        | SSH ユーザー名（現行 VM は pm2 を所有するユーザー。0 章の表を参照）  |
 | `GCP_SSH_PRIVATE_KEY` | SSH 秘密鍵の内容（`-----BEGIN OPENSSH PRIVATE KEY-----` から全文） |
 | `GCP_SSH_PORT`        | `22`（変更していない場合）                                         |
 
@@ -255,18 +260,25 @@ git push origin master
 GitHub Actions が起動
        │
        ▼
-SSH で VM に接続
+SSH で VM に接続（同時 run は concurrency で古い方を打ち切る）
        │
+       ├─ sudo chown -R $(whoami) ~/NumberTales-MisskeyAIBot   ← root 所有の残骸対策
        ├─ git fetch origin master
        ├─ git reset --hard origin/master   ← git pull ではなくこちらを使用
+       ├─ git submodule update --init --recursive --filter=blob:none  ← 失敗時はフルフェッチ → _creations-db のみ、と段階的に後退
+       ├─ bash tools/setup-creations-db-sparse.sh   ← NumberTales 一次系だけ残す（冪等）
+       ├─ bash tools/setup-image-pipeline.sh || WARN ← 数式画像の venv（libcairo2 が無ければ画像なしで続行）
        ├─ npm install                      ← devDependencies 込み（ビルドに必要）
        ├─ npm run build
        ├─ npm prune --omit=dev             ← ビルド後に本番用へ最適化
-       └─ pm2 reload ecosystem.config.cjs
+       ├─ pm2 reload ecosystem.config.cjs --env production || pm2 start …
+       └─ pm2 list
               │
               ▼
          ダウンタイムなしで Bot が再起動
 ```
+
+> CI はテストを走らせない（`npm test` はローカルで実行する）。手動実行は `workflow_dispatch`（6 章）。
 
 > **⚠️ `git pull` ではなく `git reset --hard` を使う理由**
 > VM にローカル変更（`dist/` の生成物など）があると `git pull` が競合で失敗する。
@@ -308,7 +320,7 @@ grep '"level":"error"' .cache/error.log  # error のみ
 ## 5. 自動復旧（ウォッチドッグ）
 
 障害レイヤーごとに3層で自動復旧する。詳細設計は
-[`_ideas/milestone/2026-07-04_milestone_auto-recovery.md`](../_ideas/milestone/completed/2026-07-04_milestone_auto-recovery.md) を参照。
+[`_ideas/milestone/completed/2026-07-04_milestone_auto-recovery.md`](../_ideas/milestone/completed/2026-07-04_milestone_auto-recovery.md) を参照。
 
 | レイヤー | 障害 | 復旧手段 |
 | -------- | ---- | -------- |
@@ -400,7 +412,7 @@ pm2 logs numbertales-bot --lines 50
 
 #### `Process exited with status 129` / `usage: git sparse-checkout ...`
 
-**VM の git が古い**（2.36 未満）。1-4 の手順で PPA から更新する。
+**VM の git が古い**（2.36 未満）。1-4 の手順で更新する（Debian は bookworm-backports。PPA は Ubuntu 専用で現行 VM では使えない）。
 実行ログの見分け方は以下。SSH 接続自体は成功しており、失敗はスクリプト内部で起きている。
 
 ```

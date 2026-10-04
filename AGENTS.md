@@ -143,8 +143,9 @@
 
 - **Bot主人公キャラクター**: ナンバーテールズ0番機 000(チトセ) — 中性的な気質を持つ若手エンジニア肌のポータブルヒューマノイド
 - **プラットフォーム**: [Misskey](https://misskey-hub.net/)（分散型SNS）
-- **AI基盤**: OpenAI GPT-4o-mini（メイン） / Google Gemini 1.5 Flash（差し替え可能な抽象レイヤー経由）
-- **現在のフェーズ**: Phase 1・Phase 2 完了。Phase 3 以降は [`_ideas/future-plan/`](./_ideas/future-plan/) にて検討中
+- **AI基盤**: OpenAI GPT-4o-mini（メイン） / Google Gemini 2.5 Flash（差し替え可能な抽象レイヤー経由。既定モデル名は `src/ai/*.ts`）
+- **現在のフェーズ**: Phase 1〜3（基盤・キャラ演出・創作支援）完了。以降は機能 ID 単位（F-06 Stage B/C・F-10・F-14・F-15 Phase 3・F-17 ほか）で
+  [`_ideas/milestone/`](./_ideas/milestone/) と [`_ideas/future-plan/`](./_ideas/future-plan/) に沿って進める
 
 ---
 
@@ -241,8 +242,8 @@ src/
       timeline.ts             #   homeTimeline リアクションハンドラ
       global-tl.ts            #   グローバルTL ハッシュタグ検出（F-03 / M-D2）
       follow.ts               #   フォローバックハンドラ
-      scheduler.ts            #   時間帯スロット判定ヘルパー
-    ratelimit/                # RateLimiter クラス
+      scheduler.ts            #   Phase 2 の時間帯判定の雛形（どこからも import されていない。消してよい）
+    ratelimit/                # RateLimiter クラス（ゲームの手番継続は全体上限の対象外）
     reactor/                  # 絵文字マップ・感情分類（LLM ハイブリッド）
     responder/                # 発言書式・テンプレート（greeting 等）
     scheduler/
@@ -252,18 +253,23 @@ src/
       task-scheduler.ts       #   F-12 タスク通知配信（5分間隔・remind_at/期日超過/12時間毎の定期催促を配信、MAX_PROCESS_PER_RUN=5・通知キャラはタスク所有ユーザーの会話相手キャラを解決）
   characters/                 # ローカルキャラクター定義の配置先（プレースホルダ）
   features/f06/               # 数字・ヌメロジーコマンド（F-06）
-    index.ts                  #   ハンドラ統合・ゲームディスパッチ
-    slot.ts                   #   数字スロット（D1）
-    poker.ts                  #   ポーカー5枚ドロー（D2a）
+    index.ts                  #   ハンドラ統合・ゲームディスパッチ（数字スロット D1・キャラ番号ルーレット D3-5・牌引き占い D3-4a もここ）
+    calculator.ts             #   数式計算（mathjs ラッパー・厳密値・微分・画像清書用 TeX 変換・表記の相互変換）
+    numerology.ts             #   ライフパス・九星（本命星/月命星・立春補正）・タロット対応表
+    poker.ts                  #   ポーカー5枚ドロー（D2a・1回のみの交換 D3-8）
+    mahjong.ts                #   麻雀配牌チャレンジ（D2c・最大10回のツモ交換 D3-8）
+    mahjong-quiz.ts           #   手役クイズ（D3-4b・固定手牌24件）
     yacht.ts                  #   ヨット5d6（D2b・丸数字/全角数字での振り直し指定対応）
-    hitblow.ts                #   ヒット＆ブロウ（D3・回答ログ絵文字化 D3-6・数字/アルファベット(ワードウルフ風)モード・結果発表限定色ヒント）
+    hitblow.ts                #   ヒット＆ブロウ（D3・回答ログ絵文字化 D3-6・数字/アルファベット(英単語)モード・結果発表限定色ヒント）
     hitblow-words.ts          #   ヒット＆ブロウのアルファベットモード用英単語バンク（安全性確認済み）
     calc-quiz.ts              #   F-16 計算問題チャレンジ（難易度別出題・連続正解/コンティニュー・番号モード・PenchantManufacture 絵文字化）
     dice-color.ts             #   キャラ番号の桁根 → ダイス絵文字色（D3-6）
     responder.ts              #   発言テンプレート・絵文字マップ（Secvier シリーズ）
   features/anniversary.ts     # F-11/F-13 記念日の判定（純関数のみ・CALENDAR_EVENTS 定義・誕生日パース・誕生数）
   features/task/index.ts      # F-12: LLM日時抽出・進捗%計算（タスク別progress反映）・一覧整形・対象特定（丸数字/全角対応）
-  features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ
+  features/typeset.ts         # F-17C: 数式画像の描画（Python を execFile・sha1 キャッシュ）と Drive の一意化
+  features/recovery-notice.ts # 運用: ダウンタイム明けの復旧通知（閾値/上限/クールダウン判定・停止時間はコード算出）
+  features/{creative,numerology,observation,reaction}/  # 将来機能のプレースホルダ（.gitkeep のみ）
   config/                     # 環境変数(env.ts)・定数(constants.ts)
   misskey/client.ts           # Misskey WebSocket クライアントラッパー（メンション処理をユーザー単位で直列化する mentionQueues を含む）
   storage/
@@ -273,16 +279,19 @@ src/
     task.ts                   #   F-12 タスク永続化（同時10件まで・優先度/難易度/期日/通知種別）＋難易度確認ワークフローの確認待ちドラフト（`pending_task_drafts`・TTL10分）
     birthday.ts               #   F-11-A ユーザー誕生日永続化（`user_birthdays`・月日のみ／年は保存しない・いつでも削除可）
     trust.ts                  #   F-12B 信頼度永続化（タスク完了・会話ボーナスでポイント加算、レベル判定）
+    character-affinity.ts     #   F-14 基盤: キャラ別親密度（`character_affinity`・レベル 0/1/2/3・日次上限）
   utils/
     logger.ts                 #   ロガー（ファイル出力対応）
     incident-logger.ts        #   ハラスメント検知時の NDJSON ロガー
     heartbeat.ts              #   ハートビートライター（VM内ウォッチドッグの監視対象）
     text.ts                   #   全角数字・丸数字の正規化ヘルパー（toHalfWidthDigits/matchCircledDigit）
-test/                         # vitest テスト（コンパイル済み `dist` を対象。`npm test` = build → vitest run）
+test/                         # vitest テスト（コンパイル済み `dist` を対象。`npm test` = check:ctrl → build → vitest run）
 docs/                         # 詳細ドキュメント
   architecture.md / development.md / deployment.md
   automation-creations-db-sync.md  # creations-db 分業型同期の仕様
+  rights-and-privacy-review.md # 権利・プライバシー面の精査（2026-10-04）と対応状況
   gcp-cost-cleanup.md         # 旧 VM・ディスクの棚卸し手順（破壊的操作・実行は所有者）
+  deploy-incident-2026-05_investigation.md  # 2026-05 のデプロイ障害の調査記録
   vm-os-upgrade.md / vm-upgrade-2026-07_worklog.md  # 旧 VM(Ubuntu) の移行記録。現行 VM には非適用
   adr/                        # 設計判断の記録（ADR。後から覆すと高くつく判断だけを 1 段落で残す）
 _ideas/
@@ -305,7 +314,13 @@ _tasks/                       # 自動スケジュールタスクの作業ログ
   .archived/                  #   決着済みログの棚卸先（git 管轄外）
 _session-archives/            # 過去の対話アーカイブ（_agent-chats / diary）
 tools/                        # 補助スクリプト（同期検知・サニタイズ・Misskey 取得等）
+  fetch-misskey-notes.mjs     #   Bot の直近投稿を API から取得（`.env` の MISSKEY_HOST/TOKEN を使う）
   fetch-misskey-emojis.mjs    #   インスタンスのカスタム絵文字一覧をダンプ（--filter / --category で絞り込み）
+  fetch-vm-logs.mjs           #   VM の pm2/error/incident ログを SSH で取得（`.env` の GCP_SSH_HOST/USER）
+  check-ctrl.mjs              #   生の制御文字の混入検出（`npm run check:ctrl`・`npm test` の先頭で走る）
+  sanitize-chat-archive.mjs   #   対話アーカイブのパス・ユーザー名の伏字化（`npm run sanitize[:dry]`）
+  check-creations-db-update.sh #  creations-db 追従ゲート（作業 HEAD と記録 gitlink の比較・ネットワーク非依存）
+  setup-creations-db-sparse.sh #  creations-db の sparse-checkout（NumberTales 一次系だけ残す・冪等）
   setup-image-pipeline.sh     #   数式画像パイプラインの取得と venv 構築（冪等・描画スモークテスト付き）
   vm-watchdog.mjs             #   VM内ウォッチドッグ（pm2死活・ハートビート鮮度監視）
   systemd/                    #   ウォッチドッグ用 systemd service/timer 雛形
@@ -348,19 +363,21 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
 | F-04       | TL リアクション（homeTimeline 購読 + カスタム絵文字感情分類）                                    | ✅ 完了     |
 | F-04 改修  | リアクション感情分類の LLM ハイブリッド化（挨拶先行 + LLM 委譲）・`sympathy` カテゴリ追加        | ✅ 実装済み |
 | F-06       | 数字・ヌメロジーコマンド（ヌメロジー相談モード拡張含む）                                          | ✅ 完了     |
+| F-06 Stage B-3 | 月命星: `/tsukimei`・「月命星」で年命星＋月命星を立春・節入り補正つきで算出（`kyuseiPair`）。CW 内に両方の解説 | ✅ 実装済み |
 | F-06 D1    | 数字スロット（Secvier 数字絵文字・役判定: ゾロ目/リーチ/昇順/降順）                              | ✅ 実装済み |
 | F-06 D2a   | ポーカー（5枚ドロー・Secvier トランプ絵文字・10段階役判定）                                      | ✅ 実装済み |
 | F-06 D2b   | ヨット（5d6 最大3回振り直し・Secvier ダイス絵文字・キープ色分け演出）                            | ✅ 実装済み |
-| F-06 D3    | ヒット＆ブロウ（2〜8桁可変・最大10回・`crypto.randomInt` 使用・進行中の条件変更リプライで自動再スタート） | ✅ 実装済み |
+| F-06 D3    | ヒット＆ブロウ（数字 2〜8桁・アルファベット最大15文字・回数上限は max(10, 桁数×2)・`crypto.randomInt` 使用・進行中の条件変更リプライで自動再スタート） | ✅ 実装済み |
 | F-06 D3-6  | 既存3ミニゲームの絵文字UX強化（ヒット＆ブロウ回答ログ絵文字化・ヨット丸数字UI＋出目ベース振り直し＋確認フロー・nDmダイス色付き絵文字表示） | ✅ 実装済み |
 | F-06 D3-7  | ゲーム終了後の継続コマンド対応（「もう一回」等 → `RecentGameStore` で直近ゲームを自動再開・10分間3回まで） | ✅ 実装済み |
-| F-06 D3 改修 | ヒット＆ブロウ拡張: 数字10種/アルファベット26種（ワードウルフ風・実在英単語バンク使用）モード切替、「結果発表のみ色ヒント」オプション（進行中は白固定）、重複時の hit-dup/blow-dup 追加色分け | ✅ 実装済み |
+| F-06 D3 改修 | ヒット＆ブロウ拡張: 数字10種/アルファベット26種（英単語モード・実在英単語バンク使用）モード切替、「結果発表のみ色ヒント」オプション（進行中は白固定）、重複時の hit-dup/blow-dup 追加色分け | ✅ 実装済み |
 | F-06 D3-8  | ポーカー（1回のみのカード交換）・麻雀配牌チャレンジ（最大10回のツモ交換）を `GameSessionStore` ベースのセッション制に拡張、手札/手牌の自動ソート表示 | ✅ 実装済み |
-| F-06 D3-5  | キャラ番号ルーレット: 公開済みキャラクターから1体を一様ランダムに抽選し、番号を抽選キャラ自身の桁根カラー（D3-6のダイス色則を流用）で数字絵文字表示。CW内で「めくり」演出・`Character_JP`を一言添える。セッションなし、D3-7「もう一回」対応 | ✅ 実装済み |
+| F-06 D3-5  | キャラ番号ルーレット: 公開済みキャラクターのうちコアフォルダ絵文字がインスタンスに登録されている個体（週次担当候補と同じ基準。0/00 は 000 と絵文字名が衝突するため除外）から1体を一様ランダムに抽選し、番号を抽選キャラ自身の桁根カラー（D3-6のダイス色則を流用）で数字絵文字表示。CW内で「めくり」演出・`Character_JP`を一言添える。セッションなし、D3-7「もう一回」対応 | ✅ 実装済み |
 | F-06 D3-4a | 牌引き占い: 34種の牌タイプから1〜3枚を重複なしで抽選し、テーマ（萬子=力・意志/筒子=縁・調和/索子=成長・試練/風牌=方向性/三元牌=純粋さ）に沿ったLLM占いコメントを`buildCharacterSystemPrompt()`で生成。CW内「めくり」演出、セッションなし、D3-7「もう一回」対応 | ✅ 実装済み |
 | F-06 D3-4b | 手役クイズ: 固定14枚手牌データ24件（`mahjong-quiz.ts`）から4択（タンヤオ/清一色/混一色/対々和/平和/役牌等）出題、CW内で正解発表。`GameSessionStore`に`mahjong-quiz`セッション種別を新設、並行ゲーム禁止対象・D3-7「もう一回」対応 | ✅ 実装済み |
-| F-06 数式計算強化 | 式と答えを PM 絵文字（墨）で清書しプレーン式を併記（本文上限 3000 のガード付き）、割り切れない答えに分数を併記、天文単位の語彙（lightyear/parsec/au）、自然文「微分して」で微分。縦構造（分数・入れ子の根号・行列）の式は F-17C で画像にする（上限 `TYPESET_MAX_CHARS`=400 字・LLM の前置きと並行描画） | ✅ 実装済み |
+| F-06 数式計算強化 | 式と答えを PM 絵文字（墨）で清書しプレーン式を併記（本文は `CALC_TEXT_LIMIT`=2800 字でガード。インスタンス上限 3000 から余白を引いた値）、割り切れない答えに分数を併記、天文単位の語彙（lightyear/parsec/au）、自然文「微分して」で微分。縦構造（分数・入れ子の根号・行列）の式は F-17C で画像にする（上限 `TYPESET_MAX_CHARS`=400 字・LLM の前置きと並行描画） | ✅ 実装済み |
 | F-17C      | 数式画像の清書基盤: `_calcimage-pipeline/`（Python）を `execFile` で呼び PNG を作る `renderMathPng`（3 秒タイムアウト・`.cache/typeset/<sha1>.png` 再利用）、Drive の一意化（`bot_state` の `driveimg:<sha1>`）、`MisskeyClient.uploadFile` と `reply/post` の `fileIds`。Python 不在・失敗時は null を返し画像なしで投稿する（ADR 0001） | ✅ 実装済み |
+| F-06 / F-17C 修正 | 自然文の式抽出は最長候補（「xについて2xを微分して」に対応）。共通コアフォルダ絵文字 resolver は番号直後を `_` または末尾に限定し、名前・エイリアスで 5/57 等の衝突を防止。画像付き返信の本文のみ再送は `NO_SUCH_FILE` に限り一度だけ（通信障害・5xx・レート制限は再送しない） | ✅ 実装済み |
 | F-16       | 計算問題チャレンジ: 四則演算を難易度4段階（かんたん/ふつう/むずかしい/鬼）で出題。連続正解チャレンジ（3問ごとに難易度+1・**1回だけコンティニューで復活可**・記録にコンティニュー有無を明記）、答えが公開済みキャラ番号になる**ナンバーテールズ番号モード**（正解でキャラ開示）。式は `PenchantManufacture`（理系表記デコ文字）で難易度別の色に描画し、プレーン式も併記。**問題生成と採点は必ずコード側**で行い、**次の問題を含む返信では LLM フレーミングを抑止**（出題時・連続正解時・コンティニュー時。答えの漏洩防止） | ✅ 実装済み |
 | F-16 定期出題 | 毎日 8:00/12:00/16:00/20:00（JST）に公開ノートで出題（かんたん→ふつう(番号)→むずかしい→鬼(番号)）。既存 `PostScheduler.tick()` に分岐を追加（8/16/20時は `TIME_SLOTS` 外のため `getActiveSlot()` 判定より前に置く）。12時は昼スロットと重なるため `lastPostedAt` を更新して昼の自発投稿を抑止。回答は出題ノートへのリプライで受理（1ユーザー1回・複数人可）、正解者は**出題した担当キャラ**の親密度 +1 | ✅ 実装済み |
 | —          | ゲームセッション基盤（`game_sessions` テーブル・TTL 60分・並行ゲーム禁止）                        | ✅ 実装済み |
@@ -393,7 +410,7 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
 | F-15 Phase 1+2 | コアフォルダ形態の機能強化: 身体性コンテキスト注入（球体型55cm・跳ねる/揺れる ↔ キャラ個別 `Height_cm` の人型）、変形シークエンス演出（擬音）、深夜スロットのコアフォルダ連動＋朝の「変形して起動」、跨ぎ演出（身体性プロンプトによる LLM 主導の変形提案）。Phase 3 はアフィニティ依存 | ✅ 実装済み |
 | F-14 基盤  | キャラ別親密度ストア `character_affinity`（`(user_id, char_num)`・レベル 0/1/2/3 = 0/1/10/30・日次上限）＋加算フック（タスク完了 +3・会話ボーナス +1）＋照会コマンド（`affinity-check`）。能力レジストリ本体（78タロット等）は後続 | ✅ 実装済み |
 | —          | ロールプレイ口調の劣化修正（実機バグ 2026-08-30）: 場面指示が LLM の「明るく元気な Bot 声」を誘発し、穏やかな 52(イツギ) が感嘆符連発になる／49(ヨチカ) が主人呼称を落として陽気になる劣化を修正。① スケジューラーの時間帯指示から口調語（「元気でテキパキした口調」等）を撤去し、話題・状況のみに限定 ② `prompt-builder` に口調ガード（盛らない・場面の勢いに引きずられない・主人呼称を守る）を新設し、カード経路と fallback 経路の両方へ適用 ③ コアフォルダ形態の身体性から「ひらがな多め」等の口調上書きを除去（仕草の記述に限定） ④ 数字うんちくが 000(チトセ) 固定プロンプトだったのを担当キャラのプロンプトへ差し替え ⑤ LLM が台詞を鉤括弧ごと返したときに `formatSpeech` の「」と二重になる不具合を、全発話が通る `formatSpeech` 側で一度だけ除去 | ✅ 実装済み |
-| —          | テスト基盤: vitest 導入（`npm test` = build → vitest run、コンパイル済み `dist` を対象）。意図分類の回帰・復旧通知・アフィニティ・ヘボン式・名前ヌメロジー・計測系フィールド解決・口調ガード・発言書式をテストで固定化（6 ファイル / 83 件） | ✅ 実装済み |
+| —          | テスト基盤: vitest 導入（`npm test` = check:ctrl → build → vitest run、コンパイル済み `dist` を対象）。意図分類の回帰・復旧通知・アフィニティ・ヘボン式・名前ヌメロジー・計測系フィールド解決・口調ガード・発言書式をテストで固定化。以後 F-16・F-11/F-13・F-17C・スラッシュコマンド・Misskey クライアント・絵文字番号境界の回帰も追加（2026-10-04 時点 12 ファイル / 221 件。カード経路のテストには `_creations-db` の取得が必要） | ✅ 実装済み |
 | —          | 計測系 DB フィールドの形式ゆれ吸収（`resolveMeasureField`）: `Height_cm`/`Weight_kg`/`ConceptAge` は素の数値だけでなく `{value, about_JP}`・その配列・`{hideText}`（非公開）を取りうる。非公開は出力せず、補足付きは `145cm（通常時）・190cm（筋装備時）` の形へ解決する。F-15 身体性コンテキストで配列形式のキャラが「等身大」へ潰れていた欠落を解消 | ✅ 実装済み |
 | F-12 修正  | タスク追加の願望形の取りこぼしを修正（実機バグ 2026-09-16）: 「「〇〇」のタスクを追加したい」が `TASK_ADD_PATTERNS` の動詞語尾（して/お願い等）に非マッチで雑談へ落ち、LLM が登録のフリだけ返して DB 未書き込みだった。語尾に「したい」を追加 | ✅ 実装済み |
 | —          | ロールプレイ呼称のスラッシュ連結を修正（実機バグ 2026-09-16）: 35(サトコ) が主人呼称を「兄者/姉者」と連結したまま発話。DB カードの「/」区切りは相手に応じた候補列挙のため、`TONE_GUARD_LINES` に「どれか一つだけ選んで一貫使用・連結禁止・不明なら先頭候補」の指示を追加（カード経路・fallback 経路の両方に適用） | ✅ 実装済み |
@@ -406,7 +423,9 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
 
 初期アイデアは [`_rough-idea/`](./_rough-idea/)、詳細仕様・実装計画は [`_ideas/`](./_ideas/) を参照。
 
-- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・月命星・宿曜・姓名判断 — **着手中**（Stage B の算出エンジン＝ヘボン式変換＋7ナンバーは実装済み。B-3/B-4/Stage C と intent 配線が残り、各ナンバーの解釈文は CreationsDB Issue #13 のフィールド追加待ち）
+- **F-06 Stage B/C**: 名前ヌメロジー（枡本つづり式）・宿曜・姓名判断 — **着手中**（B-3 月命星は `develop` に実装済み。
+  Stage B の算出エンジン＝ヘボン式変換＋7ナンバーは **未マージのブランチ `feature/f06-stage-bc`（`345ef64`）にだけ**あり、`develop` には無い。
+  B-4/Stage C と intent 配線が残り、各ナンバーの解釈文は CreationsDB Issue #13 のフィールド追加待ち）
   → [`_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md`](./_ideas/milestone/2026-07-20_milestone_f06-stage-bc-name-numerology.md)
 - **F-10 エンジェルナンバー占い**: milestone 仕様策定済み → [`_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md`](./_ideas/milestone/2026-06-23_milestone_f10-angel-number-fortune.md)
 - **F-14 キャラ固有コマンド**: 一時ゲスト召喚＋能力レジストリ（78タロット等） — **基盤のみ実装済み**
@@ -446,8 +465,17 @@ CONTEXT.md                    # 用語集（数式計算の抽出・評価・清
 
 - 投稿文字数: 日常会話は **100文字以内** を目安、詳細は CW（注釈）内に格納（Misskey の上限はインスタンス依存で最大3000文字程度）
 - カスタム絵文字を積極活用し、AI感を出しすぎない自然な投稿を心がける
-- **ユーザー個人情報の永続保存は行わない**
-- 球体型（55cm）/人型（165cm）のモード切り替えはBot上の演出として活用可
+- **保存契機と削除可否を区別して開示する。** 誕生日（月日・通知先）とタスク（題名・通知先・期日等）は
+  ユーザーの明示登録により永続保存する。誕生日は「誕生日を忘れて」で削除できる。
+  タスクのキャンセルは状態を `cancelled` にするだけで DB の記録は残る（完全削除コマンド・自動削除期限なし）。
+  **信頼度／親密度は opt-in ではない。** 通常会話のボーナス・タスク完了／スケジュール通知・計算問題の正解等で、
+  ユーザー ID（親密度はキャラ番号も）に紐づくポイント・加算日等を SQLite に自動保存する。
+  現状は同意確認・保存停止・ポイント削除コマンド・自動削除期限を持たないため、「忘れて」で削除可能とは案内しない。
+  会話履歴も自動保存し、参照期限は30分、期限切れデータの削除は起動時に行う。
+  フォロイーの投稿を LLM へ送るのは感情分類のためだけで、本文は保存しない。
+  インシデントログはハラスメント検知時の本文とハンドルを記録し、保持期間は運用側で決める
+  （論点の一覧は [docs/rights-and-privacy-review.md](./docs/rights-and-privacy-review.md)）
+- 球体型（コアフォルダ・55cm）/人型（キャラ個別の `Height_cm`。000 は 165cm）のモード切り替えはBot上の演出として活用可
 - 同一フォームへの再切り替え要求では状態説明を繰り返さず、そのフォームのまま自然に会話を継続する
 
 ### 開発スタイル
@@ -591,11 +619,13 @@ VM 側に `dist/` などのローカル変更があると `git pull` が失敗�
 # ✅ 正しい手順（CI と同じ流れ）
 git fetch origin master
 git reset --hard origin/master
-git submodule update --init --recursive
+git submodule update --init --recursive --filter=blob:none || git submodule update --init --recursive
+bash tools/setup-creations-db-sparse.sh   # 一次系だけ残す（冪等）
+bash tools/setup-image-pipeline.sh || true # 数式画像の venv（libcairo2 が無ければ画像なしで続行）
 npm install               # devDependencies 込み（ビルドに必要）
 npm run build
 npm prune --omit=dev      # ビルド後に本番用へ最適化
-pm2 reload ecosystem.config.cjs --env production
+pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
 
 # ❌ 間違い（ローカル変更があるとコンフリクトで止まる）
 git pull origin master

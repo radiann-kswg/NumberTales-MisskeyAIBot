@@ -38,7 +38,7 @@ export const CALENDAR_EVENTS: readonly CalendarEvent[] = [
   { month: 4, day: 1, name: 'エイプリルフール', hint: '数字にまつわる軽い「嘘」ネタ。誰も傷つけない範囲にとどめる話題。' },
   { month: 5, day: 25, name: 'Bot 開発記念日', hint: 'この Bot が動き始めた日。「私が生まれた日」として振り返る話題。' },
   { month: 7, day: 7, name: '七夕', hint: '七夕。7 の意味（精神性・直観）と、星に願いを託す情景。' },
-  { month: 11, day: 11, name: 'ポッキーの日 / エンジェルナンバーの日', hint: 'ゾロ目の 1111 は特別なエンジェルナンバーだという話題。' },
+  { month: 11, day: 11, name: '11月11日（1111 の日）', hint: 'ゾロ目の 1111 は特別なエンジェルナンバーだという話題。' },
   { month: 12, day: 25, name: 'クリスマス', hint: 'クリスマス。2+5=7 で「完成の数字」として一年を締めくくる話題。' },
   { month: 12, day: 31, name: '大晦日', hint: '大晦日。9 のエネルギー（サイクルの完結・手放しと再生）の話題。' },
 ];
@@ -110,9 +110,12 @@ export function isValidMonthDay(month: number, day: number): boolean {
 }
 
 const BIRTHDAY_INPUT_PATTERNS: RegExp[] = [
-  /(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
-  /(\d{1,2})\s*[/／.-]\s*(\d{1,2})/,
+  /(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+  /(\d{1,2})\s*[/／.-]\s*(\d{1,2})/g,
 ];
+
+/** 区切りつきの数字が 3 つ以上並ぶ＝年が混ざっている疑い。月日の取り違えを作らないため読み取らない */
+const AMBIGUOUS_DATE = /\d+\s*[/／.-]\s*\d+\s*[/／.-]\s*\d+/;
 
 /**
  * 自然文から誕生日の月日を抽出する。年は読み取らない（プライバシー方針: 年は保存しない）。
@@ -120,12 +123,14 @@ const BIRTHDAY_INPUT_PATTERNS: RegExp[] = [
  */
 export function parseBirthdayInput(text: string): MonthDay | null {
   const normalized = toHalfWidthDigits(text);
+  if (AMBIGUOUS_DATE.test(normalized)) return null;
   for (const pattern of BIRTHDAY_INPUT_PATTERNS) {
-    const m = pattern.exec(normalized);
-    if (!m) continue;
-    const month = parseInt(m[1]!, 10);
-    const day = parseInt(m[2]!, 10);
-    if (isValidMonthDay(month, day)) return { month, day };
+    // matchAll は正規表現を複製して走査するので lastIndex の持ち越しは起きない
+    for (const m of normalized.matchAll(pattern)) {
+      const month = parseInt(m[1]!, 10);
+      const day = parseInt(m[2]!, 10);
+      if (isValidMonthDay(month, day)) return { month, day };
+    }
   }
   return null;
 }

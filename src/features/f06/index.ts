@@ -104,6 +104,7 @@ import {
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
+import { resolveCoreFolderEmoji } from '../../bot/responder/emoji.js';
 
 export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState, CalcQuizState };
 
@@ -136,7 +137,17 @@ const DATE_PATTERN = /(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?|(\d{8})/;
 const YEAR_PATTERN = /(\d{4})年?/;
 
 // 計算に使えそうな文字列（`x`・`y` は微分の変数用）
-const EXPR_PATTERN = /([0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]{3,})/i;
+const EXPR_CHARS = /[0-9.,+\-*/^()\s√∑sincostanlogsqrtxy]+/gi;
+
+/** 自然文から式を抜く。微分は `2x`・`x` のような短い式も対象（safeDerivative が単一変数を扱えるため） */
+function extractExpr(normalized: string, min: number): string | undefined {
+  let longest: string | undefined;
+  for (const m of normalized.matchAll(EXPR_CHARS)) {
+    const t = m[0].trim();
+    if (t.length >= min && t.length > (longest?.length ?? 0)) longest = t;
+  }
+  return longest;
+}
 
 // スラッシュコマンド: /command [args...]（引数は区切らず 2 番目のグループにまとめる。
 // サブコマンド用のグループを挟むと `/calc 2 + 3` の先頭 `2` が食われて `+ 3` を評価してしまう）
@@ -157,8 +168,7 @@ export function handleCalculate(text: string): F06Result {
     expr = slashMatch[2].trim();
   } else {
     // 自然文から数式を抽出
-    const match = EXPR_PATTERN.exec(normalized);
-    expr = match?.[1]?.trim();
+    expr = extractExpr(normalized, /微分/.test(text) ? 1 : 3);
   }
 
   if (!expr) {
@@ -412,15 +422,29 @@ export function handleSlot(): F06Result {
 // ----------------------------------------------------------------
 
 /**
- * 公開済みキャラクターから1体を一様ランダムに抽選する（D3-5）。
+ * ルーレットで引けるキャラクターか。コアフォルダ絵文字がインスタンスに登録されている個体だけを対象にする
+ * （週次担当の候補選出と同じ基準。絵文字の無いキャラは発言書式も崩れるため引かない）。
+ *
+ * `aphrnts0_corefolder` は 000(チトセ) の絵文字で、0(零)・00(零百) も parseInt で同じ名前に解決されてしまう。
+ * 0 系は 000 だけ通す（2026-10-04・0/00 の released 化で顕在化）。
+ */
+export function isRouletteEligible(character: CharacterRecord): boolean {
+  const num = String(character.Num).trim();
+  if (parseInt(num, 10) === 0 && num !== '000') return false;
+  return resolveCoreFolderEmoji(num) !== null;
+}
+
+/**
+ * 公開済みキャラクターのうちコアフォルダ絵文字を持つ個体から1体を一様ランダムに抽選する（D3-5）。
  * 演出色は抽選キャラ自身の番号の桁根で決める（ダイスロールと同じ色則を流用・`dice-color.ts`）。
  * 結果は CW 内で公開する（数字スロット等と異なり、他のワンショットゲームより「めくり」の演出を重視）。
  */
 export function handleRoulette(characters: CharacterRecord[]): F06Result {
-  if (characters.length === 0) {
+  const pool = characters.filter(isRouletteEligible);
+  if (pool.length === 0) {
     return { text: 'あれ、今引けるキャラクターがいないみたい…また後で試してね。' };
   }
-  const picked = characters[Math.floor(Math.random() * characters.length)]!;
+  const picked = pool[Math.floor(Math.random() * pool.length)]!;
   const num = String(picked.Num);
   const name = (picked.Name_JP ?? picked.Name) || `${num}番機`;
   const color = characterDiceColor(num);
@@ -842,7 +866,7 @@ export interface HitBlowPendingStart {
 
 /**
  * テキストから桁数・重複あり・モードを解析する。
- * アルファベットモードは単語当て（ワードウルフ風）になるため、常に重複ありで行う。
+ * アルファベットモードは単語当て（英単語モード）になるため、常に重複ありで行う。
  * 桁数が範囲外の場合 digits は null。
  * fallbackMode: 進行中セッションの条件変更時、テキストにモード指定（「アルファベット」等）が
  * 含まれない場合に引き継ぐ現在のモード。新規開始時は指定せず、常定の 'digit' のままでよい。

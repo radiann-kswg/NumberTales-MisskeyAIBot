@@ -54,8 +54,11 @@ jobs:
             git reset --hard origin/master
             # サブモジュールを取得。--filter=blob:none で NumberTales 以外の blob を遅延取得にする
             # （新規クローンで他作品のバイトを取得しない。git>=2.36。未対応環境はフルフェッチへフォールバック）
+            # 最後の保険: 画像基盤など新サブモジュールが取れなくても、Bot 本体に必須の _creations-db だけは取って先へ進む
+            # （set -e で止まると npm install / pm2 reload に届かず、デプロイが静かに反映されない）
             git submodule update --init --recursive --filter=blob:none \
-              || git submodule update --init --recursive
+              || git submodule update --init --recursive \
+              || git submodule update --init --filter=blob:none _creations-db
             # _creations-db を NumberTales 一次系（Primary/SemiPrimary）だけに sparse 間引き（冪等・新規VMで自己修復）
             bash tools/setup-creations-db-sparse.sh
             # 数式画像パイプライン（F-17C）の venv。libcairo2 未導入の VM では失敗しても続行する（画像なしで動く）
