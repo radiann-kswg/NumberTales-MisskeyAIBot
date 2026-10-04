@@ -187,6 +187,15 @@ export interface CharacterRecord {
    * Secondary/SemiPrimary の個体がどの Primary 個体と関係を持つかを示す。
    */
   RelationTo_Primary?: CharacterRelation | null;
+  /** バストサイズ（カップ数表記。例: "C"）。v2026-09 追加 */
+  BustSize?: string;
+  /** 画像パス情報（コンセプトアート・コアフォルダ画像等）*/
+  Images?: {
+    /** コンセプトアート PNG のファイル名（拡張子なし）。v2026-09 追加 */
+    concept_PNGName?: string;
+    /** コアフォルダ画像のパス配列 */
+    corefolder_PNGPath?: string[];
+  };
 }
 
 /** CreationsDBClient の最小インターフェース（.mjs に .d.ts が存在しないため手動定義） */
