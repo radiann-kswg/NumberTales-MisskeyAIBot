@@ -42,6 +42,14 @@ describe('キャラ番号ルーレット — 抽選対象はコアフォルダ�
     });
   });
 
+  it('絵文字キャッシュが空のとき全キャラが非対象になる（取得失敗時の安全策）', () => {
+    // setEmojiCache([]) は afterEach で行われるが、ここでは明示的に空を確認する
+    setEmojiCache([]);
+    const all = [chara('5', 'ゴ'), chara('57', 'ゴナ'), chara('000', 'チトセ')];
+    expect(all.filter(isRouletteEligible)).toHaveLength(0);
+    expect(handleRoulette(all).text).toContain('引けるキャラクターがいない');
+  });
+
   it('対象が 1 人もいなければ引けない旨を返す', () => {
     setEmojiCache([emoji('aphrnts57_corefolder')]);
     expect(handleRoulette([chara('99', 'なし')]).text).toContain('引けるキャラクターがいない');

@@ -218,4 +218,4 @@ grep '"level":"error"' .cache/error.log
 | `check-ctrl.mjs` | 生の制御文字の混入検出（`npm test` の先頭） |
 | `sanitize-chat-archive.mjs --dry-run` | 対話アーカイブの伏字化 |
 
-テストは `npm test`（check:ctrl → build → vitest run。コンパイル済み `dist` を対象）。2026-10-04 時点 12 ファイル / 193 件。
+テストは `npm test`（check:ctrl → build → vitest run。コンパイル済み `dist` を対象）。2026-10-04 時点 12 ファイル / 221 件（AGENTS.md と同期済み）。
