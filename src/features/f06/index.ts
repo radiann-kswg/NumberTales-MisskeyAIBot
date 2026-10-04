@@ -104,6 +104,7 @@ import {
 } from './hitblow.js';
 import type { GameSessionStore } from '../../storage/game-session.js';
 import { toHalfWidthDigits } from '../../utils/text.js';
+import { resolveCoreFolderEmoji } from '../../bot/responder/emoji.js';
 
 export type { YachtState, HitBlowState, PokerState, MahjongState, MahjongQuizState, CalcQuizState };
 
@@ -420,15 +421,29 @@ export function handleSlot(): F06Result {
 // ----------------------------------------------------------------
 
 /**
- * 公開済みキャラクターから1体を一様ランダムに抽選する（D3-5）。
+ * ルーレットで引けるキャラクターか。コアフォルダ絵文字がインスタンスに登録されている個体だけを対象にする
+ * （週次担当の候補選出と同じ基準。絵文字の無いキャラは発言書式も崩れるため引かない）。
+ *
+ * `aphrnts0_corefolder` は 000(チトセ) の絵文字で、0(零)・00(零百) も parseInt で同じ名前に解決されてしまう。
+ * 0 系は 000 だけ通す（2026-10-04・0/00 の released 化で顕在化）。
+ */
+export function isRouletteEligible(character: CharacterRecord): boolean {
+  const num = String(character.Num).trim();
+  if (parseInt(num, 10) === 0 && num !== '000') return false;
+  return resolveCoreFolderEmoji(num) !== null;
+}
+
+/**
+ * 公開済みキャラクターのうちコアフォルダ絵文字を持つ個体から1体を一様ランダムに抽選する（D3-5）。
  * 演出色は抽選キャラ自身の番号の桁根で決める（ダイスロールと同じ色則を流用・`dice-color.ts`）。
  * 結果は CW 内で公開する（数字スロット等と異なり、他のワンショットゲームより「めくり」の演出を重視）。
  */
 export function handleRoulette(characters: CharacterRecord[]): F06Result {
-  if (characters.length === 0) {
+  const pool = characters.filter(isRouletteEligible);
+  if (pool.length === 0) {
     return { text: 'あれ、今引けるキャラクターがいないみたい…また後で試してね。' };
   }
-  const picked = characters[Math.floor(Math.random() * characters.length)]!;
+  const picked = pool[Math.floor(Math.random() * pool.length)]!;
   const num = String(picked.Num);
   const name = (picked.Name_JP ?? picked.Name) || `${num}番機`;
   const color = characterDiceColor(num);

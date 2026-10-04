@@ -38,17 +38,18 @@ e6dcc7ff / 0419c781 dependabot（undici 8.11.2・dev-minor-patch）
 
 | 変更 | 影響 |
 | --- | --- |
-| 0(零)・00(零百) が released 化 | `getReleasedCharacters()` に **2 名増える**（released 92 → 94 相当）。(a) 「0番と話したい」で切り替え可能になる（カード `roleplay-prompt-0/00.md` あり）。(b) 週次担当の候補は `FIXED_EXCLUDE_NUMS` に `'0'`/`'00'` が入っているので従来どおり除外。(c) 計算問題の番号モードは `numericCharacterNums` が `value <= 0` を弾くので 0・00 は答えにならない。(d) **キャラ番号ルーレットは released 全員から引く**ため 0・00 も当たり得る。(e) F-11-B は `AnivDay` を持っていれば記念日投稿の対象になる |
+| 0(零)・00(零百) が released 化 | `getReleasedCharacters()` に **2 名増える**（released 92 → 94 相当）。(a) 「0番と話したい」で切り替え可能になる（カード `roleplay-prompt-0/00.md` あり）。(b) 週次担当の候補は `FIXED_EXCLUDE_NUMS` に `'0'`/`'00'` が入っているので従来どおり除外。(c) 計算問題の番号モードは `numericCharacterNums` が `value <= 0` を弾くので 0・00 は答えにならない。(d) **キャラ番号ルーレットは released 全員から引いていた**ため 0・00 も当たり得た（→ 下記のとおり対象を絞った）。(e) F-11-B は `AnivDay` を持っていれば記念日投稿の対象になる |
 | 222A/222B の `ConversationPattern` | SemiPrimary は Bot が読まないため影響なし |
 | `Belonging` / `db_meta` の表記変更 | `loader.ts` は `Belonging` を参照しないため影響なし |
 | 000 の `Summary_JP` 更新 | fallback 経路の「概要メモ」に反映。000 はカード経路なので実質カード側の文面が使われる |
 
-→ **コード変更不要**。ルーレットで 0(零)・00(零百) が出てよいかは演出上の判断なので、クライアント君へ確認事項として残す（除外するなら `handleRoulette` に `FIXED_EXCLUDE_NUMS` 相当の 1 行を足すだけ）。
+→ ルーレットの抽選対象を「コアフォルダ絵文字がインスタンスに登録されている個体」に絞った（`isRouletteEligible`・同日のクライアント君判断）。0/00 は 000 と絵文字名が衝突するため 000 だけ通す。ほかはコード変更不要。
 
 ## 実施した最適化
 
-なし（gitlink の更新のみ）。`tools/setup-creations-db-sparse.sh` は `UP_TO_DATE`（必須パスのアサート通過）。
+- `features/f06/index.ts`: `isRouletteEligible()` を追加し、ルーレットの抽選対象をコアフォルダ絵文字を持つ個体に限定（`test/roulette.test.ts` で固定）。
+- gitlink の更新。`tools/setup-creations-db-sparse.sh` は `UP_TO_DATE`（必須パスのアサート通過）。
 
 ## 検証
 
-- `npm test`: 11 ファイル / 191 件 PASS（新 gitlink の DB を読む `measure-field` / `prompt-builder` 含む）
+- `npm test`: 12 ファイル / 193 件 PASS（新 gitlink の DB を読む `measure-field` / `prompt-builder` 含む）
